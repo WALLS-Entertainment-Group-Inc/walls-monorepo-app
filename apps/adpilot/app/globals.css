@@ -6,29 +6,29 @@
 @source "../components";
 
 :root {
-  --background: #f5f7fa;
+  --background: var(--walls-white);
   --foreground: #0a0a0a;
-  --card: #f5f7fa;
+  --card: var(--walls-white);
   --muted: #737373;
   --muted-foreground: #737373;
   --accent: #f3f3f3;
   --accent-foreground: #0a0a0a;
   --border: #e8e8e8;
   --input: #e8e8e8;
-  --ring-offset-background: #f5f7fa;
+  --ring-offset-background: var(--walls-white);
 }
 
 @theme inline {
-  --color-background: #f5f7fa;
+  --color-background: var(--walls-white);
   --color-foreground: #0a0a0a;
-  --color-card: #f5f7fa;
+  --color-card: var(--walls-white);
   --color-muted: #737373;
   --color-muted-foreground: #737373;
   --color-accent: #f3f3f3;
   --color-accent-foreground: #0a0a0a;
   --color-border: #e8e8e8;
   --color-input: #e8e8e8;
-  --color-ring-offset-background: #f5f7fa;
+  --color-ring-offset-background: var(--walls-white);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -36,7 +36,7 @@
 @layer base {
   html[data-app="adpilot"],
   html[data-app="adpilot"] body {
-    background-color: #f5f7fa;
+    background-color: var(--walls-white);
     color: #0a0a0a;
   }
 

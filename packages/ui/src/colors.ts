@@ -13,6 +13,7 @@ export const wallsColors = {
   red: { DEFAULT: "#d82727", hover: "#b91f1f" },
   sky: { DEFAULT: "#6eadc0", hover: "#5a9ba8" },
   emerald: { DEFAULT: "#8dcf76", hover: "#75b85f" },
+  white: { DEFAULT: "#FCFCFC", hover: "#FCFCFC" },
 } as const;
 
 export type WallsColorName = keyof typeof wallsColors;
@@ -28,6 +29,7 @@ const cssVarNames: Record<WallsColorName, string> = {
   red: "--walls-red",
   sky: "--walls-sky",
   emerald: "--walls-emerald",
+  white: "--walls-white",
 };
 
 /** CSS custom property reference, e.g. `wallsCssVar("yellow")` → `var(--walls-yellow)` */
