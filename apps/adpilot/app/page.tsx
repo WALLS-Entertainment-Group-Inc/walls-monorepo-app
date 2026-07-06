@@ -1,3 +1,5 @@
-export default function DashboardPage() {
-  return <main className="min-h-full flex-1 bg-walls-white" />;
+import { DashboardPage } from "@/components/dashboard/dashboard-page";
+
+export default function Page() {
+  return <DashboardPage />;
 }

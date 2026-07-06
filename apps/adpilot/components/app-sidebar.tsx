@@ -2,7 +2,6 @@
 
 import { useAuth } from "@walls/auth";
 import { Button } from "@walls/ui/button";
-import { ScrollArea } from "@walls/ui/scroll-area";
 import { cn } from "@walls/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -11,6 +10,7 @@ import {
   Image as ImageIcon,
   LayoutDashboard,
   Lock,
+  Settings,
   Target,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +23,7 @@ const navItems = [
   { href: "/campaigns", label: "Campaigns", icon: Target },
   { href: "/creatives", label: "Creatives", icon: ImageIcon },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function AppSidebar() {
@@ -32,7 +33,6 @@ export function AppSidebar() {
     useAppSidebar();
   const isExpanded = !isCollapsed || isHoverExpanded;
 
-  if (pathname === "/") return null;
   if (isLoading) return null;
 
   return (
@@ -44,9 +44,8 @@ export function AppSidebar() {
       onMouseEnter={() => setIsHoverExpanded(true)}
       onMouseLeave={() => setIsHoverExpanded(false)}
     >
-      <div className="relative flex h-full flex-col">
-        <ScrollArea className="flex-1">
-          <div className="space-y-1 p-2 pt-48">
+      <div className="relative flex h-full flex-col overflow-y-auto">
+        <div className="space-y-1 p-2 pt-48">
             <Button
               variant="ghost"
               size="icon"
@@ -186,8 +185,7 @@ export function AppSidebar() {
                 </Button>
               );
             })}
-          </div>
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );

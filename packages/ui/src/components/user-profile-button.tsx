@@ -33,9 +33,9 @@ import { Portal } from "@radix-ui/react-portal";
 const PROFILE_FALLBACK_ICON_URL =
   "https://assets.wallsentertainment.com/logo-variations/black-logo.png";
 
-/** Same hover ring as people-table-toolbar filter/create + notification bell in this file */
-const TOOLBAR_ICON_HOVER_RING =
-  "relative z-10 p-3 rounded-full transition-all duration-300 ease-in-out group-hover:bg-gray-50 group-hover:border group-hover:border-neutral-200 group-hover:scale-95 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]";
+/** Notification bell hover — inset shadow + scale, no border ring */
+const NOTIFICATION_BELL_HOVER =
+  "relative z-10 rounded-full border-0 p-3 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:bg-gray-50 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]";
 
 const AVATAR_SIZE_PX = 44;
 /** Image request size — 2× the display size for retina sharpness. */
@@ -438,10 +438,10 @@ export default function UserProfileButton({
                       e.stopPropagation();
                       setIsNotificationsOpen(true);
                     }}
-                    className="w-10 h-10 p-0 text-slate-600 hover:bg-transparent flex items-center justify-center shadow-none relative group flex-shrink-0"
+                    className="group relative flex h-10 w-10 flex-shrink-0 items-center justify-center border-0 p-0 text-slate-600 shadow-none outline-none ring-0 hover:bg-transparent focus:outline-none focus-visible:ring-0"
                   >
                     <div
-                      className={`${TOOLBAR_ICON_HOVER_RING} flex items-center justify-center overflow-visible`}
+                      className={`${NOTIFICATION_BELL_HOVER} flex items-center justify-center overflow-visible`}
                     >
                       <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-visible">
                         <Bell className="h-[18px] w-[18px] stroke-[1.5] text-neutral-500" />

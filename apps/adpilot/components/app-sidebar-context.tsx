@@ -14,7 +14,7 @@ const AppSidebarContext = React.createContext<AppSidebarContextValue | null>(
 );
 
 export function AppSidebarProvider({ children }: { children: React.ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(true);
   const [isHoverExpanded, setIsHoverExpanded] = React.useState(false);
 
   const value = React.useMemo(
