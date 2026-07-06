@@ -17,6 +17,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { useAppSidebar } from "./app-sidebar-context";
+import {
+  SIDEBAR_TRANSITION,
+  SIDEBAR_WIDTH_COLLAPSED,
+  SIDEBAR_WIDTH_EXPANDED,
+} from "./app-sidebar-constants";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -29,17 +34,17 @@ const navItems = [
 export function AppSidebar() {
   const { isLoading } = useAuth();
   const pathname = usePathname();
-  const { isCollapsed, setIsCollapsed, isHoverExpanded, setIsHoverExpanded } =
+  const { isCollapsed, setIsCollapsed, isHoverExpanded, setIsHoverExpanded, isExpanded } =
     useAppSidebar();
-  const isExpanded = !isCollapsed || isHoverExpanded;
 
   if (isLoading) return null;
 
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 z-40 hidden h-screen bg-transparent transition-all duration-500 ease-in-out md:block",
-        isExpanded ? "w-40" : "w-16",
+        "fixed top-0 left-0 z-40 hidden h-screen bg-transparent md:block",
+        SIDEBAR_TRANSITION,
+        isExpanded ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED,
       )}
       onMouseEnter={() => setIsHoverExpanded(true)}
       onMouseLeave={() => setIsHoverExpanded(false)}

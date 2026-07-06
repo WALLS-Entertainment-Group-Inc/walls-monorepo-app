@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { createWallsMetadata } from "@walls/config/metadata";
 import { PrivateAppChrome } from "@walls/ui/private-app-chrome";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebarLayout } from "@/components/app-sidebar-layout";
 import { Providers } from "@/components/providers";
 
 import "./globals.css";
@@ -46,7 +47,7 @@ export default function RootLayout({
               settingsPath="/settings"
               documentationPath="/documentation"
             />
-            {children}
+            <AppSidebarLayout>{children}</AppSidebarLayout>
           </div>
         </Providers>
       </body>

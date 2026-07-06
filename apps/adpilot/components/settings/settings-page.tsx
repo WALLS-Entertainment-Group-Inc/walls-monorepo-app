@@ -70,7 +70,7 @@ export function SettingsPage() {
   };
 
   return (
-    <main className="min-h-full bg-walls-white px-6 py-8 md:pl-24 md:pr-10 md:py-10">
+    <main className="min-h-full px-6 py-8 md:px-10 md:py-10">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
         <header>
           <p className="text-sm font-light text-neutral-500">Workspace</p>

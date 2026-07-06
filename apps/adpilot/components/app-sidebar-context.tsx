@@ -7,6 +7,8 @@ type AppSidebarContextValue = {
   setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   isHoverExpanded: boolean;
   setIsHoverExpanded: React.Dispatch<React.SetStateAction<boolean>>;
+  /** True when the rail is visually expanded (pinned open or hover). */
+  isExpanded: boolean;
 };
 
 const AppSidebarContext = React.createContext<AppSidebarContextValue | null>(
@@ -16,6 +18,7 @@ const AppSidebarContext = React.createContext<AppSidebarContextValue | null>(
 export function AppSidebarProvider({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = React.useState(true);
   const [isHoverExpanded, setIsHoverExpanded] = React.useState(false);
+  const isExpanded = !isCollapsed || isHoverExpanded;
 
   const value = React.useMemo(
     () => ({
@@ -23,8 +26,9 @@ export function AppSidebarProvider({ children }: { children: React.ReactNode }) 
       setIsCollapsed,
       isHoverExpanded,
       setIsHoverExpanded,
+      isExpanded,
     }),
-    [isCollapsed, isHoverExpanded],
+    [isCollapsed, isHoverExpanded, isExpanded],
   );
 
   return (
