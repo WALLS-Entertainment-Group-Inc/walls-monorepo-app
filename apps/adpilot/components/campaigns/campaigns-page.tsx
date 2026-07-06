@@ -51,6 +51,11 @@ function formatStatus(status: string | null) {
     .join(" ");
 }
 
+function isActiveStatus(status: string | null) {
+  const normalized = (status ?? "").toLowerCase();
+  return normalized === "active" || normalized === "learning";
+}
+
 function getColumns(entityType: CampaignEntityType) {
   const base = [
     "Name",
@@ -327,7 +332,14 @@ export function CampaignsPage() {
           ) : null}
         </div>
 
-        <SectionLabel>Performance — Last 30 days</SectionLabel>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <SectionLabel>Performance — Last 30 days</SectionLabel>
+          {entityType !== "campaign" ? (
+            <span className="text-[11px] font-light uppercase tracking-wider text-neutral-400">
+              Sorted by active · performance
+            </span>
+          ) : null}
+        </div>
 
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-8">
           <table className="w-full min-w-[960px] text-sm">
@@ -390,7 +402,15 @@ export function CampaignsPage() {
                       {row.accountName}
                     </td>
                     <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">
-                      {formatStatus(row.status)}
+                      <span className="inline-flex items-center gap-1.5">
+                        {isActiveStatus(row.status) ? (
+                          <span
+                            className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--walls-sky)]"
+                            aria-hidden
+                          />
+                        ) : null}
+                        {formatStatus(row.status)}
+                      </span>
                     </td>
                     <td className="py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                       <AnimatedMetricValue

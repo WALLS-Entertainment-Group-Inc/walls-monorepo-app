@@ -147,6 +147,34 @@ export function DashboardPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-neutral-50 px-6 py-16">
+        <div className="flex items-center gap-2 text-sm font-light text-neutral-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasLiveConnections) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-neutral-50 px-6">
+        <div className="flex flex-col items-center gap-6 text-center">
+          <p className="text-sm font-light text-neutral-600">No accounts connected</p>
+          <a
+            href="/api/oauth/meta/login"
+            className="inline-flex items-center gap-2 rounded-none border-0 bg-walls-yellow px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-walls-yellow"
+          >
+            <Link2 className="h-4 w-4" strokeWidth={1.5} />
+            Connect Meta
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full bg-neutral-50">
       <div className="space-y-16 px-6 py-8 pb-12 md:px-10 md:py-10">
@@ -159,13 +187,11 @@ export function DashboardPage() {
               AdPilot
             </h1>
             <p className="mt-2 max-w-xl text-sm font-light text-neutral-500">
-              {hasLiveConnections
-                ? isSyncing
-                  ? "Syncing live data from Meta. This can take a minute for larger accounts."
-                  : analytics?.hasData
-                    ? "Live analytics across your connected ad accounts."
-                    : "Meta is connected. Metrics will appear after the first sync completes."
-                : "Connect Meta in Settings to start pulling live ad insights."}
+              {isSyncing
+                ? "Syncing live data from Meta. This can take a minute for larger accounts."
+                : analytics?.hasData
+                  ? "Live analytics across your connected ad accounts."
+                  : "Meta is connected. Metrics will appear after the first sync completes."}
             </p>
           </div>
 
@@ -174,23 +200,21 @@ export function DashboardPage() {
               {periodLabel}
               {isSyncing ? " · Syncing" : null}
             </span>
-            {hasLiveConnections ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={refreshing || isSyncing}
-                onClick={() => void handleRefresh()}
-                className="h-8 rounded-full font-light text-neutral-600 hover:bg-neutral-200/60"
-              >
-                {refreshing || isSyncing ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                )}
-                Refresh
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={refreshing || isSyncing}
+              onClick={() => void handleRefresh()}
+              className="h-8 rounded-full font-light text-neutral-600 hover:bg-neutral-200/60"
+            >
+              {refreshing || isSyncing ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Refresh
+            </Button>
             <Button
               asChild
               variant="ghost"
@@ -237,30 +261,8 @@ export function DashboardPage() {
             transition={{ delay: 0.28 }}
           >
             <SectionLabel>Connected Accounts</SectionLabel>
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-5 animate-pulse rounded-full bg-neutral-200/80"
-                  />
-                ))}
-              </div>
-            ) : metaConnections.length === 0 ? (
-              <div className="space-y-4">
-                <p className="text-sm font-light text-neutral-400">
-                  No Meta accounts connected yet.
-                </p>
-                <Button
-                  asChild
-                  className="rounded-full bg-walls-yellow/90 font-medium text-black hover:bg-walls-yellow"
-                >
-                  <a href="/api/oauth/meta/login">Connect Meta</a>
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3.5">
-                {metaConnections.map((connection, index) => (
+            <div className="space-y-3.5">
+              {metaConnections.map((connection, index) => (
                   <div key={connection.id} className="flex items-center gap-3">
                     <div
                       className="h-2 w-2 flex-shrink-0 rounded-full"
@@ -302,8 +304,7 @@ export function DashboardPage() {
                     Manage connections
                   </Link>
                 </Button>
-              </div>
-            )}
+            </div>
           </motion.div>
 
           <motion.div
@@ -312,16 +313,7 @@ export function DashboardPage() {
             transition={{ delay: 0.32 }}
           >
             <SectionLabel>Account Performance</SectionLabel>
-            {loading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-5 animate-pulse rounded-full bg-neutral-200/80"
-                  />
-                ))}
-              </div>
-            ) : accounts.length === 0 ? (
+            {accounts.length === 0 ? (
               <p className="text-sm font-light text-neutral-400">
                 Connect a Meta ad account to see performance here.
               </p>
@@ -341,7 +333,7 @@ export function DashboardPage() {
                     }
                   />
                 ))}
-                {hasLiveConnections && !analytics?.hasData && !loading ? (
+                {hasLiveConnections && !analytics?.hasData ? (
                   <p className="text-xs font-light text-neutral-400">
                     {isSyncing
                       ? "Waiting for Meta sync. Spend bars will populate when data arrives."

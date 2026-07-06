@@ -49,6 +49,10 @@ export type MetaInsightRow = {
   date_stop?: string;
   campaign_id?: string;
   campaign_name?: string;
+  adset_id?: string;
+  adset_name?: string;
+  ad_id?: string;
+  ad_name?: string;
   impressions?: string;
   clicks?: string;
   spend?: string;
@@ -61,23 +65,30 @@ export type MetaInsightRow = {
   action_values?: Array<{ action_type: string; value: string }>;
 };
 
+export type MetaInsightLevel = "account" | "campaign" | "adset" | "ad";
+
+const INSIGHT_METRIC_FIELDS =
+  "impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions,action_values";
+
+const INSIGHT_FIELDS_BY_LEVEL: Record<MetaInsightLevel, string> = {
+  account: INSIGHT_METRIC_FIELDS,
+  campaign: `campaign_id,campaign_name,${INSIGHT_METRIC_FIELDS}`,
+  adset: `adset_id,adset_name,${INSIGHT_METRIC_FIELDS}`,
+  ad: `ad_id,ad_name,${INSIGHT_METRIC_FIELDS}`,
+};
+
 export async function fetchMetaInsights(
   accountId: string,
   accessToken: string,
-  level: "account" | "campaign",
+  level: MetaInsightLevel,
   since: string,
   until: string,
 ): Promise<MetaInsightRow[]> {
-  const fields =
-    level === "campaign"
-      ? "campaign_id,campaign_name,impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions,action_values"
-      : "impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions,action_values";
-
   return fetchMetaGraphCollection<MetaInsightRow>(
     `${accountId}/insights`,
     accessToken,
     {
-      fields,
+      fields: INSIGHT_FIELDS_BY_LEVEL[level],
       level,
       time_increment: "1",
       time_range: JSON.stringify({ since, until }),

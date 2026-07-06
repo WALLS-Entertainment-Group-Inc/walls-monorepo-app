@@ -172,28 +172,22 @@ export async function upsertMetaConnections(input: {
   if (staleIds.length > 0) {
     const { error } = await admin
       .from("user_connections")
-      .update({
-        revoked_at: now,
-        updated_at: now,
-      })
+      .delete()
       .in("id", staleIds);
 
     if (error) throw error;
   }
 }
 
+/** Removes all Meta connections and cascades ad_entities, ad_metrics_daily, etc. */
 export async function revokeMetaConnection(userId: string) {
   const admin = createAdminClient();
   const { error } = await admin
     .from("user_connections")
-    .update({
-      revoked_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .delete()
     .eq("user_id", userId)
     .eq("provider", META_PROVIDER)
-    .eq("service", META_SERVICE)
-    .is("revoked_at", null);
+    .eq("service", META_SERVICE);
 
   if (error) throw error;
 }

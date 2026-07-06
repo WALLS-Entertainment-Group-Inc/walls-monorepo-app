@@ -83,6 +83,56 @@ function aggregateMetrics(rows: MetricRecord[]) {
   return { ...totals, ctr, roas };
 }
 
+/** Lower rank = shown first. Active delivery wins over paused/archived. */
+function statusRank(status: string | null): number {
+  const normalized = (status ?? "").toLowerCase();
+
+  if (normalized === "active") return 0;
+  if (normalized === "learning" || normalized === "in_process") return 1;
+  if (normalized === "pending_review" || normalized === "pending") return 2;
+  if (normalized === "paused") return 3;
+  if (normalized === "campaign_paused" || normalized === "adset_paused") return 4;
+  if (normalized === "archived") return 5;
+  if (normalized === "deleted" || normalized === "disapproved") return 6;
+
+  return 4;
+}
+
+/** Composite score for ad sets / ads — favors spend with ROAS and conversion efficiency. */
+function performanceScore(row: EntityPerformanceRow): number {
+  const spend = row.spendMicros / 1_000_000;
+  const roas = row.roas ?? 0;
+  const hasDelivery = row.impressions > 0 || spend > 0;
+
+  if (!hasDelivery) return 0;
+
+  return (
+    spend * 1_000 +
+    roas * spend * 250 +
+    row.conversions * 100 +
+    row.ctr * 15 +
+    row.clicks * 2
+  );
+}
+
+function sortEntityRows(
+  left: EntityPerformanceRow,
+  right: EntityPerformanceRow,
+  entityType: CampaignEntityType,
+): number {
+  if (entityType === "campaign") {
+    return right.spendMicros - left.spendMicros;
+  }
+
+  const statusDiff = statusRank(left.status) - statusRank(right.status);
+  if (statusDiff !== 0) return statusDiff;
+
+  const scoreDiff = performanceScore(right) - performanceScore(left);
+  if (scoreDiff !== 0) return scoreDiff;
+
+  return right.spendMicros - left.spendMicros;
+}
+
 export async function listCampaignPerformance(input: {
   userId: string;
   entityType: CampaignEntityType;
@@ -225,7 +275,7 @@ export async function listCampaignPerformance(input: {
     });
   }
 
-  rows.sort((left, right) => right.spendMicros - left.spendMicros);
+  rows.sort((left, right) => sortEntityRows(left, right, input.entityType));
 
   const totalCount = rows.length;
   const pagedRows = rows.slice(page * pageSize, page * pageSize + pageSize);

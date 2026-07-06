@@ -375,6 +375,50 @@ export async function syncMetaConnection(
       });
     }
 
+    const adSetInsights = await fetchMetaInsights(
+      accountId,
+      accessToken,
+      "adset",
+      since,
+      until,
+    );
+
+    for (const row of adSetInsights) {
+      if (!row.date_start || !row.adset_id) continue;
+      const adSetEntityId = entityIds.get(row.adset_id);
+      if (!adSetEntityId) continue;
+
+      await upsertDailyMetrics({
+        userId: connection.user_id,
+        connectionId: connection.id,
+        entityId: adSetEntityId,
+        metricDate: row.date_start,
+        metrics: parseInsightMetrics(row),
+      });
+    }
+
+    const adInsights = await fetchMetaInsights(
+      accountId,
+      accessToken,
+      "ad",
+      since,
+      until,
+    );
+
+    for (const row of adInsights) {
+      if (!row.date_start || !row.ad_id) continue;
+      const adEntityId = entityIds.get(row.ad_id);
+      if (!adEntityId) continue;
+
+      await upsertDailyMetrics({
+        userId: connection.user_id,
+        connectionId: connection.id,
+        entityId: adEntityId,
+        metricDate: row.date_start,
+        metrics: parseInsightMetrics(row),
+      });
+    }
+
     const now = new Date().toISOString();
     await upsertSyncState(connection.id, connection.user_id, {
       sync_status: "idle",
