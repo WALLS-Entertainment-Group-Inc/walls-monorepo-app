@@ -11,12 +11,13 @@ import {
 import { listMetaConnectionsWithTokens } from "./connections-server";
 import type { MetaConnectionRecord } from "@/lib/connections";
 
-const CONVERSION_ACTION_TYPES = [
-  "purchase",
+/** Meta returns overlapping purchase types — pick one, never sum them. */
+const PURCHASE_ACTION_PRIORITY = [
   "omni_purchase",
+  "purchase",
   "offsite_conversion.fb_pixel_purchase",
   "web_in_store_purchase",
-];
+] as const;
 
 type EntityType = "account" | "campaign" | "ad_group" | "ad";
 
@@ -31,24 +32,48 @@ function dollarsToMicros(dollars: string | number | undefined): number {
   return Math.round(value * 1_000_000);
 }
 
-function parseActionTotal(
-  actions: MetaInsightRow["actions"],
-  types: string[],
+function parseFirstActionValue(
+  items: Array<{ action_type: string; value: string }> | undefined,
+  types: readonly string[],
 ): number {
-  if (!actions) return 0;
-  return actions
-    .filter((action) => types.includes(action.action_type))
-    .reduce((sum, action) => sum + (parseFloat(action.value) || 0), 0);
+  if (!items?.length) return 0;
+  for (const type of types) {
+    const match = items.find((item) => item.action_type === type);
+    if (match) {
+      const value = parseFloat(match.value);
+      return Number.isFinite(value) ? value : 0;
+    }
+  }
+  return 0;
+}
+
+function parsePurchaseRoas(row: MetaInsightRow): number | null {
+  if (!row.purchase_roas?.length) return null;
+  for (const type of PURCHASE_ACTION_PRIORITY) {
+    const match = row.purchase_roas.find((item) => item.action_type === type);
+    if (match) {
+      const value = parseFloat(match.value);
+      return Number.isFinite(value) ? value : 0;
+    }
+  }
+  const fallback = parseFloat(row.purchase_roas[0].value);
+  return Number.isFinite(fallback) ? fallback : null;
 }
 
 function parseInsightMetrics(row: MetaInsightRow) {
   const spendMicros = dollarsToMicros(row.spend);
   const conversionValueMicros = dollarsToMicros(
-    parseActionTotal(row.action_values, CONVERSION_ACTION_TYPES),
+    parseFirstActionValue(row.action_values, PURCHASE_ACTION_PRIORITY),
   );
-  const conversions = parseActionTotal(row.actions, CONVERSION_ACTION_TYPES);
+  const conversions = parseFirstActionValue(row.actions, PURCHASE_ACTION_PRIORITY);
   const spend = spendMicros / 1_000_000;
-  const roas = spend > 0 ? conversionValueMicros / 1_000_000 / spend : null;
+  const roasFromApi = parsePurchaseRoas(row);
+  const roas =
+    roasFromApi !== null
+      ? roasFromApi
+      : spend > 0
+        ? conversionValueMicros / 1_000_000 / spend
+        : null;
 
   return {
     impressions: parseInt(row.impressions ?? "0", 10) || 0,

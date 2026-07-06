@@ -63,12 +63,13 @@ export type MetaInsightRow = {
   cpm?: string;
   actions?: Array<{ action_type: string; value: string }>;
   action_values?: Array<{ action_type: string; value: string }>;
+  purchase_roas?: Array<{ action_type: string; value: string }>;
 };
 
 export type MetaInsightLevel = "account" | "campaign" | "adset" | "ad";
 
 const INSIGHT_METRIC_FIELDS =
-  "impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions,action_values";
+  "impressions,clicks,spend,reach,frequency,ctr,cpc,cpm,actions,action_values,purchase_roas";
 
 const INSIGHT_FIELDS_BY_LEVEL: Record<MetaInsightLevel, string> = {
   account: INSIGHT_METRIC_FIELDS,
