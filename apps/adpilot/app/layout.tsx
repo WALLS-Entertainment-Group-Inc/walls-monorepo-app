@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { createWallsMetadata } from "@walls/config/metadata";
-import { PrivateAppChrome } from "@walls/ui/private-app-chrome";
 import { AppSidebarLayout } from "@/components/app-sidebar-layout";
+import { AppTopChrome } from "@/components/app-top-chrome";
 import { Providers } from "@/components/providers";
 
 import "./globals.css";
@@ -35,22 +35,17 @@ export default function RootLayout({
     <html
       lang="en"
       data-app="adpilot"
-      className={`${geistSans.variable} ${geistMono.variable} h-full bg-background antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden bg-background antialiased`}
     >
       <body className="h-screen overflow-hidden bg-walls-white text-foreground">
         <div className="h-full overscroll-none overflow-hidden">
           <Providers>
-            <AppSidebarLayout
-              chrome={
-                <PrivateAppChrome
-                  dashboardPath="/"
-                  settingsPath="/settings"
-                  documentationPath="/documentation"
-                />
-              }
-            >
-              {children}
-            </AppSidebarLayout>
+            <AppTopChrome
+              dashboardPath="/"
+              settingsPath="/settings"
+              documentationPath="/documentation"
+            />
+            <AppSidebarLayout>{children}</AppSidebarLayout>
           </Providers>
         </div>
       </body>

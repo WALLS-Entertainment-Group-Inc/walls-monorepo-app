@@ -42,6 +42,8 @@
 @layer base {
   html[data-app="adpilot"],
   html[data-app="adpilot"] body {
+    height: 100%;
+    overflow: hidden;
     background-color: var(--walls-white);
     color: #0a0a0a;
   }
