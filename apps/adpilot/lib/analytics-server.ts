@@ -8,6 +8,7 @@ import {
   formatPercent,
   formatRoas,
 } from "@/lib/format-analytics";
+import { ZERO_DASHBOARD_STATS, ZERO_WEEKLY_BARS } from "@/lib/dashboard-defaults";
 
 export type DashboardStat = {
   label: string;
@@ -106,7 +107,11 @@ function buildWeeklyBars(rows: MetricRow[]): DashboardWeekBar[] {
     });
   }
 
-  const maxSpend = Math.max(...weeks.map((week) => week.spendMicros), 1);
+  const maxSpend = Math.max(...weeks.map((week) => week.spendMicros), 0);
+  if (maxSpend === 0) {
+    return weeks.map((week) => ({ ...week, value: 0 }));
+  }
+
   return weeks.map((week) => ({
     ...week,
     value: Math.max(8, Math.round((week.spendMicros / maxSpend) * 100)),
@@ -158,8 +163,8 @@ export async function getDashboardAnalytics(
       periodLabel: "Last 30 days",
       syncing,
       hasData: false,
-      stats: [],
-      spendByWeek: buildWeeklyBars([]),
+      stats: [...ZERO_DASHBOARD_STATS],
+      spendByWeek: [...ZERO_WEEKLY_BARS],
       accounts: [],
     };
   }

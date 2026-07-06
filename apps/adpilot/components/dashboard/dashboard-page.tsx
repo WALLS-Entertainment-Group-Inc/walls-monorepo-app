@@ -20,7 +20,9 @@ import { cn } from "@walls/utils";
 
 import type { DashboardAnalytics } from "@/lib/analytics-server";
 import { META_PROVIDER, META_SERVICE, type SafeUserConnection } from "@/lib/connections";
-import { FAUX_ANALYTICS } from "@/lib/faux-analytics";
+import { ZERO_DASHBOARD_STATS, ZERO_WEEKLY_BARS } from "@/lib/dashboard-defaults";
+
+import { AnimatedMetricValue } from "./animated-metric-value";
 
 function formatConnectionLabel(connection: SafeUserConnection) {
   const accountName = connection.token_payload?.account_name;
@@ -89,15 +91,31 @@ export function DashboardPage() {
     autoSyncStarted.current = true;
     void fetch("/api/sync/meta", { method: "POST" }).then(() => loadDashboard());
   }, [loading, hasLiveConnections, analytics, loadDashboard]);
-  const useLiveAnalytics = hasLiveConnections && analytics?.hasData;
-  const isSyncing = analytics?.syncing ?? false;
 
-  const stats = useLiveAnalytics ? analytics.stats : FAUX_ANALYTICS.stats;
-  const spendByWeek = useLiveAnalytics
-    ? analytics.spendByWeek
-    : FAUX_ANALYTICS.spendByWeek;
-  const accounts = useLiveAnalytics ? analytics.accounts : FAUX_ANALYTICS.accounts;
-  const periodLabel = analytics?.periodLabel ?? FAUX_ANALYTICS.periodLabel;
+  const isSyncing = analytics?.syncing ?? false;
+  const stats = analytics?.stats ?? [...ZERO_DASHBOARD_STATS];
+  const spendByWeek = analytics?.spendByWeek ?? [...ZERO_WEEKLY_BARS];
+  const periodLabel = analytics?.periodLabel ?? "Last 30 days";
+
+  const accounts = React.useMemo(() => {
+    if (analytics?.accounts && analytics.accounts.length > 0) {
+      return analytics.accounts;
+    }
+
+    if (hasLiveConnections) {
+      return metaConnections.map((connection) => ({
+        id: connection.id,
+        name: formatConnectionLabel(connection),
+        platform: "Meta",
+        spend: "$0",
+        impressions: "0",
+        ctr: "0.00%",
+        status: isSyncing ? "Syncing" : "Connected",
+      }));
+    }
+
+    return [];
+  }, [analytics?.accounts, hasLiveConnections, metaConnections, isSyncing]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -122,16 +140,15 @@ export function DashboardPage() {
               {hasLiveConnections
                 ? isSyncing
                   ? "Syncing live data from Meta. This can take a minute for larger accounts."
-                  : useLiveAnalytics
+                  : analytics?.hasData
                     ? "Live analytics across your connected ad accounts."
-                    : "Meta is connected. Initial sync is running or no spend data was found yet."
-                : "Connect Meta in Settings to replace sample data with live insights."}
+                    : "Meta is connected. Metrics will appear here after the first sync completes."
+                : "Connect Meta in Settings to start pulling live ad insights."}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-xs font-light text-neutral-600">
               {periodLabel}
-              {!useLiveAnalytics && " · Sample"}
               {isSyncing && " · Syncing"}
             </span>
             {hasLiveConnections && (
@@ -173,7 +190,7 @@ export function DashboardPage() {
                 <p className="text-sm font-light text-neutral-500">{stat.label}</p>
                 <div className="mt-3 flex items-end justify-between gap-3">
                   <p className="text-3xl font-semibold tracking-tight text-foreground">
-                    {stat.value}
+                    <AnimatedMetricValue value={stat.value} />
                   </p>
                   <span
                     className={cn(
@@ -304,9 +321,21 @@ export function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((account) => (
+                {accounts.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-3 py-8 text-center text-sm font-light text-neutral-500"
+                    >
+                      {loading
+                        ? "Loading accounts…"
+                        : "Connect a Meta ad account to see performance here."}
+                    </td>
+                  </tr>
+                ) : (
+                  accounts.map((account) => (
                   <tr
-                    key={"id" in account ? account.id : account.name}
+                    key={account.id}
                     className="border-b border-neutral-200/50 last:border-0"
                   >
                     <td className="px-3 py-4 font-medium text-foreground">
@@ -318,19 +347,19 @@ export function DashboardPage() {
                     <td className="px-3 py-4 font-light text-neutral-700">
                       <span className="inline-flex items-center gap-1">
                         <CircleDollarSign className="h-3.5 w-3.5" />
-                        {account.spend}
+                        <AnimatedMetricValue value={account.spend} />
                       </span>
                     </td>
                     <td className="px-3 py-4 font-light text-neutral-700">
                       <span className="inline-flex items-center gap-1">
                         <Eye className="h-3.5 w-3.5" />
-                        {account.impressions}
+                        <AnimatedMetricValue value={account.impressions} />
                       </span>
                     </td>
                     <td className="px-3 py-4 font-light text-neutral-700">
                       <span className="inline-flex items-center gap-1">
                         <MousePointerClick className="h-3.5 w-3.5" />
-                        {account.ctr}
+                        <AnimatedMetricValue value={account.ctr} />
                       </span>
                     </td>
                     <td className="px-3 py-4">
@@ -339,14 +368,15 @@ export function DashboardPage() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
-            {!useLiveAnalytics && (
+            {hasLiveConnections && !analytics?.hasData && !loading && (
               <p className="mt-4 px-3 text-xs font-light text-neutral-500">
-                {hasLiveConnections
-                  ? "Waiting for Meta sync to finish. Sample rows shown until live metrics are available."
-                  : "Sample performance rows shown until Meta accounts are connected."}
+                {isSyncing
+                  ? "Waiting for Meta sync to finish. Values start at zero until data arrives."
+                  : "No spend recorded in the last 30 days for connected accounts."}
               </p>
             )}
           </CardContent>
