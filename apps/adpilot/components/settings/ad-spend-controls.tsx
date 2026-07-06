@@ -21,7 +21,7 @@ import {
   getProjectedWeeklyUplift,
   getRiskScore,
   PACING_OPTIONS,
-  type SpendPacing,
+  type SpendSettings,
 } from "@/lib/faux-spend-controls";
 
 function Toggle({
@@ -113,7 +113,7 @@ function SliderField({
 }
 
 export function AdSpendControls() {
-  const [settings, setSettings] = React.useState(FAUX_SPEND_DEFAULTS);
+  const [settings, setSettings] = React.useState<SpendSettings>(FAUX_SPEND_DEFAULTS);
   const [saved, setSaved] = React.useState(false);
 
   const update = <K extends keyof typeof settings>(
@@ -317,7 +317,7 @@ export function AdSpendControls() {
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => update("pacing", option.value as SpendPacing)}
+                    onClick={() => update("pacing", option.value)}
                     className={cn(
                       "rounded-[20px] border px-3 py-3 text-left transition-colors",
                       settings.pacing === option.value

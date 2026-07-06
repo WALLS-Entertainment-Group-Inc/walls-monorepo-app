@@ -1,4 +1,19 @@
-export const FAUX_SPEND_DEFAULTS = {
+export type SpendPacing = "even" | "standard" | "accelerated";
+
+export type SpendSettings = {
+  autoScaling: boolean;
+  aggressiveness: number;
+  maxDailyIncreasePct: number;
+  scaleUpCapPct: number;
+  roasFloor: number;
+  cpaCeiling: number;
+  cooldownHours: number;
+  pacing: SpendPacing;
+  learningPhaseProtection: boolean;
+  pauseOnFatigue: boolean;
+};
+
+export const FAUX_SPEND_DEFAULTS: SpendSettings = {
   autoScaling: true,
   aggressiveness: 62,
   maxDailyIncreasePct: 18,
@@ -6,12 +21,10 @@ export const FAUX_SPEND_DEFAULTS = {
   roasFloor: 2.4,
   cpaCeiling: 42,
   cooldownHours: 24,
-  pacing: "standard" as const,
+  pacing: "standard",
   learningPhaseProtection: true,
   pauseOnFatigue: true,
 };
-
-export type SpendPacing = "even" | "standard" | "accelerated";
 
 export const PACING_OPTIONS: { value: SpendPacing; label: string; hint: string }[] = [
   { value: "even", label: "Even", hint: "Spread budget evenly across the day" },

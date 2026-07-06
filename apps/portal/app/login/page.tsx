@@ -20,7 +20,15 @@ import { Separator } from "@walls/ui/separator";
 import { useRedirectAfterLogin } from "@/hooks/useRedirectAfterLogin";
 import { publicSitePath } from "@/lib/urls";
 
-export default function LoginPage() {
+function LoginPageFallback() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-gray-50">
+      <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
+    </div>
+  );
+}
+
+function LoginPageContent() {
   const [hasLogged, setHasLogged] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -678,5 +686,13 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </React.Suspense>
   );
 }
