@@ -1,6 +1,7 @@
 import { createClient } from "@walls/supabase/server";
 
 import { META_PROVIDER } from "@/lib/connections";
+import { isSalesObjective } from "@/lib/meta-objectives";
 
 export type CampaignEntityType = "campaign" | "ad_group" | "ad";
 
@@ -16,7 +17,8 @@ export type EntityPerformanceRow = {
   spendMicros: number;
   impressions: number;
   clicks: number;
-  conversions: number;
+  websitePurchases: number | null;
+  conversionValueMicros: number;
   ctr: number;
   roas: number | null;
   lastSyncedAt: string | null;
@@ -53,8 +55,8 @@ type MetricRecord = {
   spend_micros: number;
   impressions: number;
   clicks: number;
-  conversions: number;
   conversion_value_micros: number;
+  website_purchases: number;
 };
 
 function aggregateMetrics(rows: MetricRecord[]) {
@@ -62,16 +64,16 @@ function aggregateMetrics(rows: MetricRecord[]) {
     spend_micros: 0,
     impressions: 0,
     clicks: 0,
-    conversions: 0,
     conversion_value_micros: 0,
+    website_purchases: 0,
   };
 
   for (const row of rows) {
     totals.spend_micros += row.spend_micros ?? 0;
     totals.impressions += row.impressions ?? 0;
     totals.clicks += row.clicks ?? 0;
-    totals.conversions += Number(row.conversions ?? 0);
     totals.conversion_value_micros += row.conversion_value_micros ?? 0;
+    totals.website_purchases += Number(row.website_purchases ?? 0);
   }
 
   const spend = totals.spend_micros / 1_000_000;
@@ -81,6 +83,29 @@ function aggregateMetrics(rows: MetricRecord[]) {
     spend > 0 ? totals.conversion_value_micros / 1_000_000 / spend : null;
 
   return { ...totals, ctr, roas };
+}
+
+function resolveTracksWebsitePurchases(
+  entity: EntityRecord,
+  campaignObjectiveById: Map<string, string | null>,
+  adGroupToCampaignId: Map<string, string>,
+): boolean {
+  if (entity.entity_type === "campaign") {
+    return isSalesObjective(entity.objective);
+  }
+
+  if (entity.entity_type === "ad_group") {
+    const campaignId = entity.parent_id;
+    return campaignId
+      ? isSalesObjective(campaignObjectiveById.get(campaignId) ?? null)
+      : false;
+  }
+
+  const adGroupId = entity.parent_id;
+  const campaignId = adGroupId ? adGroupToCampaignId.get(adGroupId) : undefined;
+  return campaignId
+    ? isSalesObjective(campaignObjectiveById.get(campaignId) ?? null)
+    : false;
 }
 
 /** Lower rank = shown first. Active delivery wins over paused/archived. */
@@ -109,7 +134,7 @@ function performanceScore(row: EntityPerformanceRow): number {
   return (
     spend * 1_000 +
     roas * spend * 250 +
-    row.conversions * 100 +
+    (row.websitePurchases ?? 0) * 100 +
     row.ctr * 15 +
     row.clicks * 2
   );
@@ -150,18 +175,25 @@ export async function listCampaignPerformance(input: {
   currentStart.setDate(currentStart.getDate() - 30);
   const currentStartIso = currentStart.toISOString().slice(0, 10);
 
-  const [{ data: accountEntities }, { data: syncStates }] = await Promise.all([
-    supabase
-      .from("ad_entities")
-      .select("id, name, user_connection_id")
-      .eq("user_id", input.userId)
-      .eq("provider", META_PROVIDER)
-      .eq("entity_type", "account"),
-    supabase
-      .from("ad_sync_state")
-      .select("sync_status")
-      .eq("user_id", input.userId),
-  ]);
+  const [{ data: accountEntities }, { data: syncStates }, { data: campaigns }] =
+    await Promise.all([
+      supabase
+        .from("ad_entities")
+        .select("id, name, user_connection_id")
+        .eq("user_id", input.userId)
+        .eq("provider", META_PROVIDER)
+        .eq("entity_type", "account"),
+      supabase
+        .from("ad_sync_state")
+        .select("sync_status")
+        .eq("user_id", input.userId),
+      supabase
+        .from("ad_entities")
+        .select("id, objective")
+        .eq("user_id", input.userId)
+        .eq("provider", META_PROVIDER)
+        .eq("entity_type", "campaign"),
+    ]);
 
   const accounts: CampaignAccountOption[] = (accountEntities ?? []).map(
     (account) => ({
@@ -173,6 +205,13 @@ export async function listCampaignPerformance(input: {
 
   const accountNameByConnection = new Map(
     accounts.map((account) => [account.userConnectionId, account.name]),
+  );
+
+  const campaignObjectiveById = new Map<string, string | null>(
+    (campaigns ?? []).map((campaign) => [
+      campaign.id as string,
+      (campaign.objective as string | null) ?? null,
+    ]),
   );
 
   const selectedAccount = input.accountId
@@ -213,14 +252,33 @@ export async function listCampaignPerformance(input: {
   ) as string[];
 
   const parentNameById = new Map<string, string>();
+  const adGroupToCampaignId = new Map<string, string>();
+
   if (parentIds.length > 0) {
     const { data: parents } = await supabase
       .from("ad_entities")
-      .select("id, name")
+      .select("id, name, entity_type, parent_id")
       .in("id", parentIds);
 
     for (const parent of parents ?? []) {
       parentNameById.set(parent.id as string, (parent.name as string) ?? "—");
+      if (parent.entity_type === "ad_group" && parent.parent_id) {
+        adGroupToCampaignId.set(parent.id as string, parent.parent_id as string);
+      }
+    }
+  }
+
+  if (input.entityType === "ad" && parentIds.length > 0) {
+    const { data: adGroups } = await supabase
+      .from("ad_entities")
+      .select("id, parent_id")
+      .eq("entity_type", "ad_group")
+      .in("id", parentIds);
+
+    for (const adGroup of adGroups ?? []) {
+      if (adGroup.parent_id) {
+        adGroupToCampaignId.set(adGroup.id as string, adGroup.parent_id as string);
+      }
     }
   }
 
@@ -228,7 +286,7 @@ export async function listCampaignPerformance(input: {
   const { data: metrics } = await supabase
     .from("ad_metrics_daily")
     .select(
-      "entity_id, spend_micros, impressions, clicks, conversions, conversion_value_micros",
+      "entity_id, spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
     )
     .in("entity_id", entityIds)
     .gte("metric_date", currentStartIso);
@@ -242,6 +300,11 @@ export async function listCampaignPerformance(input: {
 
   let rows: EntityPerformanceRow[] = entityList.map((entity) => {
     const totals = aggregateMetrics(metricsByEntity.get(entity.id) ?? []);
+    const tracksWebsitePurchases = resolveTracksWebsitePurchases(
+      entity,
+      campaignObjectiveById,
+      adGroupToCampaignId,
+    );
 
     return {
       id: entity.id,
@@ -258,7 +321,8 @@ export async function listCampaignPerformance(input: {
       spendMicros: totals.spend_micros,
       impressions: totals.impressions,
       clicks: totals.clicks,
-      conversions: totals.conversions,
+      websitePurchases: tracksWebsitePurchases ? totals.website_purchases : null,
+      conversionValueMicros: totals.conversion_value_micros,
       ctr: totals.ctr,
       roas: totals.roas,
       lastSyncedAt: entity.last_synced_at,

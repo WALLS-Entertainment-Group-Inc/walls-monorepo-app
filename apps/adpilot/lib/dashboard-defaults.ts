@@ -3,6 +3,8 @@ export const ZERO_DASHBOARD_STATS = [
   { label: "Impressions", value: "0", change: "—", positive: true },
   { label: "CTR", value: "0.00%", change: "—", positive: true },
   { label: "ROAS", value: "—", change: "—", positive: true },
+  { label: "Website purchases", value: "—", change: "—", positive: true },
+  { label: "Purchase value", value: "—", change: "—", positive: true },
 ] as const;
 
 function buildPreviewSpendCurve(): Array<{

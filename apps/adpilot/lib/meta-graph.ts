@@ -93,6 +93,7 @@ export async function fetchMetaInsights(
       level,
       time_increment: "1",
       time_range: JSON.stringify({ since, until }),
+      use_unified_attribution_setting: "true",
     },
   );
 }

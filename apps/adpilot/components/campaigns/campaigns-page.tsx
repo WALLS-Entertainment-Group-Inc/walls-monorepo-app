@@ -25,13 +25,47 @@ import {
   formatCompactNumber,
   formatCurrencyFromMicros,
   formatPercent,
+  formatResultCount,
   formatRoas,
 } from "@/lib/format-analytics";
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import { SectionLabel } from "@/components/dashboard/dashboard-metrics";
+import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
+import { SegmentToggle } from "@/components/ui/segment-toggle";
 
 const PAGE_SIZE = 25;
+const COLUMN_WIDTHS_STORAGE_KEY = "adpilot-campaigns-column-widths";
+
+const CAMPAIGN_COLUMN_IDS = [
+  "name",
+  "context",
+  "account",
+  "status",
+  "spend",
+  "websitePurchases",
+  "purchaseValue",
+  "impressions",
+  "clicks",
+  "ctr",
+  "roas",
+] as const;
+
+type CampaignColumnId = (typeof CAMPAIGN_COLUMN_IDS)[number];
+
+const DEFAULT_CAMPAIGN_COLUMN_WIDTHS: Record<CampaignColumnId, number> = {
+  name: 220,
+  context: 160,
+  account: 140,
+  status: 120,
+  spend: 104,
+  websitePurchases: 132,
+  purchaseValue: 124,
+  impressions: 112,
+  clicks: 80,
+  ctr: 72,
+  roas: 72,
+};
 
 const ENTITY_TABS: Array<{
   value: CampaignEntityType;
@@ -42,6 +76,58 @@ const ENTITY_TABS: Array<{
   { value: "ad_group", label: "Ad sets", icon: Layers },
   { value: "ad", label: "Ads", icon: Shapes },
 ];
+
+function columnLabel(id: CampaignColumnId, entityType: CampaignEntityType): string {
+  const labels: Record<CampaignColumnId, string> = {
+    name: "Name",
+    context: entityType === "campaign" ? "Objective" : "Parent",
+    account: "Account",
+    status: "Status",
+    spend: "Spend",
+    websitePurchases: "Website purchases",
+    purchaseValue: "Purchase value",
+    impressions: "Impressions",
+    clicks: "Clicks",
+    ctr: "CTR",
+    roas: "ROAS",
+  };
+  return labels[id];
+}
+
+function ResizableHeader({
+  columnId,
+  label,
+  width,
+  indented,
+  onResizeStart,
+}: {
+  columnId: CampaignColumnId;
+  label: string;
+  width: number;
+  indented?: boolean;
+  onResizeStart: (columnId: CampaignColumnId, startX: number) => void;
+}) {
+  return (
+    <th
+      className={cn(
+        "relative bg-walls-white pb-3 pr-4 text-left text-xs font-medium tracking-wide whitespace-nowrap text-neutral-400 uppercase select-none",
+        indented && "pl-3",
+      )}
+      style={{ width }}
+    >
+      <span className="block truncate pr-3">{label}</span>
+      <button
+        type="button"
+        aria-label={`Resize ${label} column`}
+        className="absolute top-0 right-0 z-20 h-full w-3 cursor-col-resize touch-none border-none bg-transparent p-0 after:absolute after:inset-y-2 after:right-1 after:w-px after:bg-neutral-200 hover:after:bg-neutral-400"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          onResizeStart(columnId, event.clientX);
+        }}
+      />
+    </th>
+  );
+}
 
 function formatStatus(status: string | null) {
   if (!status) return "—";
@@ -56,21 +142,6 @@ function isActiveStatus(status: string | null) {
   return normalized === "active" || normalized === "learning";
 }
 
-function getColumns(entityType: CampaignEntityType) {
-  const base = [
-    "Name",
-    entityType === "campaign" ? "Objective" : "Parent",
-    "Account",
-    "Status",
-    "Spend",
-    "Impressions",
-    "Clicks",
-    "CTR",
-    "ROAS",
-  ];
-  return base;
-}
-
 export function CampaignsPage() {
   const [entityType, setEntityType] = React.useState<CampaignEntityType>("campaign");
   const [rows, setRows] = React.useState<EntityPerformanceRow[]>([]);
@@ -83,9 +154,12 @@ export function CampaignsPage() {
   const [accountFilter, setAccountFilter] = React.useState("");
   const [accountFilterOpen, setAccountFilterOpen] = React.useState(false);
   const accountFilterRef = React.useRef<HTMLDivElement>(null);
+  const { widths, startResize, tableMinWidth } = useResizableColumns(
+    DEFAULT_CAMPAIGN_COLUMN_WIDTHS,
+    COLUMN_WIDTHS_STORAGE_KEY,
+  );
 
-  const columns = getColumns(entityType);
-  const colCount = columns.length;
+  const colCount = CAMPAIGN_COLUMN_IDS.length;
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -147,7 +221,7 @@ export function CampaignsPage() {
     : "All accounts";
 
   return (
-    <div className="flex min-h-full flex-col bg-neutral-50">
+    <div className="flex min-h-full flex-col bg-walls-white">
       <div className="flex flex-1 flex-col px-6 py-8 md:px-10 md:py-10">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -157,11 +231,11 @@ export function CampaignsPage() {
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 md:text-3xl">
               Campaigns
             </h1>
-            <p className="mt-2 max-w-2xl text-sm font-light text-neutral-500">
-              {syncing
-                ? "Syncing from Meta. New campaigns and ads will appear as data arrives."
-                : "Browse campaign, ad set, and ad performance from your connected Meta accounts."}
-            </p>
+            {syncing ? (
+              <p className="mt-2 max-w-2xl text-sm font-light text-neutral-500">
+                Syncing from Meta. New campaigns and ads will appear as data arrives.
+              </p>
+            ) : null}
           </div>
           <Button
             asChild
@@ -173,27 +247,26 @@ export function CampaignsPage() {
           </Button>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2">
-          {ENTITY_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const active = entityType === tab.value;
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => setEntityType(tab.value)}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-light uppercase tracking-wider transition-colors",
-                  active
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600 hover:bg-neutral-200/70",
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {tab.label}
-              </button>
-            );
-          })}
+        <div className="mb-6">
+          <SegmentToggle
+            equalWidth
+            aria-label="Campaign entity type"
+            value={entityType}
+            onChange={setEntityType}
+            options={ENTITY_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return {
+                value: tab.value,
+                label: tab.label,
+                icon: (
+                  <Icon
+                    className="h-3.5 w-3.5 shrink-0 text-neutral-400"
+                    strokeWidth={1.5}
+                  />
+                ),
+              };
+            })}
+          />
         </div>
 
         <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -341,17 +414,27 @@ export function CampaignsPage() {
           ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-8">
-          <table className="w-full min-w-[960px] text-sm">
-            <thead className="sticky top-0 z-10 border-b border-neutral-100 bg-gray-50">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-8 scrollbar-hide">
+          <table
+            className="w-full table-fixed text-sm"
+            style={{ minWidth: tableMinWidth }}
+          >
+            <colgroup>
+              {CAMPAIGN_COLUMN_IDS.map((columnId) => (
+                <col key={columnId} style={{ width: widths[columnId] }} />
+              ))}
+            </colgroup>
+            <thead className="sticky top-0 z-10 border-b border-neutral-100 bg-walls-white">
               <tr>
-                {columns.map((column) => (
-                  <th
-                    key={column}
-                    className="bg-gray-50 pr-4 pb-3 text-left text-xs font-medium tracking-wide whitespace-nowrap text-neutral-400 uppercase"
-                  >
-                    {column}
-                  </th>
+                {CAMPAIGN_COLUMN_IDS.map((columnId, index) => (
+                  <ResizableHeader
+                    key={columnId}
+                    columnId={columnId}
+                    label={columnLabel(columnId, entityType)}
+                    width={widths[columnId]}
+                    indented={index > 0}
+                    onResizeStart={startResize}
+                  />
                 ))}
               </tr>
             </thead>
@@ -386,22 +469,22 @@ export function CampaignsPage() {
                     transition={{ delay: index * 0.015 }}
                     className="border-b border-neutral-50 transition-colors hover:bg-neutral-50/60"
                   >
-                    <td className="max-w-[220px] py-4 pr-4">
+                    <td className="overflow-hidden py-4 pr-4">
                       <p className="truncate text-sm font-medium text-neutral-800">
                         {row.name}
                       </p>
                     </td>
-                    <td className="max-w-[180px] py-4 pr-4 text-xs font-light text-neutral-500">
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light text-neutral-500">
                       <span className="block truncate">
                         {entityType === "campaign"
                           ? (row.objective ?? "—")
                           : (row.parentName ?? "—")}
                       </span>
                     </td>
-                    <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">
-                      {row.accountName}
+                    <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500">
+                      <span className="block truncate">{row.accountName}</span>
                     </td>
-                    <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500">
                       <span className="inline-flex items-center gap-1.5">
                         {isActiveStatus(row.status) ? (
                           <span
@@ -412,23 +495,41 @@ export function CampaignsPage() {
                         {formatStatus(row.status)}
                       </span>
                     </td>
-                    <td className="py-4 pr-4 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
+                    <td className="py-4 pr-4 pl-3 text-xs font-medium whitespace-nowrap text-neutral-800 tabular-nums">
                       <AnimatedMetricValue
                         value={formatCurrencyFromMicros(row.spendMicros)}
                       />
                     </td>
-                    <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <AnimatedMetricValue
+                        value={
+                          row.websitePurchases === null
+                            ? "—"
+                            : formatResultCount(row.websitePurchases)
+                        }
+                      />
+                    </td>
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <AnimatedMetricValue
+                        value={
+                          row.conversionValueMicros > 0
+                            ? formatCurrencyFromMicros(row.conversionValueMicros)
+                            : "—"
+                        }
+                      />
+                    </td>
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
                         value={formatCompactNumber(row.impressions)}
                       />
                     </td>
-                    <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue value={String(row.clicks)} />
                     </td>
-                    <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue value={formatPercent(row.ctr)} />
                     </td>
-                    <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       {formatRoas(row.roas)}
                     </td>
                   </motion.tr>

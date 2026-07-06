@@ -23,6 +23,12 @@ export function formatRoas(value: number | null): string {
   return `${value.toFixed(2)}x`;
 }
 
+export function formatResultCount(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "—";
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(2);
+}
+
 export function formatChange(
   current: number,
   previous: number,

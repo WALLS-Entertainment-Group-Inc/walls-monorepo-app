@@ -11,6 +11,7 @@ import {
   MousePointerClick,
   Plus,
   RefreshCw,
+  ShoppingBag,
   TrendingUp,
 } from "lucide-react";
 
@@ -29,9 +30,18 @@ const HERO_ACCENTS = [
   "var(--walls-blue)",
   "#00d1c1",
   "#7a04eb",
+  "#f59e0b",
+  "#10b981",
 ] as const;
 
-const HERO_ICONS = [CircleDollarSign, Eye, MousePointerClick, TrendingUp] as const;
+const HERO_ICONS = [
+  CircleDollarSign,
+  Eye,
+  MousePointerClick,
+  TrendingUp,
+  ShoppingBag,
+  CircleDollarSign,
+] as const;
 
 function formatConnectionLabel(connection: SafeUserConnection) {
   const accountName = connection.token_payload?.account_name;
@@ -149,7 +159,7 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-neutral-50 px-6 py-16">
+      <div className="flex min-h-full items-center justify-center bg-walls-white px-6 py-16">
         <div className="flex items-center gap-2 text-sm font-light text-neutral-500">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
@@ -160,7 +170,7 @@ export function DashboardPage() {
 
   if (!hasLiveConnections) {
     return (
-      <div className="flex min-h-full items-center justify-center bg-neutral-50 px-6">
+      <div className="flex min-h-full items-center justify-center bg-walls-white px-6">
         <div className="flex flex-col items-center gap-6 text-center">
           <p className="text-sm font-light text-neutral-600">No accounts connected</p>
           <a
@@ -176,7 +186,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="min-h-full bg-neutral-50">
+    <div className="min-h-full bg-walls-white">
       <div className="space-y-16 px-6 py-8 pb-12 md:px-10 md:py-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -229,7 +239,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-row items-stretch justify-center gap-6 pb-2 pt-2 md:gap-10">
+        <div className="flex flex-row flex-wrap items-stretch justify-center gap-6 pb-2 pt-2 md:gap-8">
           {stats.map((stat, index) => (
             <HeroStat
               key={stat.label}

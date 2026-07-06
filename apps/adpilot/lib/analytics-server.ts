@@ -6,6 +6,7 @@ import {
   formatCompactNumber,
   formatCurrencyFromMicros,
   formatPercent,
+  formatResultCount,
   formatRoas,
 } from "@/lib/format-analytics";
 import { ZERO_DASHBOARD_STATS } from "@/lib/dashboard-defaults";
@@ -55,6 +56,7 @@ type MetricRow = {
   clicks: number;
   spend_micros: number;
   conversion_value_micros: number;
+  website_purchases: number;
   ctr: number | null;
   roas: number | null;
 };
@@ -73,6 +75,7 @@ function sumMetrics(rows: MetricRow[]) {
     clicks: 0,
     spend_micros: 0,
     conversion_value_micros: 0,
+    website_purchases: 0,
   };
 
   for (const row of rows) {
@@ -80,6 +83,7 @@ function sumMetrics(rows: MetricRow[]) {
     totals.clicks += row.clicks ?? 0;
     totals.spend_micros += row.spend_micros ?? 0;
     totals.conversion_value_micros += row.conversion_value_micros ?? 0;
+    totals.website_purchases += Number(row.website_purchases ?? 0);
   }
 
   const spend = totals.spend_micros / 1_000_000;
@@ -169,7 +173,7 @@ export async function getDashboardAnalytics(
   const { data: metrics } = await supabase
     .from("ad_metrics_daily")
     .select(
-      "entity_id, metric_date, impressions, clicks, spend_micros, conversion_value_micros, ctr, roas",
+      "entity_id, metric_date, impressions, clicks, spend_micros, conversion_value_micros, website_purchases, ctr, roas",
     )
     .in("entity_id", entityIds)
     .gte("metric_date", previousStartIso)
@@ -199,6 +203,14 @@ export async function getDashboardAnalytics(
   const roasChange = formatChange(
     currentTotals.roas ?? 0,
     previousTotals.roas ?? 0,
+  );
+  const websitePurchasesChange = formatChange(
+    currentTotals.website_purchases,
+    previousTotals.website_purchases,
+  );
+  const purchaseValueChange = formatChange(
+    currentTotals.conversion_value_micros,
+    previousTotals.conversion_value_micros,
   );
 
   const accounts: DashboardAccountRow[] = entities.map((entity) => {
@@ -246,6 +258,21 @@ export async function getDashboardAnalytics(
         value: formatRoas(currentTotals.roas),
         change: roasChange.label,
         positive: roasChange.positive,
+      },
+      {
+        label: "Website purchases",
+        value: formatResultCount(currentTotals.website_purchases),
+        change: websitePurchasesChange.label,
+        positive: websitePurchasesChange.positive,
+      },
+      {
+        label: "Purchase value",
+        value:
+          currentTotals.conversion_value_micros > 0
+            ? formatCurrencyFromMicros(currentTotals.conversion_value_micros)
+            : "—",
+        change: purchaseValueChange.label,
+        positive: purchaseValueChange.positive,
       },
     ],
     spendByDay: buildSpendByDay(currentMetrics),

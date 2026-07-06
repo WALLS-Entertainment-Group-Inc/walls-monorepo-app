@@ -19,6 +19,8 @@ const PURCHASE_ACTION_PRIORITY = [
   "web_in_store_purchase",
 ] as const;
 
+const WEBSITE_PURCHASE_ACTION = "offsite_conversion.fb_pixel_purchase" as const;
+
 type EntityType = "account" | "campaign" | "ad_group" | "ad";
 
 function centsToMicros(cents: number | string | undefined | null): number | null {
@@ -66,6 +68,7 @@ function parseInsightMetrics(row: MetaInsightRow) {
     parseFirstActionValue(row.action_values, PURCHASE_ACTION_PRIORITY),
   );
   const conversions = parseFirstActionValue(row.actions, PURCHASE_ACTION_PRIORITY);
+  const websitePurchases = parseFirstActionValue(row.actions, [WEBSITE_PURCHASE_ACTION]);
   const spend = spendMicros / 1_000_000;
   const roasFromApi = parsePurchaseRoas(row);
   const roas =
@@ -83,6 +86,7 @@ function parseInsightMetrics(row: MetaInsightRow) {
     frequency: row.frequency ? parseFloat(row.frequency) : null,
     conversions,
     conversion_value_micros: Math.round(conversionValueMicros),
+    website_purchases: websitePurchases,
     ctr: row.ctr ? parseFloat(row.ctr) : null,
     cpc_micros: row.cpc ? dollarsToMicros(row.cpc) : null,
     cpm_micros: row.cpm ? dollarsToMicros(row.cpm) : null,
@@ -200,6 +204,7 @@ async function upsertDailyMetrics(input: {
     frequency: input.metrics.frequency,
     conversions: input.metrics.conversions,
     conversion_value_micros: input.metrics.conversion_value_micros,
+    website_purchases: input.metrics.website_purchases,
     ctr: input.metrics.ctr,
     cpc_micros: input.metrics.cpc_micros,
     cpm_micros: input.metrics.cpm_micros,
