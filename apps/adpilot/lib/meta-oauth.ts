@@ -101,6 +101,26 @@ export async function exchangeMetaForLongLivedToken(
   return response.json();
 }
 
+export async function fetchMetaUser(accessToken: string): Promise<{
+  id: string;
+  name?: string;
+} | null> {
+  const params = new URLSearchParams({
+    access_token: accessToken,
+    fields: "id,name",
+  });
+
+  const response = await fetch(
+    `https://graph.facebook.com/${META_GRAPH_VERSION}/me?${params.toString()}`,
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
 export async function fetchMetaAdAccounts(accessToken: string): Promise<
   Array<{ id: string; name?: string; account_status?: number }>
 > {

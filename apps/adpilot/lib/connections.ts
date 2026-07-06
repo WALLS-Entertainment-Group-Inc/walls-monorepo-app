@@ -11,3 +11,6 @@ export type SafeUserConnection = {
 
 export const META_PROVIDER = "meta";
 export const META_SERVICE = "meta_ads";
+
+/** Meta Marketing API uses long-lived tokens — no OAuth refresh token. */
+export const META_EMPTY_REFRESH_TOKEN = "";

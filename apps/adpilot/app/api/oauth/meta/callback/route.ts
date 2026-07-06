@@ -3,13 +3,15 @@ import { cookies } from "next/headers";
 
 import {
   getCurrentUserId,
-  upsertMetaConnection,
+  upsertMetaConnections,
 } from "@/lib/connections-server";
 import {
   exchangeMetaCodeForToken,
   exchangeMetaForLongLivedToken,
   fetchMetaAdAccounts,
+  fetchMetaUser,
   getAdpilotBaseUrl,
+  META_AD_SCOPES,
 } from "@/lib/meta-oauth";
 import { META_OAUTH_STATE_COOKIE } from "@/lib/start-meta-oauth";
 
@@ -46,22 +48,23 @@ export async function GET(request: NextRequest) {
       shortLived.access_token,
     );
 
-    const adAccounts = await fetchMetaAdAccounts(longLived.access_token);
-    const primaryAccount = adAccounts[0];
+    const [providerUser, adAccounts] = await Promise.all([
+      fetchMetaUser(longLived.access_token),
+      fetchMetaAdAccounts(longLived.access_token),
+    ]);
 
     const expiresIn = longLived.expires_in ?? 60 * 60 * 24 * 60;
     const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
 
-    await upsertMetaConnection({
+    await upsertMetaConnections({
       userId,
       accessToken: longLived.access_token,
-      refreshToken: longLived.access_token,
       tokenExpiry,
-      accountId: primaryAccount?.id ?? null,
-      tokenPayload: {
-        ad_accounts: adAccounts,
-        scopes: shortLived,
-      },
+      scopes: META_AD_SCOPES.join(","),
+      shortLivedToken: shortLived,
+      longLivedToken: longLived,
+      providerUser,
+      adAccounts,
     });
 
     settingsUrl.searchParams.set("connected", "meta");
