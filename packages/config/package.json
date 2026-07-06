@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./load-root-env": "./load-root-env.ts"
+    "./load-root-env": "./load-root-env.ts",
+    "./metadata": "./metadata.ts"
+  },
+  "scripts": {
+    "sync:icons": "node scripts/sync-app-icons.mjs"
   },
   "dependencies": {
     "dotenv": "^16.5.0"

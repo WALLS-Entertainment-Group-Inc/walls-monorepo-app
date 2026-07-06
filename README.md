@@ -88,6 +88,8 @@ pnpm dev
 | `pnpm dev:portal`  | Run only the agency portal (port 3002)         |
 | `pnpm build`       | Build all apps                                 |
 | `pnpm lint`        | Lint all apps and packages                     |
+| `pnpm db:schema` | Refresh `packages/supabase/generated.json` from Postgres |
+| `pnpm sync:icons` | Copy shared WALLS favicon into each app (skips apps with a custom `app/icon.*` or `app/favicon.ico`) |
 
 
 
@@ -148,5 +150,22 @@ import { cn, extractDomain, validateEmail } from "@walls/utils";
 ```
 
 Add new Shadcn-style components under `packages/ui/src/components/` as you migrate from the live app.
+
+## Shared favicon
+
+Default WALLS favicon lives in `packages/config/assets/icon.svg`.
+
+- Run `pnpm sync:icons` to copy it into each app as `app/icon.svg`
+- Apps with their own `app/favicon.ico`, `app/icon.png`, `app/icon.svg`, etc. are skipped automatically
+- Layouts use `createWallsMetadata()` from `@walls/config/metadata` for consistent icon metadata; pass `icons` to override per app:
+
+```ts
+import { createWallsMetadata } from "@walls/config/metadata";
+
+export const metadata = createWallsMetadata({
+  title: "My App",
+  icons: { icon: "/custom-icon.png" }, // optional override
+});
+```
 
 `@/lib/utils` in any app resolves to `@walls/utils` via each app's `tsconfig.json` — no per-app `lib/utils.ts` file needed. App-specific helpers (e.g. `lib/urls.ts` on the public site) can still live under that app's `lib/` folder.

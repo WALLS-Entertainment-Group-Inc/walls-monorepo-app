@@ -1,65 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/app/auth/AuthContext";
-import { useRouter } from "next/navigation";
-import { getSupabaseClient } from "@/app/auth/supabaseClient";
 import { PublicHeader } from "@/components/public-header";
 import FooterContainer from "@/components/footer-container";
 import { ArrowRight } from "lucide-react";
-import { useInView } from 'react-intersection-observer';
+import { usePublicPageHeader } from "@/hooks/use-public-page-header";
 import Link from "next/link";
 import Image from "next/image";
 
 export function CapabilitiesPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const [isLoadingPath, setIsLoadingPath] = useState(true);
-  const [dashboardPath, setDashboardPath] = useState("/dashboard");
-  
-  // Intersection observer for header visibility
-  const { ref: topSectionRef, inView } = useInView({
-    threshold: 0,
-    initialInView: true,
-  });
-
-  // Add useEffect to handle dashboard path
-  useEffect(() => {
-    const getDashboardPath = async () => {
-      if (user) {
-        try {
-          const supabase = getSupabaseClient();
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('userType')
-            .eq('auth_id', user.id)
-            .single();
-
-          if (!error && userData) {
-            if (["Super Admin", "Admin", "Agent"].includes(userData.userType)) {
-              setDashboardPath("/agents");
-            } else if (userData.userType === "Creator") {
-              setDashboardPath("/creators");
-            }
-          }
-        } catch (error) {
-          // Silently handle error and ensure loading state is reset
-        } finally {
-          setIsLoadingPath(false);
-        }
-      } else {
-        setDashboardPath("/login");
-        setIsLoadingPath(false);
-      }
-    };
-
-    getDashboardPath();
-  }, [user]);
+  const { ref: topSectionRef, inView } = usePublicPageHeader();
 
   return (
     <div className="min-h-screen bg-white">
       <div ref={topSectionRef} className="absolute top-0 h-1 w-full" />
-      <PublicHeader inView={inView} dashboardPath={dashboardPath} isLoadingPath={isLoadingPath} />
+      <PublicHeader inView={inView} />
       {/* Hero Section */}
       <section className="relative pt-40 pb-10 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">

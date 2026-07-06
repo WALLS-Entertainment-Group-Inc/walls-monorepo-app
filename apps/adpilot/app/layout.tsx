@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { createWallsMetadata } from "@walls/config/metadata";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Providers } from "@/components/providers";
 
@@ -16,13 +17,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createWallsMetadata({
   title: {
     default: "AdPilot",
     template: "%s | AdPilot",
   },
   description: "WALLS AdPilot — campaign management and ad operations.",
-};
+});
 
 export default function RootLayout({
   children,
@@ -32,12 +33,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-app="adpilot"
+      className={`${geistSans.variable} ${geistMono.variable} h-full bg-background antialiased`}
     >
       <body className="flex min-h-full bg-background text-foreground">
         <Providers>
           <AppSidebar />
-          <div className="flex min-h-full flex-1 flex-col">{children}</div>
+          <div className="flex min-h-full flex-1 flex-col bg-background">
+            {children}
+          </div>
         </Providers>
       </body>
     </html>

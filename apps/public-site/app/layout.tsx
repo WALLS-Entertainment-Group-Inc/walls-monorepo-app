@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { createWallsMetadata } from "@walls/config/metadata";
 import { Providers } from "@/components/providers";
 
 import "./globals.css";
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createWallsMetadata({
   title: {
     default: "WALLS Entertainment",
     template: "%s | WALLS Entertainment",
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   description:
     "WALLS Entertainment — creative agency, talent, and culture at the forefront.",
   metadataBase: new URL("https://wallsentertainment.com"),
-};
+});
 
 export default function RootLayout({
   children,

@@ -1,13 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/app/auth/AuthContext";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { PublicHeader } from "@/components/public-header";
 import FooterContainer from "@/components/footer-container";
-import { useInView } from 'react-intersection-observer';
+import { usePublicPageHeader } from "@/hooks/use-public-page-header";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 
@@ -79,45 +77,9 @@ const caseStudies: CaseStudy[] = [
 ];
 
 export function WorkPage() {
-  const { user } = useAuth();
   const router = useRouter();
-  const [isLoadingPath, setIsLoadingPath] = useState(true);
-  const [dashboardPath, setDashboardPath] = useState("/dashboard");
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
-  const { ref: topSectionRef, inView } = useInView({
-    threshold: 0,
-    initialInView: true,
-  });
-
-  useEffect(() => {
-    const getDashboardPath = async () => {
-      if (user) {
-        try {
-          const db = getFirestore();
-          const userDoc = await getDoc(doc(db, "users", user.id));
-          const userData = userDoc.data();
-
-          if (userData) {
-            if (["Super Admin", "Admin", "Agent"].includes(userData.userType)) {
-              setDashboardPath("/agents");
-            } else if (userData.userType === "Creator") {
-              setDashboardPath("/creators");
-            }
-          }
-        } catch (error) {
-          // Silently handle error and ensure loading state is reset
-        } finally {
-          setIsLoadingPath(false);
-        }
-      } else {
-        setDashboardPath("/login");
-        setIsLoadingPath(false);
-      }
-    };
-
-    getDashboardPath();
-  }, [user]);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const { ref: topSectionRef, inView } = usePublicPageHeader();
 
   const containerVariants = {
     hidden: { opacity: 1 },
@@ -148,7 +110,7 @@ export function WorkPage() {
   return (
     <div className="min-h-screen bg-white">
       <div ref={topSectionRef} className="absolute top-0 h-1 w-full" />
-      <PublicHeader inView={inView} dashboardPath={dashboardPath} isLoadingPath={isLoadingPath} />
+      <PublicHeader inView={inView} />
       
       {/* Hero Section */}
       <section className="relative pt-40 pb-20 px-4 sm:px-6 lg:px-8 bg-gray-50">

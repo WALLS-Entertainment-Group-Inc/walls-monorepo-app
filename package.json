@@ -10,7 +10,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "start": "turbo start",
-    "db:schema": "pnpm --filter @walls/supabase db:schema"
+    "db:schema": "pnpm --filter @walls/supabase db:schema",
+    "sync:icons": "pnpm --filter @walls/config sync:icons"
   },
   "devDependencies": {
     "turbo": "^2.5.4"
