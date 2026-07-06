@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./context": "./src/AuthContext.tsx",
     "./provider": "./src/AuthProvider.tsx",
-    "./client": "./src/supabase-client.ts"
+    "./client": "./src/supabase-client.ts",
+    "./mfa": "./src/mfa-assurance.ts"
   },
   "scripts": {
     "lint": "tsc --noEmit"

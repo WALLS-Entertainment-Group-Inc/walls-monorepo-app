@@ -17,6 +17,8 @@
     "./sheet-menu": "./src/components/sheet-menu.tsx",
     "./text-roll": "./src/components/text-roll.tsx",
     "./scroll-reveal": "./src/components/scroll-reveal.tsx",
+    "./separator": "./src/components/separator.tsx",
+    "./avatar": "./src/components/avatar.tsx",
     "./lib/utils": "./src/lib/utils.ts",
     "./utils": "./src/lib/utils.ts"
   },
@@ -24,8 +26,10 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-select": "^2.1.1",
+    "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@walls/utils": "workspace:*",
     "class-variance-authority": "^0.7.1",

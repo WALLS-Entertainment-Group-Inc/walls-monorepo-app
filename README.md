@@ -9,6 +9,7 @@ pnpm + Turborepo monorepo for the WALLS Entertainment ecosystem.
 | --------------- | ------------------ | ------------------------------------------------------------------------- |
 | **public-site** | `apps/public-site` | Marketing site ([wallsentertainment.com](https://wallsentertainment.com)) |
 | **adpilot**     | `apps/adpilot`     | Ad operations & campaign management                                       |
+| **portal**      | `apps/portal`      | Agency auth portal ([walls.agency](https://walls.agency)) — login & password reset |
 
 
 Future apps (e.g. `agents.walls.agency`) will live under `apps/`.
@@ -67,6 +68,9 @@ pnpm dev:public
 # AdPilot — http://localhost:3001
 pnpm dev:adpilot
 
+# Agency portal (login / reset password) — http://localhost:3002
+pnpm dev:portal
+
 # All apps at once
 pnpm dev
 ```
@@ -81,6 +85,7 @@ pnpm dev
 | `pnpm dev`         | Run all apps in dev mode                       |
 | `pnpm dev:public`  | Run only the public marketing site (port 3000) |
 | `pnpm dev:adpilot` | Run only AdPilot (port 3001)                   |
+| `pnpm dev:portal`  | Run only the agency portal (port 3002)         |
 | `pnpm build`       | Build all apps                                 |
 | `pnpm lint`        | Lint all apps and packages                     |
 

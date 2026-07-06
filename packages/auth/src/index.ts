@@ -8,3 +8,8 @@ export {
 } from "./AuthContext";
 export { AuthProvider, type AuthProviderProps } from "./AuthProvider";
 export { getSupabaseClient } from "./supabase-client";
+export {
+  getAuthenticatorAssuranceFromVerifiedUser,
+  isMfaSecondFactorPending,
+  type MfaAssuranceUser,
+} from "./mfa-assurance";
