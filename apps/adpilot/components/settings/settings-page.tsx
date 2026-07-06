@@ -14,6 +14,8 @@ import {
   type SafeUserConnection,
 } from "@/lib/connections";
 
+import { AdSpendControls } from "./ad-spend-controls";
+
 function formatConnectionLabel(connection: SafeUserConnection) {
   if (connection.account_id) {
     return connection.account_id.replace(/^act_/, "Ad account ");
@@ -71,14 +73,14 @@ export function SettingsPage() {
 
   return (
     <main className="min-h-full w-full px-6 py-8 md:px-10 md:py-10">
-      <div className="flex w-full max-w-3xl flex-col gap-8">
+      <div className="flex w-full flex-col gap-8">
         <header>
           <p className="text-sm font-light text-neutral-500">Workspace</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
             Settings
           </h1>
           <p className="mt-2 text-sm font-light text-neutral-500">
-            Connect ad platforms to pull analytics into AdPilot.
+            Connect ad platforms and tune how AdPilot manages spend scaling.
           </p>
         </header>
 
@@ -187,6 +189,8 @@ export function SettingsPage() {
             </p>
           </CardContent>
         </Card>
+
+        <AdSpendControls />
       </div>
     </main>
   );
