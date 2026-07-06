@@ -2,11 +2,7 @@
 
 import { cn } from "@walls/utils";
 
-import {
-  SIDEBAR_OFFSET_COLLAPSED,
-  SIDEBAR_OFFSET_EXPANDED,
-  SIDEBAR_TRANSITION,
-} from "./app-sidebar-constants";
+import { AppSidebar } from "./app-sidebar";
 import { useAppSidebar } from "./app-sidebar-context";
 
 type AppSidebarLayoutProps = {
@@ -14,27 +10,28 @@ type AppSidebarLayoutProps = {
   className?: string;
 };
 
-/**
- * Shifts page content when the sidebar rail expands on hover or pin.
- * Collapsed rail = wider content; expanded rail = content narrows in sync.
- */
-export function AppSidebarLayout({
-  children,
-  className,
-}: AppSidebarLayoutProps) {
-  const { isExpanded } = useAppSidebar();
+function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
+  const { isCollapsed, isHoverExpanded } = useAppSidebar();
+  const isExpanded = !isCollapsed || isHoverExpanded;
 
   return (
-    <div
-      className={cn(
-        "min-h-full w-full bg-walls-white",
-        SIDEBAR_TRANSITION,
-        SIDEBAR_OFFSET_COLLAPSED,
-        isExpanded && SIDEBAR_OFFSET_EXPANDED,
-        className,
-      )}
-    >
-      {children}
-    </div>
+    <>
+      <AppSidebar />
+      <div
+        className={cn(
+          "flex h-screen min-w-0 flex-col overflow-hidden bg-walls-white",
+          "transition-all duration-500 ease-in-out",
+          isExpanded ? "md:ml-40" : "md:ml-16",
+          className,
+        )}
+      >
+        <main className="flex-1 overflow-y-auto overscroll-none">{children}</main>
+      </div>
+    </>
   );
+}
+
+/** Mirrors walls-app `CRMSidebarWrapper` — fixed rail + margin-offset main column. */
+export function AppSidebarLayout({ children, className }: AppSidebarLayoutProps) {
+  return <AppSidebarContent className={className}>{children}</AppSidebarContent>;
 }

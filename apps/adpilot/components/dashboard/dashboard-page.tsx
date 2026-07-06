@@ -51,8 +51,8 @@ export function DashboardPage() {
   const hasLiveConnections = metaConnections.length > 0;
 
   return (
-    <main className="min-h-full px-6 py-8 md:px-10 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+    <main className="min-h-full w-full px-6 py-8 md:px-10 md:py-10">
+      <div className="flex w-full flex-col gap-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-light text-neutral-500">Overview</p>

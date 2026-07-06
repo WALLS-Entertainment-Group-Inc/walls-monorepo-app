@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { createWallsMetadata } from "@walls/config/metadata";
 import { PrivateAppChrome } from "@walls/ui/private-app-chrome";
-import { AppSidebar } from "@/components/app-sidebar";
 import { AppSidebarLayout } from "@/components/app-sidebar-layout";
 import { Providers } from "@/components/providers";
 
@@ -39,17 +38,16 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full bg-background antialiased`}
     >
       <body className="min-h-full bg-walls-white text-foreground">
-        <Providers>
-          <AppSidebar />
-          <div className="relative min-h-full bg-walls-white">
+        <div className="overscroll-none">
+          <Providers>
             <PrivateAppChrome
               dashboardPath="/"
               settingsPath="/settings"
               documentationPath="/documentation"
             />
             <AppSidebarLayout>{children}</AppSidebarLayout>
-          </div>
-        </Providers>
+          </Providers>
+        </div>
       </body>
     </html>
   );
