@@ -2,9 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
-  ArrowUpRight,
-  BarChart3,
   CircleDollarSign,
   Eye,
   Link2,
@@ -12,17 +11,27 @@ import {
   MousePointerClick,
   Plus,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@walls/ui/card";
 import { cn } from "@walls/utils";
 
 import type { DashboardAnalytics } from "@/lib/analytics-server";
 import { META_PROVIDER, META_SERVICE, type SafeUserConnection } from "@/lib/connections";
-import { ZERO_DASHBOARD_STATS, ZERO_WEEKLY_BARS } from "@/lib/dashboard-defaults";
+import { ZERO_DASHBOARD_STATS } from "@/lib/dashboard-defaults";
 
-import { AnimatedMetricValue } from "./animated-metric-value";
+import { HeroStat, MetricBarItem, SectionLabel } from "./dashboard-metrics";
+import { SpendTrendChart } from "./spend-trend-chart";
+
+const HERO_ACCENTS = [
+  "var(--walls-sky)",
+  "var(--walls-blue)",
+  "#00d1c1",
+  "#7a04eb",
+] as const;
+
+const HERO_ICONS = [CircleDollarSign, Eye, MousePointerClick, TrendingUp] as const;
 
 function formatConnectionLabel(connection: SafeUserConnection) {
   const accountName = connection.token_payload?.account_name;
@@ -31,6 +40,12 @@ function formatConnectionLabel(connection: SafeUserConnection) {
     return connection.account_id.replace(/^act_/, "Ad account ");
   }
   return "Meta Ads";
+}
+
+function parseMetricNumber(value: string): number {
+  const normalized = value.replace(/,/g, "");
+  const match = normalized.match(/[\d.]+/);
+  return match ? parseFloat(match[0]) : 0;
 }
 
 export function DashboardPage() {
@@ -94,7 +109,7 @@ export function DashboardPage() {
 
   const isSyncing = analytics?.syncing ?? false;
   const stats = analytics?.stats ?? [...ZERO_DASHBOARD_STATS];
-  const spendByWeek = analytics?.spendByWeek ?? [...ZERO_WEEKLY_BARS];
+  const spendByDay = analytics?.spendByDay ?? [];
   const periodLabel = analytics?.periodLabel ?? "Last 30 days";
 
   const accounts = React.useMemo(() => {
@@ -117,6 +132,11 @@ export function DashboardPage() {
     return [];
   }, [analytics?.accounts, hasLiveConnections, metaConnections, isSyncing]);
 
+  const maxAccountSpend = Math.max(
+    ...accounts.map((account) => parseMetricNumber(account.spend)),
+    1,
+  );
+
   async function handleRefresh() {
     setRefreshing(true);
     try {
@@ -128,12 +148,14 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="min-h-full w-full px-6 py-8 md:px-10 md:py-10">
-      <div className="flex w-full flex-col gap-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="min-h-full bg-neutral-50">
+      <div className="space-y-16 px-6 py-8 pb-12 md:px-10 md:py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-light text-neutral-500">Overview</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+            <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
+              Overview
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 md:text-3xl">
               AdPilot
             </h1>
             <p className="mt-2 max-w-xl text-sm font-light text-neutral-500">
@@ -142,254 +164,193 @@ export function DashboardPage() {
                   ? "Syncing live data from Meta. This can take a minute for larger accounts."
                   : analytics?.hasData
                     ? "Live analytics across your connected ad accounts."
-                    : "Meta is connected. Metrics will appear here after the first sync completes."
+                    : "Meta is connected. Metrics will appear after the first sync completes."
                 : "Connect Meta in Settings to start pulling live ad insights."}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full border border-neutral-200 bg-neutral-100 px-3 py-1 text-xs font-light text-neutral-600">
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-light text-neutral-500">
               {periodLabel}
-              {isSyncing && " · Syncing"}
+              {isSyncing ? " · Syncing" : null}
             </span>
-            {hasLiveConnections && (
+            {hasLiveConnections ? (
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
+                size="sm"
                 disabled={refreshing || isSyncing}
                 onClick={() => void handleRefresh()}
-                className="rounded-full border-neutral-200 bg-neutral-100 font-light shadow-inner"
+                className="h-8 rounded-full font-light text-neutral-600 hover:bg-neutral-200/60"
               >
                 {refreshing || isSyncing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 Refresh
               </Button>
-            )}
+            ) : null}
             <Button
               asChild
-              variant="outline"
-              className="rounded-full border-neutral-200 bg-neutral-100 font-light shadow-inner"
+              variant="ghost"
+              size="sm"
+              className="h-8 rounded-full font-light text-neutral-600 hover:bg-neutral-200/60"
             >
               <Link href="/settings">
-                <Link2 className="mr-2 h-4 w-4" />
+                <Link2 className="mr-1.5 h-3.5 w-3.5" />
                 Connections
               </Link>
             </Button>
           </div>
-        </header>
+        </div>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
-            <Card
+        <div className="flex flex-row items-stretch justify-center gap-6 pb-2 pt-2 md:gap-10">
+          {stats.map((stat, index) => (
+            <HeroStat
               key={stat.label}
-              className="rounded-[28px] border-neutral-200/60 bg-neutral-100 shadow-inner"
-            >
-              <CardContent className="p-5">
-                <p className="text-sm font-light text-neutral-500">{stat.label}</p>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <p className="text-3xl font-semibold tracking-tight text-foreground">
-                    <AnimatedMetricValue value={stat.value} />
-                  </p>
-                  <span
-                    className={cn(
-                      "text-xs font-medium",
-                      stat.positive ? "text-emerald-600" : "text-rose-500",
-                    )}
-                  >
-                    {stat.change}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+              label={stat.label}
+              value={stat.value}
+              change={stat.change}
+              positive={stat.positive}
+              icon={HERO_ICONS[index] ?? CircleDollarSign}
+              accentColor={HERO_ACCENTS[index] ?? HERO_ACCENTS[0]}
+              loading={loading}
+              delay={index * 0.06}
+            />
           ))}
-        </section>
+        </div>
 
-        <section className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-          <Card className="rounded-[32px] border-neutral-200/60 bg-neutral-100 shadow-inner">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base font-medium">
-                <BarChart3 className="h-4 w-4 text-neutral-500" />
-                Spend trend
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pb-6">
-              <div className="flex h-48 items-end gap-3 px-2">
-                {spendByWeek.map((week) => (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+        >
+          <SectionLabel>Spend — {periodLabel}</SectionLabel>
+          <SpendTrendChart days={spendByDay} />
+        </motion.div>
+
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-12">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+          >
+            <SectionLabel>Connected Accounts</SectionLabel>
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 2 }).map((_, index) => (
                   <div
-                    key={week.label}
-                    className="flex flex-1 flex-col items-center gap-2"
-                  >
-                    <div
-                      className="w-full rounded-t-2xl bg-walls-blue/80 shadow-[inset_0_2px_8px_rgba(0,0,0,0.12)]"
-                      style={{ height: `${week.value}%` }}
-                    />
-                    <span className="text-xs font-light text-neutral-500">
-                      {week.label}
-                    </span>
-                  </div>
+                    key={index}
+                    className="h-5 animate-pulse rounded-full bg-neutral-200/80"
+                  />
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[32px] border-neutral-200/60 bg-neutral-100 shadow-inner">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between text-base font-medium">
-                <span className="flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-neutral-500" />
-                  Connected accounts
-                </span>
+            ) : metaConnections.length === 0 ? (
+              <div className="space-y-4">
+                <p className="text-sm font-light text-neutral-400">
+                  No Meta accounts connected yet.
+                </p>
                 <Button
                   asChild
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 rounded-full font-light"
+                  className="rounded-full bg-walls-yellow/90 font-medium text-black hover:bg-walls-yellow"
                 >
-                  <Link href="/settings">
-                    <Plus className="h-4 w-4" />
-                  </Link>
+                  <a href="/api/oauth/meta/login">Connect Meta</a>
                 </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 pb-6">
-              {loading ? (
-                <p className="text-sm font-light text-neutral-500">Loading…</p>
-              ) : metaConnections.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-neutral-300 bg-walls-white p-5">
-                  <p className="text-sm font-light text-neutral-600">
-                    No Meta accounts connected yet.
-                  </p>
-                  <Button
-                    asChild
-                    className="mt-4 rounded-full bg-walls-yellow/90 font-medium text-black hover:bg-walls-yellow"
-                  >
-                    <a href="/api/oauth/meta/login">Connect Meta</a>
-                  </Button>
-                </div>
-              ) : (
-                metaConnections.map((connection) => (
-                  <div
-                    key={connection.id}
-                    className="flex items-center justify-between rounded-[24px] border border-neutral-200/70 bg-walls-white px-4 py-3 shadow-sm"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {metaConnections.map((connection, index) => (
+                  <div key={connection.id} className="flex items-center gap-3">
+                    <div
+                      className="h-2 w-2 flex-shrink-0 rounded-full"
+                      style={{
+                        background:
+                          HERO_ACCENTS[index % HERO_ACCENTS.length] ??
+                          "var(--walls-sky)",
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-light text-neutral-700">
                         {formatConnectionLabel(connection)}
                       </p>
-                      <p className="text-xs font-light text-neutral-500">
-                        Meta Ads ·{" "}
+                      <p className="mt-0.5 text-[11px] font-light text-neutral-400">
+                        Meta Ads
                         {connection.token_expiry
-                          ? `Expires ${new Date(connection.token_expiry).toLocaleDateString()}`
-                          : "Connected"}
+                          ? ` · Expires ${new Date(connection.token_expiry).toLocaleDateString()}`
+                          : " · Connected"}
                       </p>
                     </div>
                     <span
                       className={cn(
-                        "rounded-full px-2.5 py-1 text-xs",
-                        isSyncing
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-emerald-50 text-emerald-700",
+                        "flex-shrink-0 text-[11px] font-medium uppercase tracking-wide",
+                        isSyncing ? "text-amber-600" : "text-emerald-600",
                       )}
                     >
                       {isSyncing ? "Syncing" : "Live"}
                     </span>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </section>
-
-        <Card className="rounded-[32px] border-neutral-200/60 bg-neutral-100 shadow-inner">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">
-              Account performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto pb-6">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-neutral-200/80 text-xs font-light text-neutral-500">
-                  <th className="px-3 py-3 font-light">Account</th>
-                  <th className="px-3 py-3 font-light">Platform</th>
-                  <th className="px-3 py-3 font-light">Spend</th>
-                  <th className="px-3 py-3 font-light">Impressions</th>
-                  <th className="px-3 py-3 font-light">CTR</th>
-                  <th className="px-3 py-3 font-light">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-3 py-8 text-center text-sm font-light text-neutral-500"
-                    >
-                      {loading
-                        ? "Loading accounts…"
-                        : "Connect a Meta ad account to see performance here."}
-                    </td>
-                  </tr>
-                ) : (
-                  accounts.map((account) => (
-                  <tr
-                    key={account.id}
-                    className="border-b border-neutral-200/50 last:border-0"
-                  >
-                    <td className="px-3 py-4 font-medium text-foreground">
-                      {account.name}
-                    </td>
-                    <td className="px-3 py-4 font-light text-neutral-600">
-                      {account.platform}
-                    </td>
-                    <td className="px-3 py-4 font-light text-neutral-700">
-                      <span className="inline-flex items-center gap-1">
-                        <CircleDollarSign className="h-3.5 w-3.5" />
-                        <AnimatedMetricValue value={account.spend} />
-                      </span>
-                    </td>
-                    <td className="px-3 py-4 font-light text-neutral-700">
-                      <span className="inline-flex items-center gap-1">
-                        <Eye className="h-3.5 w-3.5" />
-                        <AnimatedMetricValue value={account.impressions} />
-                      </span>
-                    </td>
-                    <td className="px-3 py-4 font-light text-neutral-700">
-                      <span className="inline-flex items-center gap-1">
-                        <MousePointerClick className="h-3.5 w-3.5" />
-                        <AnimatedMetricValue value={account.ctr} />
-                      </span>
-                    </td>
-                    <td className="px-3 py-4">
-                      <span className="rounded-full bg-walls-white px-2.5 py-1 text-xs font-light text-neutral-600 shadow-sm">
-                        {account.status}
-                      </span>
-                    </td>
-                  </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            {hasLiveConnections && !analytics?.hasData && !loading && (
-              <p className="mt-4 px-3 text-xs font-light text-neutral-500">
-                {isSyncing
-                  ? "Waiting for Meta sync to finish. Values start at zero until data arrives."
-                  : "No spend recorded in the last 30 days for connected accounts."}
-              </p>
+                ))}
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 h-8 rounded-full px-0 font-light text-neutral-500 hover:bg-transparent hover:text-neutral-800"
+                >
+                  <Link href="/settings">
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    Manage connections
+                  </Link>
+                </Button>
+              </div>
             )}
-          </CardContent>
-        </Card>
+          </motion.div>
 
-        <div className="flex justify-end">
-          <Link
-            href="/reports"
-            className="inline-flex items-center gap-1 text-sm font-light text-walls-blue hover:underline"
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
           >
-            View full reports
-            <ArrowUpRight className="h-4 w-4" />
-          </Link>
+            <SectionLabel>Account Performance</SectionLabel>
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-5 animate-pulse rounded-full bg-neutral-200/80"
+                  />
+                ))}
+              </div>
+            ) : accounts.length === 0 ? (
+              <p className="text-sm font-light text-neutral-400">
+                Connect a Meta ad account to see performance here.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {accounts.map((account, index) => (
+                  <MetricBarItem
+                    key={account.id}
+                    label={account.name}
+                    sublabel={`${account.platform} · CTR ${account.ctr} · ${account.status}`}
+                    value={account.spend}
+                    numericValue={parseMetricNumber(account.spend)}
+                    max={maxAccountSpend}
+                    color={
+                      HERO_ACCENTS[index % HERO_ACCENTS.length] ??
+                      "var(--walls-sky)"
+                    }
+                  />
+                ))}
+                {hasLiveConnections && !analytics?.hasData && !loading ? (
+                  <p className="text-xs font-light text-neutral-400">
+                    {isSyncing
+                      ? "Waiting for Meta sync. Spend bars will populate when data arrives."
+                      : "No spend recorded in the last 30 days for connected accounts."}
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </motion.div>
         </div>
       </div>
     </div>

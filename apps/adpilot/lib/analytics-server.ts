@@ -8,7 +8,7 @@ import {
   formatPercent,
   formatRoas,
 } from "@/lib/format-analytics";
-import { ZERO_DASHBOARD_STATS, ZERO_WEEKLY_BARS } from "@/lib/dashboard-defaults";
+import { ZERO_DASHBOARD_STATS } from "@/lib/dashboard-defaults";
 
 export type DashboardStat = {
   label: string;
@@ -33,12 +33,19 @@ export type DashboardAccountRow = {
   status: string;
 };
 
+export type DashboardSpendDay = {
+  date: string;
+  label: string;
+  spend: number;
+  spendMicros: number;
+};
+
 export type DashboardAnalytics = {
   periodLabel: string;
   syncing: boolean;
   hasData: boolean;
   stats: DashboardStat[];
-  spendByWeek: DashboardWeekBar[];
+  spendByDay: DashboardSpendDay[];
   accounts: DashboardAccountRow[];
 };
 
@@ -83,39 +90,27 @@ function sumMetrics(rows: MetricRow[]) {
   return { ...totals, ctr, roas };
 }
 
-function buildWeeklyBars(rows: MetricRow[]): DashboardWeekBar[] {
-  if (rows.length === 0) {
-    return [
-      { label: "W1", value: 0, spendMicros: 0 },
-      { label: "W2", value: 0, spendMicros: 0 },
-      { label: "W3", value: 0, spendMicros: 0 },
-      { label: "W4", value: 0, spendMicros: 0 },
-    ];
+function buildSpendByDay(rows: MetricRow[]): DashboardSpendDay[] {
+  const totalsByDate = new Map<string, number>();
+
+  for (const row of rows) {
+    totalsByDate.set(
+      row.metric_date,
+      (totalsByDate.get(row.metric_date) ?? 0) + row.spend_micros,
+    );
   }
 
-  const sorted = [...rows].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
-  const chunkSize = Math.max(1, Math.ceil(sorted.length / 4));
-  const weeks: DashboardWeekBar[] = [];
-
-  for (let index = 0; index < 4; index += 1) {
-    const slice = sorted.slice(index * chunkSize, (index + 1) * chunkSize);
-    const spendMicros = slice.reduce((sum, row) => sum + row.spend_micros, 0);
-    weeks.push({
-      label: `W${index + 1}`,
-      value: 0,
+  return Array.from(totalsByDate.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, spendMicros]) => ({
+      date,
+      label: new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      spend: spendMicros / 1_000_000,
       spendMicros,
-    });
-  }
-
-  const maxSpend = Math.max(...weeks.map((week) => week.spendMicros), 0);
-  if (maxSpend === 0) {
-    return weeks.map((week) => ({ ...week, value: 0 }));
-  }
-
-  return weeks.map((week) => ({
-    ...week,
-    value: Math.max(8, Math.round((week.spendMicros / maxSpend) * 100)),
-  }));
+    }));
 }
 
 function formatAccountStatus(status: string | null): string {
@@ -164,7 +159,7 @@ export async function getDashboardAnalytics(
       syncing,
       hasData: false,
       stats: [...ZERO_DASHBOARD_STATS],
-      spendByWeek: [...ZERO_WEEKLY_BARS],
+      spendByDay: [],
       accounts: [],
     };
   }
@@ -253,7 +248,7 @@ export async function getDashboardAnalytics(
         positive: roasChange.positive,
       },
     ],
-    spendByWeek: buildWeeklyBars(currentMetrics),
+    spendByDay: buildSpendByDay(currentMetrics),
     accounts,
   };
 }
