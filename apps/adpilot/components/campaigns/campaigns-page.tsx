@@ -11,6 +11,7 @@ import {
   Megaphone,
   Search,
   Shapes,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
@@ -70,7 +71,7 @@ const DEFAULT_CAMPAIGN_COLUMN_WIDTHS: Record<CampaignColumnId, number> = {
 const ENTITY_TABS: Array<{
   value: CampaignEntityType;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
 }> = [
   { value: "campaign", label: "Campaigns", icon: Megaphone },
   { value: "ad_group", label: "Ad sets", icon: Layers },
