@@ -62,7 +62,7 @@ export function AppSidebar() {
                 )}
               >
                 <div className="group relative">
-                  <div className="relative z-10 rounded-full border border-transparent p-3 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-gray-50 group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]">
+                  <div className="relative z-10 rounded-full border border-transparent p-3 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-walls-white group-hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)]">
                     <div className="relative flex h-[18px] w-[18px] items-center justify-center">
                       <AnimatePresence mode="wait" initial={false}>
                         {!isCollapsed ? (
@@ -154,7 +154,7 @@ export function AppSidebar() {
                       <div className="group relative">
                         <div
                           className={cn(
-                            "relative z-10 rounded-full border border-transparent p-3 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-gray-50",
+                            "relative z-10 rounded-full border border-transparent p-3 transition-all duration-300 ease-in-out group-hover:scale-95 group-hover:border-neutral-200 group-hover:bg-walls-white",
                             isActive
                               ? [
                                   "shadow-[0_0_0_1px_rgba(110,173,192,0.4),0_0_12px_rgba(110,173,192,0.4)]",

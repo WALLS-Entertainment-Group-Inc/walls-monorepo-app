@@ -2,10 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Bot } from "lucide-react";
+import {
+  Bot,
+  CircleDollarSign,
+  Eye,
+  MousePointerClick,
+  TrendingUp,
+} from "lucide-react";
 
-import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
-import { SectionLabel } from "@/components/dashboard/dashboard-metrics";
+import { HeroStat } from "@/components/dashboard/dashboard-metrics";
 import type { EntityDetailMetrics } from "@/lib/entity-detail-server";
 import {
   formatCompactNumber,
@@ -27,6 +32,20 @@ export function isActiveStatus(status: string | null) {
   return normalized === "active" || normalized === "learning";
 }
 
+const ENTITY_METRIC_ACCENTS = [
+  "var(--walls-sky)",
+  "var(--walls-blue)",
+  "#00d1c1",
+  "#7a04eb",
+] as const;
+
+const ENTITY_METRIC_ICONS = [
+  CircleDollarSign,
+  Eye,
+  MousePointerClick,
+  TrendingUp,
+] as const;
+
 export function EntityMetricsGrid({ metrics }: { metrics: EntityDetailMetrics }) {
   const items = [
     { label: "Spend", value: formatCurrencyFromMicros(metrics.spendMicros) },
@@ -36,23 +55,19 @@ export function EntityMetricsGrid({ metrics }: { metrics: EntityDetailMetrics })
   ];
 
   return (
-    <div>
-      <SectionLabel>Performance — Last 30 days</SectionLabel>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {items.map((metric) => (
-          <div
-            key={metric.label}
-            className="rounded-2xl border border-neutral-100 bg-neutral-50/80 px-4 py-3"
-          >
-            <p className="text-xs font-light uppercase tracking-wider text-neutral-400">
-              {metric.label}
-            </p>
-            <p className="mt-1 text-lg font-medium tabular-nums text-neutral-800">
-              <AnimatedMetricValue value={metric.value} />
-            </p>
-          </div>
-        ))}
-      </div>
+    <div className="flex flex-row flex-wrap items-stretch justify-center gap-6 pb-2 pt-2 md:gap-8">
+      {items.map((metric, index) => (
+        <HeroStat
+          key={metric.label}
+          label={metric.label}
+          value={metric.value}
+          change="—"
+          positive
+          icon={ENTITY_METRIC_ICONS[index] ?? CircleDollarSign}
+          accentColor={ENTITY_METRIC_ACCENTS[index] ?? ENTITY_METRIC_ACCENTS[0]}
+          delay={index * 0.06}
+        />
+      ))}
     </div>
   );
 }
