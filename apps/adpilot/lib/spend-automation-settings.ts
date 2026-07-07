@@ -88,6 +88,7 @@ export const COOLDOWN_OPTIONS = [
   { value: 12, label: "12 hours" },
   { value: 24, label: "24 hours" },
   { value: 48, label: "48 hours" },
+  { value: 72, label: "72 hours" },
 ] as const;
 
 export function getAggressivenessLabel(value: number) {
