@@ -27,6 +27,7 @@ export type EntityPerformanceRow = {
   automationStatus: AutomationStatus | null;
   ctr: number;
   roas: number | null;
+  learningStatus: string | null;
   lastSyncedAt: string | null;
 };
 
@@ -55,6 +56,7 @@ type EntityRecord = {
   user_connection_id: string;
   last_synced_at: string | null;
   daily_budget_micros: number | null;
+  learning_status: string | null;
 };
 
 function resolveDailyBudgetMicros(
@@ -199,14 +201,16 @@ export async function listCampaignPerformance(input: {
   accountId?: string;
   page?: number;
   pageSize?: number;
+  rangeDays?: number;
 }): Promise<CampaignsListResult> {
   const supabase = await createClient();
   const page = input.page ?? 0;
   const pageSize = input.pageSize ?? PAGE_SIZE_DEFAULT;
   const search = input.search?.trim().toLowerCase() ?? "";
+  const rangeDays = input.rangeDays ?? 30;
 
   const currentStart = new Date();
-  currentStart.setDate(currentStart.getDate() - 30);
+  currentStart.setDate(currentStart.getDate() - rangeDays);
   const currentStartIso = currentStart.toISOString().slice(0, 10);
 
   const [{ data: accountEntities }, { data: syncStates }, { data: budgetEntities }] =
@@ -262,7 +266,7 @@ export async function listCampaignPerformance(input: {
   let entityQuery = supabase
     .from("ad_entities")
     .select(
-      "id, entity_type, name, status, objective, parent_id, user_connection_id, last_synced_at, daily_budget_micros",
+      "id, entity_type, name, status, objective, parent_id, user_connection_id, last_synced_at, daily_budget_micros, learning_status",
     )
     .eq("user_id", input.userId)
     .eq("provider", META_PROVIDER)
@@ -392,6 +396,7 @@ export async function listCampaignPerformance(input: {
       automationStatus: automation?.status ?? null,
       ctr: totals.ctr,
       roas: totals.roas,
+      learningStatus: entity.learning_status,
       lastSyncedAt: entity.last_synced_at,
     };
   });
