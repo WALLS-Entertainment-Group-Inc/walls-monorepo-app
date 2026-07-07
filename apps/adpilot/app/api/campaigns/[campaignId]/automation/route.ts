@@ -12,6 +12,7 @@ type AutomationPatchBody = {
   enabled?: boolean;
   profileId?: string | null;
   settingsOverride?: Partial<SpendAutomationSettings>;
+  cooldownHours?: number | null;
   minDailyBudgetMicros?: number | null;
   maxDailyBudgetMicros?: number | null;
 };

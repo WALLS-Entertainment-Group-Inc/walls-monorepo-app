@@ -22,6 +22,7 @@ export type EntityAutomationState = {
   profileId: string | null;
   settingsOverride: Partial<SpendAutomationSettings>;
   effectiveSettings: SpendAutomationSettings;
+  cooldownHours: number | null;
   minDailyBudgetMicros: number | null;
   maxDailyBudgetMicros: number | null;
   automationStatus: AutomationStatus;
@@ -185,21 +186,36 @@ export async function updateAutomationProfile(input: {
   return mapProfile(data);
 }
 
+function stripCooldownFromOverride(
+  override: Partial<SpendAutomationSettings>,
+): Partial<SpendAutomationSettings> {
+  const { cooldownHours: _ignored, ...rest } = override;
+  return rest;
+}
+
 function mapEntityAutomation(
   row: Record<string, unknown> | null,
   profile: AutomationProfile | null,
 ): EntityAutomationState {
-  const settingsOverride =
+  const settingsOverride = stripCooldownFromOverride(
     row?.settings_override && typeof row.settings_override === "object"
       ? (row.settings_override as Partial<SpendAutomationSettings>)
-      : {};
+      : {},
+  );
   const baseSettings = profile?.settings ?? DEFAULT_SPEND_AUTOMATION_SETTINGS;
+  const cooldownHours =
+    row?.cooldown_hours != null ? Number(row.cooldown_hours) : null;
 
   return {
     enabled: Boolean(row?.enabled),
     profileId: (row?.profile_id as string | null) ?? profile?.id ?? null,
     settingsOverride,
-    effectiveSettings: { ...baseSettings, ...settingsOverride },
+    cooldownHours,
+    effectiveSettings: {
+      ...baseSettings,
+      ...settingsOverride,
+      cooldownHours: cooldownHours ?? baseSettings.cooldownHours,
+    },
     minDailyBudgetMicros:
       (row?.min_daily_budget_micros as number | null) ?? null,
     maxDailyBudgetMicros:
@@ -221,7 +237,7 @@ export async function getEntityAutomation(input: {
   const { data: automation } = await supabase
     .from("ad_entity_automation")
     .select(
-      "enabled, profile_id, settings_override, min_daily_budget_micros, max_daily_budget_micros, automation_status, last_reviewed_at, last_adjusted_at, last_error",
+      "enabled, profile_id, settings_override, cooldown_hours, min_daily_budget_micros, max_daily_budget_micros, automation_status, last_reviewed_at, last_adjusted_at, last_error",
     )
     .eq("user_id", input.userId)
     .eq("entity_id", input.entityId)
@@ -248,6 +264,7 @@ export async function upsertEntityAutomation(input: {
     enabled?: boolean;
     profileId?: string | null;
     settingsOverride?: Partial<SpendAutomationSettings>;
+    cooldownHours?: number | null;
     minDailyBudgetMicros?: number | null;
     maxDailyBudgetMicros?: number | null;
     automationStatus?: AutomationStatus;
@@ -275,7 +292,7 @@ export async function upsertEntityAutomation(input: {
   const { data: existing } = await supabase
     .from("ad_entity_automation")
     .select(
-      "enabled, profile_id, settings_override, min_daily_budget_micros, max_daily_budget_micros, automation_status",
+      "enabled, profile_id, settings_override, cooldown_hours, min_daily_budget_micros, max_daily_budget_micros, automation_status",
     )
     .eq("user_id", input.userId)
     .eq("entity_id", input.entityId)
@@ -286,10 +303,17 @@ export async function upsertEntityAutomation(input: {
     input.patch.profileId !== undefined
       ? input.patch.profileId
       : (existing?.profile_id as string | null) ?? defaultProfile.id;
-  const settingsOverride =
+  const settingsOverride = stripCooldownFromOverride(
     input.patch.settingsOverride !== undefined
       ? input.patch.settingsOverride
-      : (existing?.settings_override as Partial<SpendAutomationSettings> | null) ?? {};
+      : (existing?.settings_override as Partial<SpendAutomationSettings> | null) ?? {},
+  );
+  const cooldownHours =
+    input.patch.cooldownHours !== undefined
+      ? input.patch.cooldownHours
+      : existing?.cooldown_hours != null
+        ? Number(existing.cooldown_hours)
+        : null;
   const minDailyBudgetMicros =
     input.patch.minDailyBudgetMicros !== undefined
       ? input.patch.minDailyBudgetMicros
@@ -312,6 +336,7 @@ export async function upsertEntityAutomation(input: {
     enabled: nextEnabled,
     profile_id: profileId,
     settings_override: settingsOverride,
+    cooldown_hours: cooldownHours,
     min_daily_budget_micros: minDailyBudgetMicros,
     max_daily_budget_micros: maxDailyBudgetMicros,
     automation_status: automationStatus,

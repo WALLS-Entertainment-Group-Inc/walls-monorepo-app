@@ -176,7 +176,10 @@ export function EntityAutomationSection({
 
     const settingsOverride = Object.fromEntries(
       (Object.keys(settings) as Array<keyof SpendAutomationSettings>)
-        .filter((key) => settings[key] !== baseSettings[key])
+        .filter(
+          (key) =>
+            key !== "cooldownHours" && settings[key] !== baseSettings[key],
+        )
         .map((key) => [key, settings[key]]),
     ) as Partial<SpendAutomationSettings>;
 
@@ -186,6 +189,7 @@ export function EntityAutomationSection({
       body: JSON.stringify({
         enabled,
         profileId,
+        cooldownHours: settings.cooldownHours,
         minDailyBudgetMicros: dollarsToMicros(minBudget),
         maxDailyBudgetMicros: dollarsToMicros(maxBudget),
         settingsOverride,
@@ -233,6 +237,7 @@ export function EntityAutomationSection({
         <CardContent className="space-y-6 pb-6">
           <div className="rounded-[24px] border border-neutral-200/70 bg-walls-white p-5 shadow-sm">
             <LabeledSwitch
+              size="lg"
               checked={enabled}
               onCheckedChange={(value) => {
                 setEnabled(value);
@@ -309,7 +314,7 @@ export function EntityAutomationSection({
             <p className="mt-1 text-xs font-light text-neutral-500">
               Hard min/max daily budget (USD) the algorithm may not exceed.
             </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-foreground">
                   Minimum daily budget
@@ -344,6 +349,27 @@ export function EntityAutomationSection({
                   className="rounded-full border-neutral-200 bg-neutral-50 font-light"
                 />
               </label>
+              {optimizationGoal === "roas" || optimizationGoal === "conversions" ? (
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-foreground">
+                    ROAS floor
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    placeholder="No floor"
+                    value={settings.roasFloor ?? ""}
+                    onChange={(e) =>
+                      updateSetting(
+                        "roasFloor",
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
+                    className="rounded-full border-neutral-200 bg-neutral-50 font-light"
+                  />
+                </label>
+              ) : null}
             </div>
           </div>
 
@@ -426,25 +452,6 @@ export function EntityAutomationSection({
                 </div>
               </div>
 
-              {optimizationGoal === "roas" || optimizationGoal === "conversions" ? (
-                <label className="block space-y-2">
-                  <span className="text-sm font-medium text-foreground">ROAS floor</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.1}
-                    value={settings.roasFloor ?? ""}
-                    onChange={(e) =>
-                      updateSetting(
-                        "roasFloor",
-                        e.target.value ? Number(e.target.value) : null,
-                      )
-                    }
-                    className="rounded-full border-neutral-200 bg-neutral-50 font-light"
-                  />
-                </label>
-              ) : null}
-
               {optimizationGoal === "ctr" ? (
                 <label className="block space-y-2">
                   <span className="text-sm font-medium text-foreground">
@@ -489,6 +496,7 @@ export function EntityAutomationSection({
 
               <div className="space-y-5 border-t border-neutral-100 pt-5">
                 <LabeledSwitch
+                  size="lg"
                   checked={settings.learningPhaseProtection}
                   onCheckedChange={(value) =>
                     updateSetting("learningPhaseProtection", value)
@@ -497,6 +505,7 @@ export function EntityAutomationSection({
                   description="Block scale-ups while Meta marks the ad set as learning limited."
                 />
                 <LabeledSwitch
+                  size="lg"
                   checked={settings.pauseOnFatigue}
                   onCheckedChange={(value) => updateSetting("pauseOnFatigue", value)}
                   label="Pause on frequency fatigue"

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-07T13:50:08.905Z",
+  "generatedAt": "2026-07-07T14:36:48.569Z",
   "source": "packages/supabase/scripts/dump-schema.mjs",
   "schemasIncluded": [
     "public",
@@ -11,7 +11,7 @@
     "views": 1,
     "materializedViews": 6,
     "enums": 26,
-    "columns": 1915
+    "columns": 1916
   },
   "schemas": {
     "public": {
@@ -1193,6 +1193,17 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "cooldown_hours",
+              "position": 16,
+              "dataType": "integer",
+              "udtName": "int4",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": 32,
+              "numericScale": 0
             }
           ],
           "primaryKey": [
