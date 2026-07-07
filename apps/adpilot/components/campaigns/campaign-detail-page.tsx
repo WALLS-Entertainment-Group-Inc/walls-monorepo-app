@@ -8,7 +8,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { EntityAutomationSection } from "@/components/campaigns/automation-panel";
 import {
-  AdPilotBadge,
+  AdPilotEnableToggle,
   AdPilotRowBadge,
   DetailBreadcrumbs,
   DetailSection,
@@ -115,7 +115,15 @@ export function CampaignDetailPage() {
             </div>
           </div>
 
-          {detail.automation.enabled ? <AdPilotBadge /> : null}
+          {detail.canAutomate ? (
+            <AdPilotEnableToggle
+              entityId={detail.id}
+              enabled={detail.automation.enabled}
+              onAutomationUpdated={(automation) =>
+                setDetail((prev) => (prev ? { ...prev, automation } : prev))
+              }
+            />
+          ) : null}
         </div>
       </motion.div>
 

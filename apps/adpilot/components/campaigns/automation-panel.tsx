@@ -228,30 +228,23 @@ export function EntityAutomationSection({
 
       <DetailSection title="AdPilot budget control">
         <div className="space-y-10">
-          <div>
-            <LabeledSwitch
-              size="lg"
-              checked={enabled}
-              onCheckedChange={(value) => {
-                setEnabled(value);
-                setSaved(false);
-              }}
-              label="Enable AdPilot for this entity"
-              description="When on, your automation worker may increase or decrease the daily budget within the guardrails below."
-            />
-
-            {enabled ? (
-              <p className="mt-4 text-xs font-light text-neutral-500">
-                Status:{" "}
-                <span className="font-medium text-neutral-700">
-                  {automationStatusLabel(detail.automation.automationStatus)}
-                </span>
-                {detail.automation.lastAdjustedAt
-                  ? ` · Last adjusted ${formatAdjustmentDate(detail.automation.lastAdjustedAt)}`
-                  : ""}
-              </p>
-            ) : null}
-          </div>
+          {detail.automation.enabled ? (
+            <p className="text-xs font-light text-neutral-500">
+              Status:{" "}
+              <span className="font-medium text-neutral-700">
+                {automationStatusLabel(detail.automation.automationStatus)}
+              </span>
+              {detail.automation.lastAdjustedAt
+                ? ` · Last adjusted ${formatAdjustmentDate(detail.automation.lastAdjustedAt)}`
+                : ""}
+            </p>
+          ) : (
+            <p className="text-xs font-light text-neutral-500">
+              AdPilot is off for this {entityLabel}. Turn it on with the AdPilot
+              toggle at the top of the page to let the worker adjust the daily
+              budget within the guardrails below.
+            </p>
+          )}
 
           <div>
             <DetailSubLabel>Automation preset</DetailSubLabel>

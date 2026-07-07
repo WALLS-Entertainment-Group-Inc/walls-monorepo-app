@@ -13,10 +13,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import { Switch } from "@walls/ui/switch";
 import { cn } from "@walls/utils";
 
 import { HeroStat } from "@/components/dashboard/dashboard-metrics";
-import type { EntityDetailMetrics } from "@/lib/entity-detail-server";
+import type { EntityDetailMetrics, EntityDetailResult } from "@/lib/entity-detail-server";
 import {
   formatCompactNumber,
   formatCurrencyFromMicros,
@@ -191,6 +192,73 @@ export function AdPilotBadge() {
       <Bot className="h-3.5 w-3.5" />
       AdPilot active
     </span>
+  );
+}
+
+/**
+ * Header enable/disable toggle for AdPilot on a campaign or ad set. Persists the
+ * change immediately (does not require the Save AdPilot settings button).
+ */
+export function AdPilotEnableToggle({
+  entityId,
+  enabled,
+  onAutomationUpdated,
+}: {
+  entityId: string;
+  enabled: boolean;
+  onAutomationUpdated: (automation: EntityDetailResult["automation"]) => void;
+}) {
+  const [saving, setSaving] = React.useState(false);
+
+  const toggle = async (value: boolean) => {
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/campaigns/${entityId}/automation`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: value }),
+      });
+      if (response.ok) {
+        const payload = (await response.json()) as {
+          automation: EntityDetailResult["automation"];
+        };
+        onAutomationUpdated(payload.automation);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-4 rounded-2xl border px-4 py-2.5 transition-colors",
+        enabled
+          ? "border-walls-sky/40 bg-walls-sky/5"
+          : "border-neutral-200 bg-walls-white",
+      )}
+    >
+      <div className="flex flex-col leading-tight">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+          AdPilot
+        </span>
+        <span
+          className={cn(
+            "text-sm font-semibold",
+            enabled ? "text-neutral-900" : "text-neutral-500",
+          )}
+        >
+          {enabled ? "Active" : "Off"}
+        </span>
+      </div>
+      <Switch
+        size="lg"
+        checked={enabled}
+        disabled={saving}
+        onCheckedChange={(value) => void toggle(value)}
+        aria-label="Enable AdPilot for this entity"
+      />
+    </div>
   );
 }
 
