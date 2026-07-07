@@ -10,6 +10,7 @@ import { Input } from "@walls/ui/input";
 import { LabeledSwitch } from "@walls/ui/switch";
 import { cn } from "@walls/utils";
 
+import { AdPilotPreviewCard } from "@/components/campaigns/adpilot-preview";
 import type { BudgetAdjustmentRow } from "@/lib/automation-server";
 import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
@@ -541,6 +542,8 @@ export function EntityAutomationSection({
           </div>
         </CardContent>
       </Card>
+
+      <AdPilotPreviewCard entityId={entityId} entityLabel={entityLabel} />
 
       <Card className="rounded-[32px] border-neutral-200/60 bg-neutral-100 shadow-inner">
         <CardHeader>

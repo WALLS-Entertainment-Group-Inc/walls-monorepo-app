@@ -25,3 +25,22 @@ export function getAdpilotApiKey(): string {
 export function getAdpilotApiKeyOrNull(): string | null {
   return process.env.ADPILOT_API_KEY ?? null;
 }
+
+/**
+ * Base URL of the automation backend's dry-run (test-response) service.
+ * Trailing slashes are stripped so callers can safely append `/dry-run`.
+ * Server-only.
+ */
+export function getAdpilotApiUrl(): string {
+  const url = process.env.ADPILOT_API_URL;
+
+  if (!url) {
+    throw new Error(
+      "Missing ADPILOT_API_URL. Add it to the root .env.local (development) or " +
+        ".env / Vercel env (production). It is the base URL of the AdPilot " +
+        "test-response service, e.g. http://localhost:8787.",
+    );
+  }
+
+  return url.replace(/\/+$/, "");
+}
