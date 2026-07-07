@@ -88,8 +88,6 @@ export async function listAutomationProfiles(
 ): Promise<AutomationProfile[]> {
   const supabase = await createClient();
 
-  await ensureDefaultAutomationProfile(userId);
-
   const { data, error } = await supabase
     .from("ad_automation_profiles")
     .select("id, name, description, is_default, optimization_goal, settings")
@@ -99,6 +97,14 @@ export async function listAutomationProfiles(
 
   if (error) throw error;
   return (data ?? []).map(mapProfile);
+}
+
+/** Settings workspace — guarantees at least one preset exists. */
+export async function listAutomationProfilesForSettings(
+  userId: string,
+): Promise<AutomationProfile[]> {
+  await ensureDefaultAutomationProfile(userId);
+  return listAutomationProfiles(userId);
 }
 
 export async function createAutomationProfile(input: {
@@ -211,7 +217,6 @@ export async function getEntityAutomation(input: {
   entityId: string;
 }): Promise<EntityAutomationState> {
   const supabase = await createClient();
-  const defaultProfile = await ensureDefaultAutomationProfile(input.userId);
 
   const { data: automation } = await supabase
     .from("ad_entity_automation")
@@ -222,7 +227,7 @@ export async function getEntityAutomation(input: {
     .eq("entity_id", input.entityId)
     .maybeSingle();
 
-  let profile = defaultProfile;
+  let profile: AutomationProfile | null = null;
   if (automation?.profile_id) {
     const { data: profileRow } = await supabase
       .from("ad_automation_profiles")

@@ -1,23 +1,28 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Loader2, Shield, SlidersHorizontal, TrendingUp } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@walls/ui/card";
 import { Input } from "@walls/ui/input";
+import { LabeledSwitch } from "@walls/ui/switch";
 import { cn } from "@walls/utils";
 
 import type { BudgetAdjustmentRow } from "@/lib/automation-server";
 import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import {
+  COOLDOWN_OPTIONS,
   OPTIMIZATION_GOAL_OPTIONS,
   optimizationGoalLabel,
   type AutomationStatus,
   type OptimizationGoal,
   type SpendAutomationSettings,
 } from "@/lib/spend-automation-settings";
+
+import { SliderField } from "@/components/ui/slider-field";
 
 function automationStatusLabel(status: AutomationStatus): string {
   const labels: Record<AutomationStatus, string> = {
@@ -29,94 +34,6 @@ function automationStatusLabel(status: AutomationStatus): string {
     error: "Error",
   };
   return labels[status];
-}
-
-function Toggle({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description ? (
-          <p className="mt-1 text-xs font-light leading-5 text-neutral-500">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-          checked ? "bg-walls-yellow/90" : "bg-neutral-300",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform",
-            checked && "translate-x-5",
-          )}
-        />
-      </button>
-    </div>
-  );
-}
-
-function SliderField({
-  label,
-  hint,
-  value,
-  min,
-  max,
-  step,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  hint?: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          {hint ? (
-            <p className="mt-1 text-xs font-light text-neutral-500">{hint}</p>
-          ) : null}
-        </div>
-        <p className="text-sm font-medium tabular-nums text-foreground">
-          {value}
-          {suffix}
-        </p>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-black"
-      />
-    </div>
-  );
 }
 
 function microsToDollars(micros: number | null): string {
@@ -196,6 +113,15 @@ type EntityAutomationSectionProps = {
   onAutomationUpdated: (automation: EntityDetailResult["automation"]) => void;
 };
 
+function resolveInitialProfileId(detail: EntityDetailResult): string | null {
+  if (detail.automation.profileId) return detail.automation.profileId;
+  return (
+    detail.profiles.find((profile) => profile.isDefault)?.id ??
+    detail.profiles[0]?.id ??
+    null
+  );
+}
+
 export function EntityAutomationSection({
   entityId,
   entityLabel,
@@ -203,8 +129,8 @@ export function EntityAutomationSection({
   onAutomationUpdated,
 }: EntityAutomationSectionProps) {
   const [enabled, setEnabled] = React.useState(detail.automation.enabled);
-  const [profileId, setProfileId] = React.useState<string | null>(
-    detail.automation.profileId,
+  const [profileId, setProfileId] = React.useState<string | null>(() =>
+    resolveInitialProfileId(detail),
   );
   const [minBudget, setMinBudget] = React.useState(
     microsToDollars(detail.automation.minDailyBudgetMicros),
@@ -221,7 +147,7 @@ export function EntityAutomationSection({
 
   React.useEffect(() => {
     setEnabled(detail.automation.enabled);
-    setProfileId(detail.automation.profileId);
+    setProfileId(resolveInitialProfileId(detail));
     setMinBudget(microsToDollars(detail.automation.minDailyBudgetMicros));
     setMaxBudget(microsToDollars(detail.automation.maxDailyBudgetMicros));
     setSettings(detail.automation.effectiveSettings);
@@ -300,14 +226,15 @@ export function EntityAutomationSection({
           </CardTitle>
           <p className="text-sm font-light text-neutral-500">
             Grant permission for AdPilot to adjust this {entityLabel}&apos;s daily
-            budget. Your backend algorithm will use these settings when it runs.
+            budget. Click Save AdPilot settings to enroll this {entityLabel} — workspace
+            presets are templates only and are not changed from this page.
           </p>
         </CardHeader>
         <CardContent className="space-y-6 pb-6">
           <div className="rounded-[24px] border border-neutral-200/70 bg-walls-white p-5 shadow-sm">
-            <Toggle
+            <LabeledSwitch
               checked={enabled}
-              onChange={(value) => {
+              onCheckedChange={(value) => {
                 setEnabled(value);
                 setSaved(false);
               }}
@@ -331,9 +258,18 @@ export function EntityAutomationSection({
           <div className="rounded-[24px] border border-neutral-200/70 bg-walls-white p-5 shadow-sm">
             <p className="text-sm font-medium text-foreground">Automation preset</p>
             <p className="mt-1 text-xs font-light text-neutral-500">
-              Reusable defaults from your profile library. Override specific knobs
-              per entity if needed.
+              Pick a workspace preset to inherit defaults. Per-{entityLabel} overrides
+              are stored on this {entityLabel} only.
             </p>
+            {detail.profiles.length === 0 ? (
+              <p className="mt-4 rounded-2xl border border-neutral-200/70 bg-neutral-50 px-4 py-3 text-sm font-light text-neutral-500">
+                No presets yet.{" "}
+                <Link href="/settings" className="text-[var(--walls-sky)] hover:underline">
+                  Create one in Settings
+                </Link>{" "}
+                — or save here to use built-in defaults for this {entityLabel}.
+              </p>
+            ) : (
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {detail.profiles.map((profile) => (
                 <button
@@ -365,6 +301,7 @@ export function EntityAutomationSection({
                 </button>
               ))}
             </div>
+            )}
           </div>
 
           <div className="rounded-[24px] border border-neutral-200/70 bg-walls-white p-5 shadow-sm">
@@ -432,6 +369,11 @@ export function EntityAutomationSection({
                 max={100}
                 step={1}
                 onChange={(value) => updateSetting("aggressiveness", value)}
+                endLabels={{
+                  left: "Conservative",
+                  center: "Balanced",
+                  right: "Aggressive",
+                }}
               />
 
               <div className="grid gap-5 sm:grid-cols-2">
@@ -443,6 +385,7 @@ export function EntityAutomationSection({
                   step={1}
                   suffix="%"
                   onChange={(value) => updateSetting("maxDailyIncreasePct", value)}
+                  endLabels={{ left: "5%", right: "50%" }}
                 />
                 <SliderField
                   label="Max daily decrease"
@@ -452,7 +395,35 @@ export function EntityAutomationSection({
                   step={1}
                   suffix="%"
                   onChange={(value) => updateSetting("maxDailyDecreasePct", value)}
+                  endLabels={{ left: "5%", right: "50%" }}
                 />
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Cooldown between budget changes
+                </p>
+                <p className="mt-1 text-xs font-light text-neutral-500">
+                  Minimum wait before AdPilot can increase or decrease the daily
+                  budget again on this {entityLabel}.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {COOLDOWN_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateSetting("cooldownHours", option.value)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-xs font-light transition-colors",
+                        settings.cooldownHours === option.value
+                          ? "border-walls-yellow bg-walls-yellow/20 text-foreground"
+                          : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:bg-neutral-100",
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {optimizationGoal === "roas" || optimizationGoal === "conversions" ? (
@@ -517,15 +488,17 @@ export function EntityAutomationSection({
               ) : null}
 
               <div className="space-y-5 border-t border-neutral-100 pt-5">
-                <Toggle
+                <LabeledSwitch
                   checked={settings.learningPhaseProtection}
-                  onChange={(value) => updateSetting("learningPhaseProtection", value)}
+                  onCheckedChange={(value) =>
+                    updateSetting("learningPhaseProtection", value)
+                  }
                   label="Learning phase protection"
                   description="Block scale-ups while Meta marks the ad set as learning limited."
                 />
-                <Toggle
+                <LabeledSwitch
                   checked={settings.pauseOnFatigue}
-                  onChange={(value) => updateSetting("pauseOnFatigue", value)}
+                  onCheckedChange={(value) => updateSetting("pauseOnFatigue", value)}
                   label="Pause on frequency fatigue"
                   description="Slow scaling when frequency rises and CTR drops week over week."
                 />
@@ -536,7 +509,8 @@ export function EntityAutomationSection({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="flex items-center gap-2 text-xs font-light text-neutral-500">
               <Shield className="h-3.5 w-3.5" />
-              Saves enrollment only — Meta budget updates run via your backend worker.
+              Saves to this {entityLabel}&apos;s enrollment record. Meta budget updates
+              run via your backend worker.
             </p>
             <Button
               type="button"

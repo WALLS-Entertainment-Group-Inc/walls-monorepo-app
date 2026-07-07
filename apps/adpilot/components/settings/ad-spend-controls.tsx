@@ -14,6 +14,7 @@ import {
 import { Button } from "@walls/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@walls/ui/card";
 import { Input } from "@walls/ui/input";
+import { LabeledSwitch } from "@walls/ui/switch";
 import { cn } from "@walls/utils";
 
 import type { AutomationProfile } from "@/lib/automation-server";
@@ -29,93 +30,7 @@ import {
   type SpendAutomationSettings,
 } from "@/lib/spend-automation-settings";
 
-function Toggle({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description ? (
-          <p className="mt-1 text-xs font-light leading-5 text-neutral-500">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={cn(
-          "relative h-7 w-12 shrink-0 rounded-full transition-colors",
-          checked ? "bg-walls-yellow/90" : "bg-neutral-300",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform",
-            checked && "translate-x-5",
-          )}
-        />
-      </button>
-    </div>
-  );
-}
-
-function SliderField({
-  label,
-  hint,
-  value,
-  min,
-  max,
-  step,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  hint?: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          {hint ? (
-            <p className="mt-1 text-xs font-light text-neutral-500">{hint}</p>
-          ) : null}
-        </div>
-        <p className="text-sm font-medium tabular-nums text-foreground">
-          {value}
-          {suffix}
-        </p>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-black"
-      />
-    </div>
-  );
-}
+import { SliderField } from "@/components/ui/slider-field";
 
 type ProfileFormState = {
   name: string;
@@ -414,9 +329,9 @@ export function AdSpendControls() {
           </div>
 
           <div className="mt-5 border-t border-neutral-100 pt-5">
-            <Toggle
+            <LabeledSwitch
               checked={form.isDefault}
-              onChange={(value) => updateForm("isDefault", value)}
+              onCheckedChange={(value) => updateForm("isDefault", value)}
               label="Use as workspace default"
               description="New campaigns and ad sets inherit this preset unless you pick another on the entity page."
             />
@@ -473,12 +388,12 @@ export function AdSpendControls() {
               max={100}
               step={1}
               onChange={(value) => updateSetting("aggressiveness", value)}
+              endLabels={{
+                left: "Conservative",
+                center: "Balanced",
+                right: "Aggressive",
+              }}
             />
-            <div className="flex justify-between text-[11px] font-light text-neutral-400">
-              <span>Conservative</span>
-              <span>Balanced</span>
-              <span>Aggressive</span>
-            </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <SliderField
@@ -490,6 +405,7 @@ export function AdSpendControls() {
                 step={1}
                 suffix="%"
                 onChange={(value) => updateSetting("maxDailyIncreasePct", value)}
+                endLabels={{ left: "5%", right: "50%" }}
               />
               <SliderField
                 label="Max daily budget decrease"
@@ -500,6 +416,7 @@ export function AdSpendControls() {
                 step={1}
                 suffix="%"
                 onChange={(value) => updateSetting("maxDailyDecreasePct", value)}
+                endLabels={{ left: "5%", right: "50%" }}
               />
             </div>
 
@@ -512,6 +429,7 @@ export function AdSpendControls() {
               step={1}
               suffix="%"
               onChange={(value) => updateSetting("scaleUpCapPct", value)}
+              endLabels={{ left: "10%", right: "60%" }}
             />
           </div>
         </div>
@@ -591,9 +509,12 @@ export function AdSpendControls() {
           </div>
 
           <div className="mt-5">
-            <p className="text-sm font-medium text-foreground">Cooldown between increases</p>
+            <p className="text-sm font-medium text-foreground">
+              Cooldown between budget changes
+            </p>
             <p className="mt-1 text-xs font-light text-neutral-500">
-              Minimum wait before the next budget bump on the same entity.
+              Minimum wait before AdPilot can increase or decrease the daily budget
+              again on the same entity.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {COOLDOWN_OPTIONS.map((option) => (
@@ -618,15 +539,15 @@ export function AdSpendControls() {
         <div className="rounded-[24px] border border-neutral-200/70 bg-walls-white p-5 shadow-sm">
           <p className="text-sm font-medium text-foreground">Safety</p>
           <div className="mt-5 space-y-5">
-            <Toggle
+            <LabeledSwitch
               checked={form.settings.learningPhaseProtection}
-              onChange={(value) => updateSetting("learningPhaseProtection", value)}
+              onCheckedChange={(value) => updateSetting("learningPhaseProtection", value)}
               label="Learning phase protection"
               description="Block scale-ups while Meta marks the ad set as learning limited."
             />
-            <Toggle
+            <LabeledSwitch
               checked={form.settings.pauseOnFatigue}
-              onChange={(value) => updateSetting("pauseOnFatigue", value)}
+              onCheckedChange={(value) => updateSetting("pauseOnFatigue", value)}
               label="Pause on frequency fatigue"
               description="Slow scaling when frequency rises and CTR drops week over week."
             />

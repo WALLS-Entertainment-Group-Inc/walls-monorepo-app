@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   createAutomationProfile,
-  listAutomationProfiles,
+  listAutomationProfilesForSettings,
   updateAutomationProfile,
 } from "@/lib/automation-server";
 import { getCurrentUserId } from "@/lib/connections-server";
@@ -18,7 +18,7 @@ export async function GET() {
   }
 
   try {
-    const profiles = await listAutomationProfiles(userId);
+    const profiles = await listAutomationProfilesForSettings(userId);
     return NextResponse.json({ profiles });
   } catch (error) {
     console.error("[adpilot] automation profiles:", error);
