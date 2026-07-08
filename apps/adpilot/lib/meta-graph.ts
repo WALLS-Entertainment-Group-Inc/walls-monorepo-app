@@ -35,6 +35,90 @@ export async function fetchMetaGraphCollection<T>(
   return results;
 }
 
+/** Fetch a single Graph node (object, not an edge/collection). */
+export async function fetchMetaGraphNode<T>(
+  path: string,
+  accessToken: string,
+  params: Record<string, string> = {},
+): Promise<T | null> {
+  const search = new URLSearchParams({
+    access_token: accessToken,
+    ...params,
+  });
+
+  const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${path}?${search.toString()}`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Meta API ${path} failed: ${body}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+export type MetaAdImage = {
+  hash?: string;
+  permalink_url?: string;
+  url_128?: string;
+  width?: number;
+  height?: number;
+};
+
+/**
+ * Resolve durable image permalinks for a set of image hashes via the
+ * act_{id}/adimages edge. Chunks requests to stay within URL length limits.
+ */
+export async function fetchMetaAdImagesByHash(
+  accountId: string,
+  accessToken: string,
+  hashes: string[],
+): Promise<Map<string, MetaAdImage>> {
+  const byHash = new Map<string, MetaAdImage>();
+  const unique = Array.from(new Set(hashes.filter(Boolean)));
+  const CHUNK = 40;
+
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const images = await fetchMetaGraphCollection<MetaAdImage>(
+      `${accountId}/adimages`,
+      accessToken,
+      {
+        fields: "hash,permalink_url,url_128,width,height",
+        hashes: JSON.stringify(chunk),
+      },
+    );
+    for (const image of images) {
+      if (image.hash) byHash.set(image.hash, image);
+    }
+  }
+
+  return byHash;
+}
+
+export type MetaVideoDetails = {
+  id?: string;
+  source?: string;
+  picture?: string;
+  permalink_url?: string;
+  length?: number;
+  title?: string;
+};
+
+/** Fetch playable/source details for a single video id. Returns null on failure. */
+export async function fetchMetaVideoDetails(
+  videoId: string,
+  accessToken: string,
+): Promise<MetaVideoDetails | null> {
+  try {
+    return await fetchMetaGraphNode<MetaVideoDetails>(videoId, accessToken, {
+      fields: "id,source,picture,permalink_url,length,title",
+    });
+  } catch {
+    return null;
+  }
+}
+
 export function getMetaDateRange(days: number): { since: string; until: string } {
   const until = new Date();
   const since = new Date();

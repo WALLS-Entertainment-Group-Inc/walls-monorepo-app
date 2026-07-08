@@ -7,6 +7,7 @@ import {
   Bot,
   CircleDollarSign,
   Eye,
+  ImageIcon,
   Minus,
   MousePointerClick,
   Plus,
@@ -307,6 +308,51 @@ export function LearningBadge({
     >
       {config.label}
     </span>
+  );
+}
+
+export function AdThumbnail({
+  url,
+  title,
+  creativeType,
+}: {
+  url: string | null;
+  title: string;
+  creativeType?: string | null;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const showImage = Boolean(url) && !failed;
+
+  return (
+    <div
+      className="relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-md border border-neutral-200/70 bg-neutral-100"
+      title={title}
+    >
+      {showImage ? (
+        <>
+          {/* Meta CDN URLs expire — plain img avoids next/image domain allowlist churn */}
+          <img
+            src={url!}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
+          {creativeType === "video" ? (
+            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[8px] font-medium uppercase tracking-wide text-white">
+              Vid
+            </span>
+          ) : null}
+        </>
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center text-neutral-300"
+          aria-hidden
+        >
+          <ImageIcon className="h-4 w-4" strokeWidth={1.5} />
+        </div>
+      )}
+    </div>
   );
 }
 

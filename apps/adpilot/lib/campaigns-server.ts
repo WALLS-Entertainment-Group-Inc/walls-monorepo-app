@@ -1,6 +1,7 @@
 import { createClient } from "@walls/supabase/server";
 
 import { META_PROVIDER } from "@/lib/connections";
+import { pickCreativeThumbnailUrl } from "@/lib/meta-creatives";
 import { isSalesObjective, formatObjectiveLabel } from "@/lib/meta-objectives";
 
 import type { AutomationStatus } from "@/lib/spend-automation-settings";
@@ -28,6 +29,8 @@ export type EntityPerformanceRow = {
   ctr: number;
   roas: number | null;
   learningStatus: string | null;
+  thumbnailUrl: string | null;
+  creativeType: string | null;
   lastSyncedAt: string | null;
 };
 
@@ -328,7 +331,19 @@ export async function listCampaignPerformance(input: {
   }
 
   const entityIds = entityList.map((entity) => entity.id);
-  const [{ data: metrics }, { data: automations }] = await Promise.all([
+
+  const creativesQuery =
+    input.entityType === "ad" && entityIds.length > 0
+      ? supabase
+          .from("ad_creatives")
+          .select(
+            "ad_entity_id, creative_type, thumbnail_url, image_url, image_permalink_url, video_thumbnail_url",
+          )
+          .in("ad_entity_id", entityIds)
+      : Promise.resolve({ data: [] as Array<Record<string, unknown>> });
+
+  const [{ data: metrics }, { data: automations }, { data: creatives }] =
+    await Promise.all([
     supabase
       .from("ad_metrics_daily")
       .select(
@@ -340,6 +355,7 @@ export async function listCampaignPerformance(input: {
       .from("ad_entity_automation")
       .select("entity_id, enabled, automation_status")
       .in("entity_id", entityIds),
+    creativesQuery,
   ]);
 
   const automationByEntity = new Map<
@@ -360,6 +376,18 @@ export async function listCampaignPerformance(input: {
     metricsByEntity.set(metric.entity_id, bucket);
   }
 
+  const creativeByAdEntity = new Map<
+    string,
+    { thumbnailUrl: string | null; creativeType: string | null }
+  >();
+  for (const creative of creatives ?? []) {
+    const adEntityId = creative.ad_entity_id as string;
+    creativeByAdEntity.set(adEntityId, {
+      thumbnailUrl: pickCreativeThumbnailUrl(creative),
+      creativeType: (creative.creative_type as string | null) ?? null,
+    });
+  }
+
   let rows: EntityPerformanceRow[] = entityList.map((entity) => {
     const totals = aggregateMetrics(metricsByEntity.get(entity.id) ?? []);
     const tracksWebsitePurchases = resolveTracksWebsitePurchases(
@@ -368,6 +396,7 @@ export async function listCampaignPerformance(input: {
       adGroupToCampaignId,
     );
     const automation = automationByEntity.get(entity.id);
+    const creative = creativeByAdEntity.get(entity.id);
 
     return {
       id: entity.id,
@@ -397,6 +426,8 @@ export async function listCampaignPerformance(input: {
       ctr: totals.ctr,
       roas: totals.roas,
       learningStatus: entity.learning_status,
+      thumbnailUrl: creative?.thumbnailUrl ?? null,
+      creativeType: creative?.creativeType ?? null,
       lastSyncedAt: entity.last_synced_at,
     };
   });

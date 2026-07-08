@@ -34,6 +34,7 @@ import { formatObjectiveLabel } from "@/lib/meta-objectives";
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import {
   AdPilotRowBadge,
+  AdThumbnail,
   LearningBadge,
 } from "@/components/campaigns/entity-detail-shared";
 import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
@@ -546,6 +547,13 @@ export function CampaignsPage() {
                   >
                     <td className="overflow-hidden py-4 pr-4">
                       <div className="flex min-w-0 items-center gap-2">
+                        {entityType === "ad" ? (
+                          <AdThumbnail
+                            url={row.thumbnailUrl}
+                            title={row.name}
+                            creativeType={row.creativeType}
+                          />
+                        ) : null}
                         {detailHref ? (
                           <Link
                             href={detailHref}
