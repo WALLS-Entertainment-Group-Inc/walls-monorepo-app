@@ -7,11 +7,6 @@ import {
   type MetaAdImage,
 } from "@/lib/meta-graph";
 
-/**
- * Raw creative shape as returned by the Graph API `creative{...}` expansion on
- * an ad. Only the fields we request are typed; everything is preserved in
- * raw_creative for later mining.
- */
 export type MetaAdCreative = {
   id?: string;
   name?: string;

@@ -59,7 +59,7 @@ export function resolveObjectiveBucket(
 
   const normalized = objective.trim().toUpperCase();
   for (const bucket of DASHBOARD_OBJECTIVE_BUCKETS) {
-    if (bucket.matchers.includes(normalized)) {
+    if ((bucket.matchers as readonly string[]).includes(normalized)) {
       return bucket.value;
     }
   }
