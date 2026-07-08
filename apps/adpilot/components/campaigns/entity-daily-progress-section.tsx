@@ -12,8 +12,8 @@ import {
 } from "recharts";
 
 import type { EntityDailyProgress } from "@/lib/entity-daily-progress";
-import { formatCompactNumber } from "@/lib/format-analytics";
 import {
+  formatCpaFromMicros,
   formatProfitMicros,
   formatProgressAxisValue,
   formatProgressTooltipValue,
@@ -73,9 +73,9 @@ function ProgressTooltip({
         {showProfit ? (
           <>
             <div className="flex items-center justify-between gap-6 text-xs">
-              <span className="font-light text-neutral-400">Purchases</span>
+              <span className="font-light text-neutral-400">CPA</span>
               <span className="font-medium text-neutral-100">
-                {formatCompactNumber(point.websitePurchases)}
+                {formatCpaFromMicros(point.spendMicros, point.websitePurchases)}
               </span>
             </div>
             <div className="flex items-center justify-between gap-6 border-t border-neutral-700 pt-1.5 text-xs">

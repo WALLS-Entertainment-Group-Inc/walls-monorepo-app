@@ -152,6 +152,15 @@ export function formatProfitMicros(profitMicros: number): string {
   return profitMicros < 0 ? `(${amount})` : amount;
 }
 
+/** Cost per acquisition for a day: spend divided by website purchases. */
+export function formatCpaFromMicros(
+  spendMicros: number,
+  purchases: number,
+): string {
+  if (!Number.isFinite(purchases) || purchases <= 0) return "—";
+  return formatCurrencyFromMicros(Math.round(spendMicros / purchases));
+}
+
 function summarizePeriod(
   days: EntityDailyProgressPoint[],
   primary: ObjectiveProgressMetric,
