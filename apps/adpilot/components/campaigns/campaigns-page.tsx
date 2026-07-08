@@ -170,6 +170,13 @@ function entityDetailHref(row: EntityPerformanceRow): string | null {
   return null;
 }
 
+function parentDetailHref(row: EntityPerformanceRow): string | null {
+  if (row.entityType === "ad" && row.parentId && row.parentCampaignId) {
+    return `/campaigns/${row.parentCampaignId}/ad-sets/${row.parentId}`;
+  }
+  return null;
+}
+
 export function CampaignsPage() {
   const searchParams = useSearchParams();
   const initialEntityType = searchParams.get("type");
@@ -544,6 +551,7 @@ export function CampaignsPage() {
               ) : (
                 rows.map((row, index) => {
                   const detailHref = entityDetailHref(row);
+                  const parentHref = parentDetailHref(row);
                   return (
                   <motion.tr
                     key={row.id}
@@ -593,9 +601,18 @@ export function CampaignsPage() {
                     </td>
                     <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light text-neutral-500">
                       <span className="block truncate">
-                        {entityType === "campaign"
-                          ? formatObjectiveLabel(row.objective)
-                          : (row.parentName ?? "—")}
+                        {entityType === "campaign" ? (
+                          formatObjectiveLabel(row.objective)
+                        ) : parentHref ? (
+                          <Link
+                            href={parentHref}
+                            className="transition-colors hover:text-[var(--walls-sky)]"
+                          >
+                            {row.parentName ?? "—"}
+                          </Link>
+                        ) : (
+                          (row.parentName ?? "—")
+                        )}
                       </span>
                     </td>
                     <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500">

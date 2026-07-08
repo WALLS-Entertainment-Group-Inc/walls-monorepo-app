@@ -331,25 +331,13 @@ export function AdThumbnail({
   const content = (
     <>
       {showImage ? (
-        <>
-          <img
-            src={url!}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setFailed(true)}
-          />
-          {creativeType === "video" ? (
-            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[8px] font-medium uppercase tracking-wide text-white">
-              Vid
-            </span>
-          ) : null}
-          {creativeType === "carousel" || creativeType === "dynamic" ? (
-            <span className="absolute bottom-0.5 right-0.5 rounded bg-black/60 px-1 text-[8px] font-medium uppercase tracking-wide text-white">
-              {creativeType === "carousel" ? "1+" : "Dyn"}
-            </span>
-          ) : null}
-        </>
+        <img
+          src={url!}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
       ) : (
         <div
           className="flex h-full w-full items-center justify-center text-neutral-300"
@@ -364,7 +352,7 @@ export function AdThumbnail({
   const className = cn(
     "relative h-9 w-9 flex-shrink-0 overflow-hidden rounded-md border border-neutral-200/70 bg-neutral-100",
     isInteractive &&
-      "cursor-pointer transition-shadow hover:ring-2 hover:ring-[var(--walls-sky)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--walls-sky)]",
+      "cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none",
   );
 
   if (isInteractive) {

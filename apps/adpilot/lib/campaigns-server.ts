@@ -20,6 +20,8 @@ export type EntityPerformanceRow = {
   accountName: string;
   parentId: string | null;
   parentName: string | null;
+  /** Campaign id for an ad's ad-set parent (used for parent detail links). */
+  parentCampaignId: string | null;
   userConnectionId: string;
   spendMicros: number;
   impressions: number;
@@ -413,6 +415,10 @@ export async function listCampaignPerformance(input: {
       parentName: entity.parent_id
         ? (parentNameById.get(entity.parent_id) ?? null)
         : null,
+      parentCampaignId:
+        entity.entity_type === "ad" && entity.parent_id
+          ? (adGroupToCampaignId.get(entity.parent_id) ?? null)
+          : null,
       userConnectionId: entity.user_connection_id,
       spendMicros: totals.spend_micros,
       impressions: totals.impressions,
