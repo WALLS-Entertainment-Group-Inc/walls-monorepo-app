@@ -57,7 +57,7 @@ function TrendTooltip({ active, label, payload }: TrendTooltipProps) {
   const profitMicros = point.purchaseValueMicros - point.spendMicros;
 
   return (
-    <div className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2.5 shadow-lg">
+    <div className="rounded-lg border border-neutral-500/80 bg-neutral-700 px-3 py-2.5 shadow-lg">
       <p className="mb-2 text-xs font-light text-neutral-300">{label}</p>
       <div className="space-y-1">
         <TooltipRow label="Spend" value={formatDollars(point.spend)} accent="sky" />
@@ -76,7 +76,7 @@ function TrendTooltip({ active, label, payload }: TrendTooltipProps) {
           label="CPA"
           value={formatCpaFromMicros(point.spendMicros, point.websitePurchases)}
         />
-        <div className="border-t border-neutral-700 pt-1.5">
+        <div className="border-t border-neutral-500/80 pt-1.5">
           <TooltipRow label="Profit" value={formatProfitMicros(profitMicros)} />
         </div>
       </div>
