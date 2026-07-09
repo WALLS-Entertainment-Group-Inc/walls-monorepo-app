@@ -4,7 +4,6 @@ import {
   Area,
   CartesianGrid,
   ComposedChart,
-  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -160,6 +159,10 @@ export function EntityDailyProgressSection({
                     <stop offset="0%" stopColor="var(--walls-sky)" stopOpacity={0.28} />
                     <stop offset="100%" stopColor="var(--walls-sky)" stopOpacity={0} />
                   </linearGradient>
+                  <linearGradient id="adpilotProgressSecondaryGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--walls-yellow)" stopOpacity={0.22} />
+                    <stop offset="100%" stopColor="var(--walls-yellow)" stopOpacity={0} />
+                  </linearGradient>
                 </defs>
 
                 <CartesianGrid
@@ -208,6 +211,25 @@ export function EntityDailyProgressSection({
                   content={<ProgressTooltip progress={progress} />}
                 />
 
+                {progress.secondaryMetric ? (
+                  <Area
+                    yAxisId="secondary"
+                    type="monotone"
+                    dataKey="secondary"
+                    stroke="var(--walls-yellow)"
+                    strokeWidth={2}
+                    fill="url(#adpilotProgressSecondaryGrad)"
+                    name="secondary"
+                    dot={false}
+                    activeDot={{
+                      r: 4,
+                      fill: "var(--walls-white)",
+                      stroke: "var(--walls-yellow)",
+                      strokeWidth: 2,
+                    }}
+                  />
+                ) : null}
+
                 <Area
                   yAxisId="primary"
                   type="monotone"
@@ -223,18 +245,6 @@ export function EntityDailyProgressSection({
                     strokeWidth: 2.5,
                   }}
                 />
-
-                {progress.secondaryMetric ? (
-                  <Line
-                    yAxisId="secondary"
-                    type="monotone"
-                    dataKey="secondary"
-                    stroke="var(--walls-yellow)"
-                    strokeWidth={2}
-                    dot={false}
-                    name="secondary"
-                  />
-                ) : null}
               </ComposedChart>
             </ResponsiveContainer>
           </div>

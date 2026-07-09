@@ -2,8 +2,8 @@
 
 import {
   Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,24 +11,110 @@ import {
 } from "recharts";
 
 import type { DashboardSpendDay } from "@/lib/analytics-server";
+import {
+  formatCpaFromMicros,
+  formatProfitMicros,
+} from "@/lib/entity-daily-progress";
+import {
+  formatCompactNumber,
+  formatPercent,
+  formatResultCount,
+  formatRoas,
+} from "@/lib/format-analytics";
 import { PREVIEW_SPEND_BY_DAY } from "@/lib/dashboard-defaults";
-
-const TOOLTIP_STYLE = {
-  backgroundColor: "rgb(38 38 38)",
-  border: "1px solid rgb(64 64 64)",
-  borderRadius: "8px",
-};
 
 type SpendTrendChartProps = {
   days: DashboardSpendDay[];
 };
 
-function formatSpend(value: number) {
+function formatDollars(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: value >= 1000 ? 0 : 2,
   }).format(value);
+}
+
+function formatDollarAxis(value: number) {
+  return value >= 1000 ? `$${Math.round(value / 1000)}k` : `$${Math.round(value)}`;
+}
+
+function formatImpressionAxis(value: number) {
+  return formatCompactNumber(value);
+}
+
+type TrendTooltipProps = {
+  active?: boolean;
+  label?: string;
+  payload?: Array<{ payload?: DashboardSpendDay }>;
+};
+
+function TrendTooltip({ active, label, payload }: TrendTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  const point = payload[0]?.payload;
+  if (!point) return null;
+
+  const profitMicros = point.purchaseValueMicros - point.spendMicros;
+
+  return (
+    <div className="rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2.5 shadow-lg">
+      <p className="mb-2 text-xs font-light text-neutral-300">{label}</p>
+      <div className="space-y-1">
+        <TooltipRow label="Spend" value={formatDollars(point.spend)} accent="sky" />
+        <TooltipRow
+          label="Purchase value"
+          value={formatDollars(point.purchaseValue)}
+          accent="yellow"
+        />
+        <TooltipRow
+          label="Impressions"
+          value={formatCompactNumber(point.impressions)}
+        />
+        <TooltipRow label="Clicks" value={formatCompactNumber(point.clicks)} />
+        <TooltipRow label="CTR" value={formatPercent(point.ctr)} />
+        <TooltipRow label="ROAS" value={formatRoas(point.roas)} />
+        <TooltipRow
+          label="Purchases"
+          value={formatResultCount(point.websitePurchases)}
+        />
+        <TooltipRow
+          label="CPA"
+          value={formatCpaFromMicros(point.spendMicros, point.websitePurchases)}
+        />
+        <div className="border-t border-neutral-700 pt-1.5">
+          <TooltipRow label="Profit" value={formatProfitMicros(profitMicros)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TooltipRow({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: "sky" | "yellow";
+}) {
+  return (
+    <div className="flex items-center justify-between gap-6 text-xs">
+      <span className="font-light text-neutral-400">{label}</span>
+      <span
+        className={
+          accent === "sky"
+            ? "font-medium text-[var(--walls-sky)]"
+            : accent === "yellow"
+              ? "font-medium text-[var(--walls-yellow)]"
+              : "font-medium text-neutral-100"
+        }
+      >
+        {value}
+      </span>
+    </div>
+  );
 }
 
 export function SpendTrendChart({ days }: SpendTrendChartProps) {
@@ -37,24 +123,47 @@ export function SpendTrendChart({ days }: SpendTrendChartProps) {
 
   return (
     <div className="relative w-full">
-      {!hasLiveData && (
+      {!hasLiveData ? (
         <div className="pointer-events-none absolute right-0 top-0 z-10">
           <span className="rounded-full border border-neutral-200/80 bg-walls-white/90 px-2.5 py-0.5 text-[10px] font-light uppercase tracking-wider text-neutral-500 shadow-sm">
             Preview
           </span>
         </div>
-      )}
+      ) : null}
 
-      <div className="h-[260px] w-full pt-5">
+      <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-light uppercase tracking-wider text-neutral-400">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded-full bg-[var(--walls-sky)]" />
+          Spend
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded-full bg-[var(--walls-yellow)]" />
+          Purchase value
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0.5 w-4 rounded-full bg-[var(--walls-blue)]" />
+          Impressions
+        </span>
+      </div>
+
+      <div className="h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
+          <ComposedChart
             data={chartData}
-            margin={{ top: 8, right: 24, left: 0, bottom: 0 }}
+            margin={{ top: 8, right: 48, left: 0, bottom: 0 }}
           >
             <defs>
               <linearGradient id="adpilotSpendGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--walls-sky)" stopOpacity={0.28} />
                 <stop offset="100%" stopColor="var(--walls-sky)" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="adpilotPurchaseGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--walls-yellow)" stopOpacity={0.22} />
+                <stop offset="100%" stopColor="var(--walls-yellow)" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="adpilotImpressionsGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--walls-blue)" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="var(--walls-blue)" stopOpacity={0} />
               </linearGradient>
             </defs>
 
@@ -75,24 +184,63 @@ export function SpendTrendChart({ days }: SpendTrendChartProps) {
             />
 
             <YAxis
-              orientation="right"
+              yAxisId="dollars"
+              orientation="left"
               axisLine={false}
               tickLine={false}
               tick={{ fill: "rgb(115 115 115)", fontSize: 11 }}
-              tickFormatter={(value: number) =>
-                value >= 1000 ? `$${Math.round(value / 1000)}k` : `$${value}`
-              }
-              width={44}
+              tickFormatter={formatDollarAxis}
+              width={48}
             />
 
-            <Tooltip
-              contentStyle={TOOLTIP_STYLE}
-              labelStyle={{ color: "rgb(212 212 216)" }}
-              itemStyle={{ color: "rgb(212 212 216)" }}
-              formatter={(value: number) => [formatSpend(value), "Spend"]}
+            <YAxis
+              yAxisId="impressions"
+              orientation="right"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: "rgb(163 163 163)", fontSize: 11 }}
+              tickFormatter={formatImpressionAxis}
+              width={48}
+            />
+
+            <Tooltip content={<TrendTooltip />} />
+
+            <Area
+              yAxisId="impressions"
+              type="monotone"
+              dataKey="impressions"
+              stroke="var(--walls-blue)"
+              strokeWidth={2}
+              fill="url(#adpilotImpressionsGrad)"
+              name="Impressions"
+              dot={false}
+              activeDot={{
+                r: 4,
+                fill: "var(--walls-white)",
+                stroke: "var(--walls-blue)",
+                strokeWidth: 2,
+              }}
             />
 
             <Area
+              yAxisId="dollars"
+              type="monotone"
+              dataKey="purchaseValue"
+              stroke="var(--walls-yellow)"
+              strokeWidth={2}
+              fill="url(#adpilotPurchaseGrad)"
+              name="Purchase value"
+              dot={false}
+              activeDot={{
+                r: 4,
+                fill: "var(--walls-white)",
+                stroke: "var(--walls-yellow)",
+                strokeWidth: 2,
+              }}
+            />
+
+            <Area
+              yAxisId="dollars"
               type="monotone"
               dataKey="spend"
               stroke="var(--walls-sky)"
@@ -106,7 +254,7 @@ export function SpendTrendChart({ days }: SpendTrendChartProps) {
                 strokeWidth: 2.5,
               }}
             />
-          </AreaChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>

@@ -172,12 +172,14 @@ function summarizePeriod(
       impressions: acc.impressions + day.impressions,
       clicks: acc.clicks + day.clicks,
       conversionValueMicros: acc.conversionValueMicros + day.conversionValueMicros,
+      websitePurchases: acc.websitePurchases + day.websitePurchases,
     }),
     {
       spendMicros: 0,
       impressions: 0,
       clicks: 0,
       conversionValueMicros: 0,
+      websitePurchases: 0,
     },
   );
 

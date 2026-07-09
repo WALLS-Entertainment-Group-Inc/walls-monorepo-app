@@ -33,6 +33,7 @@ import {
   formatRoas,
 } from "@/lib/format-analytics";
 import { formatObjectiveLabel } from "@/lib/meta-objectives";
+import { formatCpaFromMicros } from "@/lib/entity-daily-progress";
 
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import { AdCreativeLightbox } from "@/components/campaigns/ad-creative-lightbox";
@@ -55,6 +56,7 @@ const CAMPAIGN_COLUMN_IDS = [
   "dailyBudget",
   "spend",
   "websitePurchases",
+  "cpa",
   "purchaseValue",
   "impressions",
   "clicks",
@@ -72,6 +74,7 @@ const DEFAULT_CAMPAIGN_COLUMN_WIDTHS: Record<CampaignColumnId, number> = {
   dailyBudget: 112,
   spend: 104,
   websitePurchases: 132,
+  cpa: 88,
   purchaseValue: 124,
   impressions: 112,
   clicks: 80,
@@ -107,6 +110,7 @@ function columnLabel(id: CampaignColumnId, entityType: CampaignEntityType): stri
     dailyBudget: "Daily budget",
     spend: "Spend",
     websitePurchases: "Website purchases",
+    cpa: "CPA",
     purchaseValue: "Purchase value",
     impressions: "Impressions",
     clicks: "Clicks",
@@ -773,6 +777,15 @@ export function CampaignsPage() {
                           row.websitePurchases === null
                             ? "—"
                             : formatResultCount(row.websitePurchases)
+                        }
+                      />
+                    </td>
+                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
+                      <AnimatedMetricValue
+                        value={
+                          row.websitePurchases === null
+                            ? "—"
+                            : formatCpaFromMicros(row.spendMicros, row.websitePurchases)
                         }
                       />
                     </td>

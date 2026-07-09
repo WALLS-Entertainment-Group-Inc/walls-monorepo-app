@@ -50,6 +50,13 @@ export type DashboardSpendDay = {
   label: string;
   spend: number;
   spendMicros: number;
+  purchaseValue: number;
+  purchaseValueMicros: number;
+  impressions: number;
+  clicks: number;
+  websitePurchases: number;
+  ctr: number;
+  roas: number | null;
 };
 
 export type DashboardTopPerformingAd = {
@@ -134,27 +141,82 @@ function sumMetrics(rows: MetricRow[]) {
   return { ...totals, ctr, roas };
 }
 
-function buildSpendByDay(rows: MetricRow[]): DashboardSpendDay[] {
-  const totalsByDate = new Map<string, number>();
+function buildDateRange(rangeDays: number): string[] {
+  const dates: string[] = [];
+  const end = new Date();
 
-  for (const row of rows) {
-    totalsByDate.set(
-      row.metric_date,
-      (totalsByDate.get(row.metric_date) ?? 0) + row.spend_micros,
-    );
+  for (let offset = rangeDays - 1; offset >= 0; offset -= 1) {
+    const date = new Date(end);
+    date.setDate(end.getDate() - offset);
+    dates.push(date.toISOString().slice(0, 10));
   }
 
-  return Array.from(totalsByDate.entries())
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([date, spendMicros]) => ({
+  return dates;
+}
+
+function buildSpendByDay(rows: MetricRow[], rangeDays = 30): DashboardSpendDay[] {
+  const totalsByDate = new Map<
+    string,
+    {
+      spendMicros: number;
+      conversionValueMicros: number;
+      impressions: number;
+      clicks: number;
+      websitePurchases: number;
+    }
+  >();
+
+  for (const row of rows) {
+    const existing = totalsByDate.get(row.metric_date) ?? {
+      spendMicros: 0,
+      conversionValueMicros: 0,
+      impressions: 0,
+      clicks: 0,
+      websitePurchases: 0,
+    };
+
+    totalsByDate.set(row.metric_date, {
+      spendMicros: existing.spendMicros + (row.spend_micros ?? 0),
+      conversionValueMicros:
+        existing.conversionValueMicros + (row.conversion_value_micros ?? 0),
+      impressions: existing.impressions + (row.impressions ?? 0),
+      clicks: existing.clicks + (row.clicks ?? 0),
+      websitePurchases:
+        existing.websitePurchases + Number(row.website_purchases ?? 0),
+    });
+  }
+
+  return buildDateRange(rangeDays).map((date) => {
+    const totals = totalsByDate.get(date) ?? {
+      spendMicros: 0,
+      conversionValueMicros: 0,
+      impressions: 0,
+      clicks: 0,
+      websitePurchases: 0,
+    };
+    const spend = totals.spendMicros / 1_000_000;
+    const purchaseValue = totals.conversionValueMicros / 1_000_000;
+    const ctr =
+      totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+    const roas = spend > 0 ? purchaseValue / spend : null;
+
+    return {
       date,
       label: new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
       }),
-      spend: spendMicros / 1_000_000,
-      spendMicros,
-    }));
+      spend,
+      spendMicros: totals.spendMicros,
+      purchaseValue,
+      purchaseValueMicros: totals.conversionValueMicros,
+      impressions: totals.impressions,
+      clicks: totals.clicks,
+      websitePurchases: totals.websitePurchases,
+      ctr,
+      roas,
+    };
+  });
 }
 
 function formatAccountStatus(status: string | null): string {

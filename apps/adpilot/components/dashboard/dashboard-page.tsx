@@ -209,7 +209,7 @@ export function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.22 }}
         >
-          <SectionLabel>Spend — {periodLabel}</SectionLabel>
+          <SectionLabel>Performance — {periodLabel}</SectionLabel>
           <SpendTrendChart days={spendByDay} />
         </motion.div>
 
