@@ -128,7 +128,7 @@ export default function ResetPasswordPage() {
   });
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-walls-white">
       <div className="absolute top-4 right-4 pr-6">
         <Button
           onClick={() => router.push("/login")}

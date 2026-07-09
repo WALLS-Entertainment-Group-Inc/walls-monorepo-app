@@ -12,23 +12,35 @@ function logVoice(event: string, details?: Record<string, unknown>) {
 async function voiceFetch(
   path: string,
   init: RequestInit,
+  timeoutMs = 90_000,
 ): Promise<Response> {
   const baseUrl = getWallieWebUrl();
   const url = `${baseUrl}${path}`;
 
   logVoice("→", { url, method: init.method ?? "GET" });
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(url, init);
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
     logVoice("←", { url, status: response.status, ok: response.ok });
     return response;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Network request failed";
     console.error("[wallie-mobile] voice network error:", { url, message });
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Voice request timed out. Please try again.");
+    }
     throw new Error(
       `Voice network error (${baseUrl}). On a physical device, localhost will not work — use production Wallie or set NEXT_PUBLIC_WALLIE_MOBILE_WEB_URL. ${message}`,
     );
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
