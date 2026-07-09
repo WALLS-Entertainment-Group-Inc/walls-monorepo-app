@@ -265,10 +265,7 @@ export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
             { backgroundColor: palette.core, borderColor: palette.rim },
             coreStyle,
           ]}
-        >
-          <View style={styles.coreSheen} />
-          <View style={styles.coreGlow} />
-        </Animated.View>
+        />
       </View>
     </View>
   );
@@ -348,23 +345,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 28,
     elevation: 16,
-  },
-  coreSheen: {
-    position: "absolute",
-    top: -20,
-    left: -10,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
-  },
-  coreGlow: {
-    position: "absolute",
-    bottom: -24,
-    right: -16,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
   },
 });
