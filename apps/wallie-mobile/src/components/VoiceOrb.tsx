@@ -24,7 +24,6 @@ interface OrbPalette {
   blobD: string;
   core: string;
   halo: string;
-  rim: string;
 }
 
 function paletteForState(state: WallieVoiceState): OrbPalette {
@@ -36,7 +35,6 @@ function paletteForState(state: WallieVoiceState): OrbPalette {
       blobD: "rgba(244, 244, 245, 0.55)",
       core: "#18181b",
       halo: "rgba(99, 102, 241, 0.22)",
-      rim: "rgba(255, 255, 255, 0.14)",
     };
   }
   if (state === "speaking") {
@@ -47,7 +45,6 @@ function paletteForState(state: WallieVoiceState): OrbPalette {
       blobD: "rgba(224, 242, 254, 0.6)",
       core: "#0c1929",
       halo: "rgba(56, 189, 248, 0.28)",
-      rim: "rgba(186, 230, 253, 0.2)",
     };
   }
   if (state === "processing") {
@@ -58,7 +55,6 @@ function paletteForState(state: WallieVoiceState): OrbPalette {
       blobD: "rgba(255, 237, 213, 0.55)",
       core: "#1c1410",
       halo: "rgba(251, 146, 60, 0.26)",
-      rim: "rgba(254, 215, 170, 0.18)",
     };
   }
   return {
@@ -68,7 +64,6 @@ function paletteForState(state: WallieVoiceState): OrbPalette {
     blobD: "rgba(244, 244, 245, 0.4)",
     core: "#18181b",
     halo: "rgba(161, 161, 170, 0.18)",
-    rim: "rgba(255, 255, 255, 0.1)",
   };
 }
 
@@ -161,12 +156,7 @@ function useOrbMotion(state: WallieVoiceState, audioLevel: number) {
     transform: [{ scale: 1.02 + breathe.value * 0.03 }],
   }));
 
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: 0.25 + breathe.value * 0.35 + level.value * 0.2,
-    transform: [{ scale: 1.05 + breathe.value * 0.08 + level.value * 0.06 }],
-  }));
-
-  return { orbitAStyle, orbitBStyle, orbitCStyle, haloStyle, coreStyle, meltStyle, ringStyle };
+  return { orbitAStyle, orbitBStyle, orbitCStyle, haloStyle, coreStyle, meltStyle };
 }
 
 export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
@@ -178,7 +168,6 @@ export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
     haloStyle,
     coreStyle,
     meltStyle,
-    ringStyle,
   } = useOrbMotion(state, audioLevel);
 
   return (
@@ -188,14 +177,6 @@ export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
           styles.halo,
           { backgroundColor: palette.halo },
           haloStyle,
-        ]}
-      />
-
-      <Animated.View
-        style={[
-          styles.ring,
-          { borderColor: palette.rim },
-          ringStyle,
         ]}
       />
 
@@ -262,7 +243,7 @@ export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
         <Animated.View
           style={[
             styles.core,
-            { backgroundColor: palette.core, borderColor: palette.rim },
+            { backgroundColor: palette.core },
             coreStyle,
           ]}
         />
@@ -292,13 +273,6 @@ const styles = StyleSheet.create({
     height: FIELD_SIZE,
     alignItems: "center",
     justifyContent: "center",
-  },
-  ring: {
-    position: "absolute",
-    width: FIELD_SIZE + 28,
-    height: FIELD_SIZE + 28,
-    borderRadius: (FIELD_SIZE + 28) / 2,
-    borderWidth: 1,
   },
   orbit: {
     ...StyleSheet.absoluteFillObject,
@@ -336,7 +310,6 @@ const styles = StyleSheet.create({
     width: 132,
     height: 132,
     borderRadius: 66,
-    borderWidth: 1,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
