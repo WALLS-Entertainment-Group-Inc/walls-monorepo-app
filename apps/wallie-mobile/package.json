@@ -8,7 +8,7 @@
     "start": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "ios": "expo run:ios",
-    "ios:device": "expo run:ios --device",
+    "ios:device": "bash scripts/run-ios-device.sh",
     "android": "expo run:android",
     "android:device": "expo run:android --device",
     "lint": "tsc --noEmit"
