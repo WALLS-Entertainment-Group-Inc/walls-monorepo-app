@@ -17,7 +17,7 @@ const PLACEHOLDER_SUGGESTIONS = [
   "Find brands to partner for our @Rosie Travels Australia sequence...",
   "Help me decide a rate for this campaign...",
   "Summarize my pending deals...",
-  "Who should I follow up with today...",
+  "Who should I follow up with today?",
   "Find brands in the beauty space...",
   "What's a fair rate for 100K followers...",
 ];
