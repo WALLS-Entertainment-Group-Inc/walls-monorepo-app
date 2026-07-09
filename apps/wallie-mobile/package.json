@@ -1,0 +1,49 @@
+{
+  "name": "wallie-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "postinstall": "bash scripts/patch-expo-ios-device-install.sh",
+    "dev": "expo start --dev-client",
+    "start": "expo start --dev-client",
+    "start:clear": "expo start --dev-client --clear",
+    "prebuild": "expo prebuild",
+    "ios": "expo run:ios",
+    "ios:simulator": "REACT_NATIVE_PACKAGER_HOSTNAME=localhost bash scripts/run-ios-simulator.sh",
+    "ios:device": "bash scripts/run-ios-device.sh",
+    "android": "expo run:android",
+    "android:device": "expo run:android --device",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@supabase/supabase-js": "^2.49.8",
+    "@walls/wallie-core": "workspace:*",
+    "dotenv": "^16.5.0",
+    "expo": "~52.0.47",
+    "expo-av": "~15.0.2",
+    "expo-constants": "~17.0.8",
+    "expo-dev-client": "~5.0.20",
+    "expo-file-system": "~18.0.12",
+    "expo-linking": "~7.0.5",
+    "expo-router": "~4.0.21",
+    "expo-secure-store": "~14.0.1",
+    "expo-status-bar": "~2.0.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-native": "0.76.9",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-reanimated": "~3.16.7",
+    "react-native-safe-area-context": "4.12.0",
+    "react-native-screens": "~4.4.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "react-native-web": "~0.19.13"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/react": "~18.3.12",
+    "@types/react-dom": "~18.3.1",
+    "typescript": "^5"
+  }
+}

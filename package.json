@@ -7,6 +7,11 @@
     "dev:public": "turbo dev --filter=public-site",
     "dev:adpilot": "turbo dev --filter=adpilot",
     "dev:portal": "turbo dev --filter=portal",
+    "dev:wallie": "turbo dev --filter=wallie",
+    "dev:wallie-mobile": "pnpm --filter wallie-mobile dev",
+    "ios:wallie-mobile": "pnpm --filter wallie-mobile ios:device",
+    "ios:wallie-mobile:sim": "pnpm --filter wallie-mobile ios:simulator",
+    "android:wallie-mobile": "pnpm --filter wallie-mobile android:device",
     "build": "turbo build",
     "lint": "turbo lint",
     "start": "turbo start",
@@ -15,5 +20,11 @@
   },
   "devDependencies": {
     "turbo": "^2.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "wallie-mobile>@types/react": "~18.3.12",
+      "wallie-mobile>@types/react-dom": "~18.3.1"
+    }
   }
 }
