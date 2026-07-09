@@ -7,6 +7,7 @@
     "dev:public": "turbo dev --filter=public-site",
     "dev:adpilot": "turbo dev --filter=adpilot",
     "dev:portal": "turbo dev --filter=portal",
+    "dev:wallie": "turbo dev --filter=wallie",
     "build": "turbo build",
     "lint": "turbo lint",
     "start": "turbo start",
