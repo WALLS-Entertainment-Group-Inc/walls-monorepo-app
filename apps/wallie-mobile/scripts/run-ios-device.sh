@@ -72,6 +72,9 @@ ensure_metro_running() {
 
 ensure_metro_running
 
+echo "Syncing iOS app icon + splash from assets/icon.png..."
+node "$APP_ROOT/scripts/sync-ios-native-assets.js"
+
 echo "Building Wallie for device (ignore Expo auto-launch errors)..."
 (
   cd "$APP_ROOT"

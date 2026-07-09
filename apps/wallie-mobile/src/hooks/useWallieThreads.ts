@@ -101,6 +101,81 @@ export function useWallieThreads() {
     [user?.id],
   );
 
+  const deleteThread = useCallback(
+    async (threadId: string) => {
+      if (!user?.id) return;
+
+      const { error: messagesError } = await getSupabase()
+        .from("wallie_chats")
+        .delete()
+        .eq("thread_id", threadId);
+
+      if (messagesError) {
+        console.error("[wallie-mobile] delete messages:", messagesError);
+      }
+
+      const { error } = await getSupabase()
+        .from("wallie_threads")
+        .delete()
+        .eq("id", threadId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("[wallie-mobile] delete thread:", error);
+        return;
+      }
+
+      setThreads((prev) => prev.filter((thread) => thread.id !== threadId));
+    },
+    [user?.id],
+  );
+
+  const togglePinThread = useCallback(
+    async (threadId: string) => {
+      if (!user?.id) return;
+
+      const thread = threads.find((item) => item.id === threadId);
+      if (!thread) return;
+
+      const nextPinned = !thread.is_pinned;
+
+      const { error } = await getSupabase()
+        .from("wallie_threads")
+        .update({
+          is_pinned: nextPinned,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", threadId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("[wallie-mobile] pin thread:", error);
+        return;
+      }
+
+      setThreads((prev) => {
+        const updated = prev.map((item) =>
+          item.id === threadId
+            ? {
+                ...item,
+                is_pinned: nextPinned,
+                updated_at: new Date().toISOString(),
+              }
+            : item,
+        );
+
+        return updated.sort((a, b) => {
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          return (
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+          );
+        });
+      });
+    },
+    [threads, user?.id],
+  );
+
   return {
     threads,
     loading,
@@ -108,5 +183,7 @@ export function useWallieThreads() {
     createThread,
     updateThreadTitle,
     archiveThread,
+    deleteThread,
+    togglePinThread,
   };
 }

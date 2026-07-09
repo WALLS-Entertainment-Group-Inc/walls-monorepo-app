@@ -131,26 +131,26 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   h1: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "700",
     color: colors.text,
-    lineHeight: 28,
+    lineHeight: 30,
   },
   h2: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: "700",
     color: colors.text,
-    lineHeight: 24,
+    lineHeight: 27,
   },
   h3: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "600",
     color: colors.text,
-    lineHeight: 22,
+    lineHeight: 25,
   },
   paragraph: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 26,
     color: colors.text,
   },
   bold: {
@@ -169,8 +169,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   bullet: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 26,
     color: colors.textMuted,
   },
 });

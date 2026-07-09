@@ -10,6 +10,8 @@ pnpm + Turborepo monorepo for the WALLS Entertainment ecosystem.
 | **public-site** | `apps/public-site` | Marketing site ([wallsentertainment.com](https://wallsentertainment.com)) |
 | **adpilot**     | `apps/adpilot`     | Ad operations & campaign management                                       |
 | **portal**      | `apps/portal`      | Agency auth portal ([portal.walls.agency](https://portal.walls.agency)) — login & password reset |
+| **wallie**      | `apps/wallie`      | Wallie AI web app ([wallie.walls.agency](https://wallie.walls.agency)) |
+| **wallie-mobile** | `apps/wallie-mobile` | Wallie iOS/Android app (Expo dev client) |
 
 
 Future apps (e.g. `agents.walls.agency`) will live under `apps/`.
@@ -23,6 +25,7 @@ Future apps (e.g. `agents.walls.agency`) will live under `apps/`.
 | **@walls/auth**     | `packages/auth`     | Shared Supabase auth context + provider                 |
 | **@walls/supabase** | `packages/supabase` | Shared Supabase clients, migrations, schema snapshot (`generated.json`) — see [packages/supabase/README.md](packages/supabase/README.md) |
 | **@walls/ui**       | `packages/ui`       | Shared UI components (Shadcn-style)                     |
+| **@walls/wallie-core** | `packages/wallie-core` | Shared Wallie chat types, streaming, models          |
 
 
 
@@ -69,11 +72,92 @@ pnpm dev:adpilot
 # Agency portal (login / reset password) — http://localhost:3002
 pnpm dev:portal
 
+# Wallie web — http://localhost:3003
+pnpm dev:wallie
+
 # All apps at once
 pnpm dev
 ```
 
 Dev servers use **webpack** (`next dev --webpack`) instead of Turbopack. Turbopack can hang on first compile in this monorepo (stuck on `Compiling /login ...`); webpack is stable for local development. Production `next build` is unaffected.
+
+### 4. Wallie Mobile (iOS / Android)
+
+Wallie Mobile is an **Expo dev client** app. JavaScript changes hot-reload over Metro; **native changes require a rebuild** (app icon, new native modules like `expo-blur`, permissions, etc.).
+
+#### Start the dev server (required)
+
+From the **repo root**:
+
+```bash
+pnpm dev:wallie-mobile
+```
+
+Metro runs on **port 8081** by default. Open the Wallie app on your phone/simulator and connect to the dev server URL Metro prints (or enter it manually).
+
+#### Voice on a physical iPhone (second terminal)
+
+Transcription and TTS hit the **Wallie web app**, not Metro. Run this in a **second terminal** while developing voice:
+
+```bash
+pnpm dev:wallie
+```
+
+Wallie web runs on **http://localhost:3003** with `--hostname 0.0.0.0` so your phone on the same Wi‑Fi can reach your Mac. Ensure `.env.local` includes:
+
+```bash
+NEXT_PUBLIC_WALLIE_URL=http://localhost:3003
+# Optional: force a specific LAN URL for voice on device
+# NEXT_PUBLIC_WALLIE_MOBILE_WEB_URL=http://192.168.x.x:3003
+```
+
+#### Rebuild & install on a physical iPhone
+
+Use this when you add/change native dependencies, app icon, splash, or after pulling native-related changes:
+
+```bash
+pnpm ios:wallie-mobile
+```
+
+This script:
+
+1. Syncs `assets/icon.png` into the native iOS project (home screen icon)
+2. Builds the app with Xcode
+3. Installs on your connected iPhone via `devicectl`
+4. Starts Metro if it is not already running
+
+**If the home screen icon still looks wrong:** delete Wallie from your iPhone, then run `pnpm ios:wallie-mobile` again (iOS caches icons aggressively).
+
+**Simulator instead of device:**
+
+```bash
+pnpm ios:wallie-mobile:sim
+```
+
+#### When to rebuild vs reload
+
+| Change | What to do |
+| ------ | ---------- |
+| React screens, hooks, styles | Save file — Metro reloads (shake device → Reload) |
+| `.env.local` values used by JS | Restart `pnpm dev:wallie-mobile` |
+| App icon, splash, native modules, `app.config.ts` plugins | `pnpm ios:wallie-mobile` |
+| Voice not working on device | Ensure `pnpm dev:wallie` is running; same Wi‑Fi; allow Local Network on iOS |
+
+#### Useful commands
+
+```bash
+# Metro only (same as dev:wallie-mobile)
+pnpm --filter wallie-mobile dev
+
+# Clear Metro cache
+pnpm --filter wallie-mobile start:clear
+
+# Sync app icon into existing ios/ folder without full rebuild
+pnpm --filter wallie-mobile sync:ios-assets
+
+# Regenerate native ios/ and android/ projects (destructive to local native edits)
+pnpm --filter wallie-mobile prebuild
+```
 
 
 
@@ -86,6 +170,10 @@ Dev servers use **webpack** (`next dev --webpack`) instead of Turbopack. Turbopa
 | `pnpm dev:public`  | Run only the public marketing site (port 3000) |
 | `pnpm dev:adpilot` | Run only AdPilot (port 3001)                   |
 | `pnpm dev:portal`  | Run only the agency portal (port 3002)         |
+| `pnpm dev:wallie`  | Run only Wallie web (port 3003)                |
+| `pnpm dev:wallie-mobile` | Run Wallie Mobile Metro bundler (port 8081) |
+| `pnpm ios:wallie-mobile` | Build + install Wallie on a connected iPhone |
+| `pnpm ios:wallie-mobile:sim` | Build + run Wallie in the iOS Simulator   |
 | `pnpm build`       | Build all apps                                 |
 | `pnpm lint`        | Lint all apps and packages                     |
 | `pnpm db:schema` | Refresh `packages/supabase/generated.json` from live Postgres — [full guide](packages/supabase/README.md#pull-the-latest-database-schema) |
