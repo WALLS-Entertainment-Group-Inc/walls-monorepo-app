@@ -529,15 +529,20 @@ async function attachCreativePreviews(
 
 export async function getDashboardAnalytics(
   userId: string,
+  options?: { rangeDays?: number },
 ): Promise<DashboardAnalytics> {
+  const rangeDays = options?.rangeDays ?? 30;
+  const periodLabel =
+    rangeDays === 1 ? "Last 24 hours" : `Last ${rangeDays} days`;
+
   const supabase = await createClient();
   const now = new Date();
   const currentStart = new Date(now);
-  currentStart.setDate(now.getDate() - 30);
+  currentStart.setDate(now.getDate() - rangeDays);
   const previousStart = new Date(now);
-  previousStart.setDate(now.getDate() - 60);
+  previousStart.setDate(now.getDate() - rangeDays * 2);
   const previousEnd = new Date(now);
-  previousEnd.setDate(now.getDate() - 31);
+  previousEnd.setDate(now.getDate() - (rangeDays + 1));
 
   const currentStartIso = currentStart.toISOString().slice(0, 10);
   const previousStartIso = previousStart.toISOString().slice(0, 10);
@@ -561,7 +566,7 @@ export async function getDashboardAnalytics(
 
   if (entities.length === 0) {
     return {
-      periodLabel: "Last 30 days",
+      periodLabel,
       syncing,
       hasData: false,
       stats: [...ZERO_DASHBOARD_STATS],
@@ -637,7 +642,7 @@ export async function getDashboardAnalytics(
   });
 
   return {
-    periodLabel: "Last 30 days",
+    periodLabel,
     syncing,
     hasData,
     stats: [
@@ -681,7 +686,7 @@ export async function getDashboardAnalytics(
         positive: purchaseValueChange.positive,
       },
     ],
-    spendByDay: buildSpendByDay(currentMetrics),
+    spendByDay: buildSpendByDay(currentMetrics, rangeDays),
     accounts,
     topPerformingAds,
   };

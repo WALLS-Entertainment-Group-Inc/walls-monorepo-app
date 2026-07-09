@@ -3,6 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
+
+import { cn } from "@walls/utils";
 
 import type {
   DashboardTopAdsByObjective,
@@ -17,6 +20,11 @@ import {
 } from "@/lib/format-analytics";
 import type { AdCreativePreview } from "@/lib/meta-creatives";
 import type { DashboardObjectiveBucket } from "@/lib/meta-objectives";
+import {
+  TIME_RANGE_OPTIONS,
+  timeRangeLabel,
+  type TimeRangeValue,
+} from "@/lib/time-range";
 
 import { AdCreativeLightbox } from "@/components/campaigns/ad-creative-lightbox";
 import { AdThumbnail } from "@/components/campaigns/entity-detail-shared";
@@ -175,13 +183,103 @@ function AdPerformanceRow({
   );
 }
 
+type AdHighlightsTimeRangePickerProps = {
+  value: TimeRangeValue;
+  onChange: (value: TimeRangeValue) => void;
+};
+
+function AdHighlightsTimeRangePicker({
+  value,
+  onChange,
+}: AdHighlightsTimeRangePickerProps) {
+  const [open, setOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [open]);
+
+  return (
+    <div className="relative inline-flex" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-none border-0 bg-transparent p-0 text-xs font-medium uppercase tracking-widest text-neutral-500 shadow-none transition-colors hover:text-neutral-800",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2",
+        )}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <span>{timeRangeLabel(value)}</span>
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 text-neutral-400 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+          strokeWidth={1.8}
+        />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute top-full left-0 z-50 mt-1.5 min-w-[180px] overflow-hidden rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
+          role="listbox"
+        >
+          {TIME_RANGE_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={value === option.value}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors",
+                value === option.value
+                  ? "bg-neutral-100 text-neutral-900"
+                  : "text-neutral-700 hover:bg-neutral-50",
+              )}
+            >
+              <span
+                className={cn(
+                  "h-2 w-2 flex-shrink-0 rounded-full",
+                  value === option.value ? "bg-[var(--walls-sky)]" : "bg-neutral-200",
+                )}
+                aria-hidden
+              />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type TopPerformingAdsProps = {
-  periodLabel: string;
+  timeRange: TimeRangeValue;
+  onTimeRangeChange: (value: TimeRangeValue) => void;
   topPerformingAds: DashboardTopAdsByObjective;
 };
 
 export function TopPerformingAds({
-  periodLabel,
+  timeRange,
+  onTimeRangeChange,
   topPerformingAds,
 }: TopPerformingAdsProps) {
   const [selectedObjective, setSelectedObjective] =
@@ -221,9 +319,15 @@ export function TopPerformingAds({
   if (availableObjectives.length === 0) {
     return (
       <div>
-        <SectionLabel>Top performing ads — {periodLabel}</SectionLabel>
+        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <SectionLabel>Ad highlights —</SectionLabel>
+          <AdHighlightsTimeRangePicker
+            value={timeRange}
+            onChange={onTimeRangeChange}
+          />
+        </div>
         <p className="text-sm font-light text-neutral-400">
-          Top ads will appear here once ad-level performance syncs from Meta.
+          Ad highlights will appear here once ad-level performance syncs from Meta.
         </p>
       </div>
     );
@@ -232,9 +336,15 @@ export function TopPerformingAds({
   return (
     <div>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
-          Top performing ads — {periodLabel}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
+            Ad highlights —
+          </p>
+          <AdHighlightsTimeRangePicker
+            value={timeRange}
+            onChange={onTimeRangeChange}
+          />
+        </div>
         <SegmentToggle
           aria-label="Campaign objective"
           value={activeObjective ?? availableObjectives[0].value}
