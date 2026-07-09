@@ -2,12 +2,8 @@
 
 import * as React from "react";
 import {
-  ArrowDownRight,
   ArrowRight,
-  ArrowUpRight,
   Loader2,
-  MinusCircle,
-  Octagon,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -18,48 +14,12 @@ import { cn } from "@walls/utils";
 
 import { DetailSection } from "@/components/campaigns/entity-detail-shared";
 import {
-  adpilotActionLabel,
   adpilotTrendLabel,
   fetchAdPilotPreview,
-  type AdPilotAction,
   type AdPilotPreview,
   type AdPilotTrendDirection,
 } from "@/lib/adpilot-preview";
 import { formatCurrencyFromMicros, formatRoas } from "@/lib/format-analytics";
-
-function actionTheme(action: AdPilotAction): {
-  badge: string;
-  Icon: React.ComponentType<{ className?: string }>;
-} {
-  switch (action) {
-    case "increase":
-      return {
-        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        Icon: ArrowUpRight,
-      };
-    case "decrease":
-      return {
-        badge: "border-amber-200 bg-amber-50 text-amber-700",
-        Icon: ArrowDownRight,
-      };
-    case "deactivate":
-      return {
-        badge: "border-rose-200 bg-rose-50 text-rose-700",
-        Icon: Octagon,
-      };
-    case "hold":
-      return {
-        badge: "border-neutral-200 bg-neutral-50 text-neutral-600",
-        Icon: MinusCircle,
-      };
-    case "skip":
-    default:
-      return {
-        badge: "border-neutral-200 bg-neutral-50 text-neutral-500",
-        Icon: ArrowRight,
-      };
-  }
-}
 
 function trendTheme(direction: AdPilotTrendDirection): {
   className: string;
@@ -100,9 +60,7 @@ function StatTile({
 
 function PreviewResult({ preview }: { preview: AdPilotPreview }) {
   const { decision, trend, allowedRange } = preview;
-  const theme = actionTheme(decision.action);
   const trendUi = trendTheme(trend.direction);
-  const { Icon } = theme;
   const { Icon: TrendIcon } = trendUi;
 
   const currency = decision.budget.currency;
@@ -113,16 +71,6 @@ function PreviewResult({ preview }: { preview: AdPilotPreview }) {
   return (
     <div className="mt-5 space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
-            theme.badge,
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          {adpilotActionLabel(decision.action)}
-        </span>
-
         {final != null ? (
           <span className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
             {previous != null ? (

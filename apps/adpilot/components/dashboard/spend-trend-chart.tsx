@@ -18,7 +18,6 @@ import {
 import {
   formatCompactNumber,
   formatPercent,
-  formatResultCount,
   formatRoas,
 } from "@/lib/format-analytics";
 import { PREVIEW_SPEND_BY_DAY } from "@/lib/dashboard-defaults";
@@ -71,13 +70,8 @@ function TrendTooltip({ active, label, payload }: TrendTooltipProps) {
           label="Impressions"
           value={formatCompactNumber(point.impressions)}
         />
-        <TooltipRow label="Clicks" value={formatCompactNumber(point.clicks)} />
         <TooltipRow label="CTR" value={formatPercent(point.ctr)} />
         <TooltipRow label="ROAS" value={formatRoas(point.roas)} />
-        <TooltipRow
-          label="Purchases"
-          value={formatResultCount(point.websitePurchases)}
-        />
         <TooltipRow
           label="CPA"
           value={formatCpaFromMicros(point.spendMicros, point.websitePurchases)}
