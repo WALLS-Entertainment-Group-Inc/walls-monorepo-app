@@ -72,17 +72,17 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   meta: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.textMuted,
   },
   subject: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: colors.text,
   },
   body: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
     color: colors.textMuted,
   },
 });

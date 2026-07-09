@@ -38,7 +38,7 @@ export function ShiningText({ text, style }: ShiningTextProps) {
 
 const styles = StyleSheet.create({
   text: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textMuted,
   },
 });

@@ -15,12 +15,10 @@ interface ChatInputProps {
   onChangeText: (text: string) => void;
   onSend: () => void;
   isLoading?: boolean;
-  isRecording?: boolean;
   isVoiceBusy?: boolean;
   placeholder?: string;
   compactFooter?: boolean;
-  onVoicePressIn?: () => void;
-  onVoicePressOut?: () => void;
+  onVoicePress?: () => void;
 }
 
 export function ChatInput({
@@ -28,17 +26,14 @@ export function ChatInput({
   onChangeText,
   onSend,
   isLoading = false,
-  isRecording = false,
   isVoiceBusy = false,
   placeholder = "Ask WALLIE",
   compactFooter = false,
-  onVoicePressIn,
-  onVoicePressOut,
+  onVoicePress,
 }: ChatInputProps) {
   const hasContent = value.trim().length > 0;
   const canSend = hasContent && !isLoading;
-  const showMic =
-    !hasContent && !!onVoicePressIn && !!onVoicePressOut && !isVoiceBusy;
+  const showMic = !hasContent && !!onVoicePress && !isVoiceBusy;
 
   return (
     <View
@@ -62,19 +57,11 @@ export function ChatInput({
 
         {showMic ? (
           <Pressable
-            onPressIn={onVoicePressIn}
-            onPressOut={onVoicePressOut}
-            disabled={isLoading}
-            style={[
-              styles.trailingButton,
-              isRecording ? styles.trailingSend : styles.trailingIdle,
-            ]}
+            onPress={onVoicePress}
+            disabled={isLoading || isVoiceBusy}
+            style={[styles.trailingButton, styles.trailingIdle]}
           >
-            <Ionicons
-              name="mic"
-              size={20}
-              color={isRecording ? "#E5E5E5" : colors.textMuted}
-            />
+            <Ionicons name="mic" size={20} color={colors.textMuted} />
           </Pressable>
         ) : (
           <Pressable
@@ -132,8 +119,8 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   input: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
     color: colors.text,
     maxHeight: 120,
     paddingHorizontal: spacing.xs,

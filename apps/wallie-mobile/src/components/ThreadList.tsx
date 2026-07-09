@@ -1,14 +1,19 @@
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
+  SectionList,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import type { WallieThread } from "@walls/wallie-core";
 
+import { ThreadActionMenu } from "@/components/ThreadActionMenu";
+import { ThreadRenameModal } from "@/components/ThreadRenameModal";
 import { colors, spacing } from "@/constants/theme";
+import { categorizeThreads } from "@/lib/thread-categories";
 
 interface ThreadListProps {
   threads: WallieThread[];
@@ -16,6 +21,10 @@ interface ThreadListProps {
   loading?: boolean;
   onSelect: (threadId: string) => void;
   onNewChat: () => void;
+  onRenameThread: (threadId: string, title: string) => void;
+  onPinThread: (threadId: string) => void;
+  onArchiveThread: (threadId: string) => void;
+  onDeleteThread: (threadId: string) => void;
 }
 
 export function ThreadList({
@@ -24,29 +33,45 @@ export function ThreadList({
   loading = false,
   onSelect,
   onNewChat,
+  onRenameThread,
+  onPinThread,
+  onArchiveThread,
+  onDeleteThread,
 }: ThreadListProps) {
+  const [menuThread, setMenuThread] = useState<WallieThread | null>(null);
+  const [renameThread, setRenameThread] = useState<WallieThread | null>(null);
+
+  const sections = useMemo(() => categorizeThreads(threads), [threads]);
+
   return (
     <View style={styles.container}>
       <Pressable style={styles.newChatButton} onPress={onNewChat}>
-        <Text style={styles.newChatText}>+ New chat</Text>
+        <Ionicons name="add" size={18} color="#6B7280" />
+        <Text style={styles.newChatText}>New chat</Text>
       </Pressable>
 
       {loading ? (
         <ActivityIndicator style={styles.loader} color={colors.wallsBlue} />
       ) : (
-        <FlatList
-          data={threads}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => (
+            <Text style={styles.sectionHeader}>{section.title}</Text>
+          )}
           renderItem={({ item }) => {
             const active = item.id === currentThreadId;
             return (
               <Pressable
                 onPress={() => onSelect(item.id)}
+                onLongPress={() => setMenuThread(item)}
+                delayLongPress={320}
                 style={[styles.threadRow, active && styles.threadRowActive]}
               >
                 <Text style={styles.threadTitle} numberOfLines={1}>
-                  {item.title?.trim() || "New conversation"}
+                  {item.title?.trim() || "New Chat"}
                 </Text>
               </Pressable>
             );
@@ -56,6 +81,23 @@ export function ThreadList({
           }
         />
       )}
+
+      <ThreadActionMenu
+        thread={menuThread}
+        visible={!!menuThread}
+        onClose={() => setMenuThread(null)}
+        onPin={onPinThread}
+        onRename={setRenameThread}
+        onArchive={onArchiveThread}
+        onDelete={onDeleteThread}
+      />
+
+      <ThreadRenameModal
+        thread={renameThread}
+        visible={!!renameThread}
+        onClose={() => setRenameThread(null)}
+        onSave={onRenameThread}
+      />
     </View>
   );
 }
@@ -63,49 +105,71 @@ export function ThreadList({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.drawerBackground,
   },
   newChatButton: {
-    margin: spacing.md,
-    paddingVertical: 12,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    height: 40,
+    paddingHorizontal: spacing.md,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: "transparent",
+    flexDirection: "row",
     alignItems: "center",
+    gap: spacing.sm,
   },
   newChatText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: colors.text,
+    fontWeight: "500",
+    color: "#6B7280",
   },
   loader: {
     marginTop: spacing.lg,
   },
   list: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingBottom: spacing.lg,
   },
-  threadRow: {
-    paddingVertical: 14,
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#6B7280",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  threadRow: {
+    minHeight: 36,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 14,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
+    marginBottom: 2,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: "transparent",
+    justifyContent: "center",
   },
   threadRowActive: {
-    borderWidth: 1,
-    borderColor: colors.wallsYellow,
+    backgroundColor: colors.surface,
+    borderColor: colors.borderMuted,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 1,
   },
   threadTitle: {
-    fontSize: 15,
-    color: colors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#374151",
   },
   empty: {
     textAlign: "center",
     color: colors.textMuted,
     marginTop: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
 });

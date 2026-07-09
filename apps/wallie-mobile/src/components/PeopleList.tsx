@@ -87,16 +87,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   name: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     color: colors.text,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.textMuted,
   },
   email: {
-    fontSize: 12,
+    fontSize: 14,
     color: colors.wallsSky,
   },
 });

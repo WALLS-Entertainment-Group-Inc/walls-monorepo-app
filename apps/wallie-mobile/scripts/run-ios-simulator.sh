@@ -33,6 +33,9 @@ else
   echo "Metro already on port $METRO_PORT"
 fi
 
+echo "Syncing iOS app icon + splash from assets/icon.png..."
+node "$APP_ROOT/scripts/sync-ios-native-assets.js"
+
 echo "Building for iOS Simulator..."
 (
   cd "$APP_ROOT"

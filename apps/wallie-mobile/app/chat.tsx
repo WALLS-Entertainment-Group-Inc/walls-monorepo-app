@@ -3,7 +3,6 @@ import {
   Alert,
   FlatList,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -11,14 +10,15 @@ import {
   View,
 } from "react-native";
 import { Redirect } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ChatDrawerLayout } from "@/components/ChatDrawerLayout";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage } from "@/components/ChatMessage";
+import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
-import { ThreadList } from "@/components/ThreadList";
 import { TwoLineMenuIcon } from "@/components/TwoLineMenuIcon";
+import { WallieVoiceOverlay } from "@/components/WallieVoiceOverlay";
 import { colors, spacing } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useWallieChat } from "@/hooks/useWallieChat";
@@ -34,7 +34,6 @@ export default function ChatScreen() {
   const [inputValue, setInputValue] = useState("");
   const [threadsOpen, setThreadsOpen] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef<FlatList>(null);
 
@@ -42,6 +41,9 @@ export default function ChatScreen() {
     threads,
     loading: threadsLoading,
     updateThreadTitle,
+    archiveThread,
+    deleteThread,
+    togglePinThread,
   } = useWallieThreads();
 
   const {
@@ -64,12 +66,11 @@ export default function ChatScreen() {
 
     void getSupabase()
       .from("users")
-      .select("first_name, avatar_url")
+      .select("first_name")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
         if (data?.first_name) setFirstName(data.first_name);
-        if (data?.avatar_url) setAvatarUrl(data.avatar_url);
       });
   }, [user?.id]);
 
@@ -92,9 +93,12 @@ export default function ChatScreen() {
   const voice = useWallieVoice(
     useCallback(
       async (text: string) => {
-        setInputValue(text);
         try {
-          return (await sendMessage(text)) ?? null;
+          const reply = await sendMessage(text);
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToEnd({ animated: true });
+          });
+          return reply ?? null;
         } catch (error) {
           Alert.alert(
             "Voice message failed",
@@ -115,6 +119,14 @@ export default function ChatScreen() {
     }
   }, [currentThreadId, loadMessages, setMessages]);
 
+  const openThreads = useCallback(() => {
+    Keyboard.dismiss();
+    setThreadsOpen(true);
+  }, []);
+
+  const closeThreads = useCallback(() => {
+    setThreadsOpen(false);
+  }, []);
   const handleNewChat = useCallback(async () => {
     setCurrentThreadId(null);
     setMessages([]);
@@ -125,6 +137,43 @@ export default function ChatScreen() {
     setCurrentThreadId(threadId);
     setThreadsOpen(false);
   }, []);
+
+  const handleArchiveThread = useCallback(
+    (threadId: string) => {
+      void archiveThread(threadId).then(() => {
+        if (currentThreadId === threadId) {
+          setCurrentThreadId(null);
+          setMessages([]);
+        }
+      });
+    },
+    [archiveThread, currentThreadId, setMessages],
+  );
+
+  const handleDeleteThread = useCallback(
+    (threadId: string) => {
+      Alert.alert(
+        "Delete conversation",
+        "This will permanently delete this conversation and all its messages.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => {
+              void deleteThread(threadId).then(() => {
+                if (currentThreadId === threadId) {
+                  setCurrentThreadId(null);
+                  setMessages([]);
+                }
+              });
+            },
+          },
+        ],
+      );
+    },
+    [currentThreadId, deleteThread, setMessages],
+  );
 
   useEffect(() => {
     const showEvent =
@@ -159,34 +208,28 @@ export default function ChatScreen() {
       onChangeText: setInputValue,
       onSend: handleSend,
       isLoading,
-      isRecording: voice.isRecording,
-      isVoiceBusy: voice.isProcessing || voice.isSpeaking,
+      isVoiceBusy: voice.isBusy || voice.isSessionOpen,
       compactFooter: isKeyboardVisible,
-      onVoicePressIn: () =>
-        void voice.startRecording().catch((error) => {
+      onVoicePress: () => {
+        Keyboard.dismiss();
+        void voice.enterSession().catch((error) => {
           Alert.alert(
             "Microphone error",
-            error instanceof Error ? error.message : "Could not start recording.",
+            error instanceof Error
+              ? error.message
+              : "Could not start voice mode.",
           );
-        }),
-      onVoicePressOut: () =>
-        void voice.stopRecording().catch((error) => {
-          Alert.alert(
-            "Voice error",
-            error instanceof Error ? error.message : "Could not process voice.",
-          );
-        }),
+        });
+      },
     }),
     [
       handleSend,
       inputValue,
       isKeyboardVisible,
       isLoading,
-      voice.isProcessing,
-      voice.isRecording,
-      voice.isSpeaking,
-      voice.startRecording,
-      voice.stopRecording,
+      voice.enterSession,
+      voice.isBusy,
+      voice.isSessionOpen,
     ],
   );
 
@@ -200,85 +243,99 @@ export default function ChatScreen() {
     : "Hi, how can I help?";
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable style={styles.menuButton} onPress={() => setThreadsOpen(true)}>
-          <TwoLineMenuIcon />
-        </Pressable>
-      </View>
-
-      <View style={styles.flex}>
-        {isEmpty ? (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyContent}>
-              <Text style={styles.emptyTitle}>{greeting}</Text>
-              {isLoading ? (
-                <View style={styles.emptyLoading}>
-                  <LoadingIndicator status={loadingStatus} />
-                </View>
-              ) : null}
-            </View>
-            <View style={{ paddingBottom: composerBottomInset }}>
-              <ChatInput {...chatInputProps} />
-            </View>
-          </View>
-        ) : (
-          <>
-            <FlatList
-              ref={listRef}
-              style={styles.flex}
-              data={messages}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.messages}
-              renderItem={({ item }) => (
-                <ChatMessage message={item} avatarUrl={avatarUrl} />
-              )}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="interactive"
-              ListFooterComponent={
-                isLoading ? (
-                  <LoadingIndicator status={loadingStatus} />
-                ) : (
-                  <View style={styles.listFooter} />
-                )
-              }
-              onContentSizeChange={() =>
-                listRef.current?.scrollToEnd({ animated: true })
-              }
-            />
-
-            <View style={{ paddingBottom: composerBottomInset }}>
-              <ChatInput {...chatInputProps} />
-            </View>
-          </>
-        )}
-      </View>
-
-      <Modal visible={threadsOpen} animationType="slide">
-        <SafeAreaView style={styles.modal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Conversations</Text>
-            <Pressable onPress={() => setThreadsOpen(false)}>
-              <Ionicons name="close" size={24} color={colors.text} />
-            </Pressable>
-          </View>
-          <ThreadList
+    <View style={styles.screen}>
+      <ChatDrawerLayout
+        open={threadsOpen}
+        onClose={closeThreads}
+        drawer={
+          <ConversationDrawer
             threads={threads}
             currentThreadId={currentThreadId}
             loading={threadsLoading}
             onSelect={handleSelectThread}
             onNewChat={handleNewChat}
+            onRenameThread={updateThreadTitle}
+            onPinThread={(threadId) => void togglePinThread(threadId)}
+            onArchiveThread={handleArchiveThread}
+            onDeleteThread={handleDeleteThread}
           />
+        }
+      >
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          <View style={styles.header}>
+            <Pressable style={styles.menuButton} onPress={openThreads}>
+              <TwoLineMenuIcon />
+            </Pressable>
+          </View>
+
+          <View style={styles.flex}>
+            {isEmpty ? (
+              <View style={styles.emptyContainer}>
+                <View style={styles.emptyContent}>
+                  <Text style={styles.emptyTitle}>{greeting}</Text>
+                  {isLoading ? (
+                    <View style={styles.emptyLoading}>
+                      <LoadingIndicator status={loadingStatus} />
+                    </View>
+                  ) : null}
+                </View>
+                <View style={{ paddingBottom: composerBottomInset }}>
+                  <ChatInput {...chatInputProps} />
+                </View>
+              </View>
+            ) : (
+              <>
+                <FlatList
+                  ref={listRef}
+                  style={styles.flex}
+                  data={messages}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.messages}
+                  renderItem={({ item }) => (
+                    <ChatMessage message={item} />
+                  )}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="interactive"
+                  ListFooterComponent={
+                    isLoading ? (
+                      <LoadingIndicator status={loadingStatus} />
+                    ) : (
+                      <View style={styles.listFooter} />
+                    )
+                  }
+                  onContentSizeChange={() =>
+                    listRef.current?.scrollToEnd({ animated: true })
+                  }
+                />
+
+                <View style={{ paddingBottom: composerBottomInset }}>
+                  <ChatInput {...chatInputProps} />
+                </View>
+              </>
+            )}
+          </View>
         </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+      </ChatDrawerLayout>
+
+      <WallieVoiceOverlay
+        visible={voice.isSessionOpen}
+        state={voice.state}
+        audioLevel={voice.audioLevel}
+        loadingStatus={loadingStatus}
+        onClose={voice.exitSession}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: "transparent",
   },
   flex: {
     flex: 1,
@@ -288,7 +345,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: colors.background,
+    backgroundColor: "transparent",
   },
   menuButton: {
     width: 44,
@@ -329,23 +386,5 @@ const styles = StyleSheet.create({
   },
   listFooter: {
     height: spacing.sm,
-  },
-  modal: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderMuted,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.text,
   },
 });

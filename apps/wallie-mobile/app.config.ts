@@ -54,6 +54,7 @@ export default {
       "expo-router",
       "expo-secure-store",
       "expo-dev-client",
+      "./plugins/withSyncedNativeAssets.js",
       "./plugins/withIosBuildFixes.js",
     ],
     experiments: {

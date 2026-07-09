@@ -1,4 +1,4 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import {
   extractEmailDraftIntro,
   type WallieMessage,
@@ -7,16 +7,15 @@ import {
 import { EmailDraftCard } from "@/components/EmailDraftCard";
 import { MarkdownText } from "@/components/MarkdownText";
 import { PeopleList } from "@/components/PeopleList";
-import { assets, colors, spacing } from "@/constants/theme";
+import { colors, spacing } from "@/constants/theme";
 
 const PEOPLE_CONTACT_TABLE_PLACEHOLDER = "{peopleContactTable}";
 
 interface ChatMessageProps {
   message: WallieMessage;
-  avatarUrl?: string | null;
 }
 
-export function ChatMessage({ message, avatarUrl }: ChatMessageProps) {
+export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.sender === "user";
 
   if (isUser) {
@@ -25,10 +24,6 @@ export function ChatMessage({ message, avatarUrl }: ChatMessageProps) {
         <View style={styles.userBubble}>
           <Text style={styles.userText}>{message.content}</Text>
         </View>
-        <Image
-          source={{ uri: avatarUrl || assets.wallsLogoFallback }}
-          style={styles.avatar}
-        />
       </View>
     );
   }
@@ -74,22 +69,14 @@ const styles = StyleSheet.create({
   userBubble: {
     maxWidth: "85%",
     backgroundColor: colors.userBubble,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
     borderRadius: 25,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
   },
   userText: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 26,
     color: colors.text,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginTop: 6,
   },
   aiRow: {
     paddingHorizontal: spacing.md,
