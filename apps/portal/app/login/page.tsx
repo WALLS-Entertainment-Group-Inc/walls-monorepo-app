@@ -23,7 +23,7 @@ import { publicSitePath } from "@/lib/urls";
 
 function LoginPageFallback() {
   return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
+    <div className="flex h-screen items-center justify-center bg-walls-white">
       <Loader2 className="h-8 w-8 animate-spin text-neutral-400" />
     </div>
   );
@@ -386,7 +386,7 @@ function LoginPageContent() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-walls-white">
       {!hasLogged && !needsMfaVerification && (
         <div className="absolute top-4 right-4 pr-6">
           <Button

@@ -2,8 +2,13 @@ import { type NextRequest } from "next/server";
 
 import { handleProtectedAppRequest } from "@walls/auth/middleware";
 
+/** Mobile voice routes authenticate via Bearer in the route handler. */
+const MOBILE_BEARER_API_PREFIXES = ["/api/walli/transcribe", "/api/walli/tts"];
+
 export async function middleware(request: NextRequest) {
-  return handleProtectedAppRequest(request);
+  return handleProtectedAppRequest(request, {
+    publicPaths: MOBILE_BEARER_API_PREFIXES,
+  });
 }
 
 export const config = {
