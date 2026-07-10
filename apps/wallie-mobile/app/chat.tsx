@@ -209,6 +209,7 @@ export default function ChatScreen() {
     : insets.bottom;
   const scrollBottomInset = FLOATING_COMPOSER_HEIGHT + composerBottomInset;
   const floatingHeaderTop = insets.top + spacing.sm;
+  const scrollTopInset = floatingHeaderTop + 44 + spacing.md;
 
   const chatInputProps = useMemo(
     () => ({
@@ -276,7 +277,7 @@ export default function ChatScreen() {
                 style={[
                   styles.emptyContent,
                   {
-                    paddingTop: floatingHeaderTop + 44,
+                    paddingTop: scrollTopInset,
                     paddingBottom: scrollBottomInset,
                   },
                 ]}
@@ -298,11 +299,14 @@ export default function ChatScreen() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={[
                   styles.messages,
-                  { paddingBottom: scrollBottomInset },
+                  {
+                    paddingTop: scrollTopInset,
+                    paddingBottom: scrollBottomInset,
+                  },
                 ]}
                 contentInsetAdjustmentBehavior="never"
                 automaticallyAdjustContentInsets={false}
-                scrollIndicatorInsets={{ top: insets.top }}
+                scrollIndicatorInsets={{ top: scrollTopInset }}
                 renderItem={({ item }) => (
                   <ChatMessage message={item} />
                 )}
