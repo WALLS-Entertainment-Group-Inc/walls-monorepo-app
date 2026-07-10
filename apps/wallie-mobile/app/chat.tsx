@@ -4,7 +4,6 @@ import {
   FlatList,
   Keyboard,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -16,9 +15,8 @@ import { ChatDrawerLayout } from "@/components/ChatDrawerLayout";
 import { ChatInput } from "@/components/ChatInput";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
-import { GlassSurface } from "@/components/GlassSurface";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
-import { TwoLineMenuIcon } from "@/components/TwoLineMenuIcon";
+import { MenuButton } from "@/components/MenuButton";
 import { ThemeToggleButton } from "@/components/ThemeToggleButton";
 import { WallieVoiceOverlay } from "@/components/WallieVoiceOverlay";
 import { spacing } from "@/constants/theme";
@@ -327,16 +325,7 @@ export default function ChatScreen() {
               style={[styles.floatingHeader, { top: floatingHeaderTop }]}
               pointerEvents="box-none"
             >
-              <Pressable onPress={openThreads}>
-                <GlassSurface
-                  borderRadius={22}
-                  intensity={60}
-                  contentStyle={styles.menuGlassContent}
-                  style={styles.menuGlass}
-                >
-                  <TwoLineMenuIcon />
-                </GlassSurface>
-              </Pressable>
+              <MenuButton onPress={openThreads} />
 
               <ThemeToggleButton />
             </View>
@@ -382,16 +371,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     zIndex: 10,
-  },
-  menuGlass: {
-    width: 44,
-    height: 44,
-  },
-  menuGlassContent: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
   },
   floatingComposer: {
     position: "absolute",
