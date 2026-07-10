@@ -94,7 +94,7 @@ export function ThemeToggleButton() {
           <Ionicons
             name={isDark ? "sunny" : "moon"}
             size={20}
-            color={isDark ? "#FBBF24" : colors.textMuted}
+            color={isDark ? colors.wallsYellow : colors.textMuted}
           />
         </Animated.View>
       </GlassSurface>
