@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { cn } from "@walls/utils";
 
+import { useAppHeaderVisible } from "./app-header-context";
 import UserProfileButton, {
   type UserProfileButtonProps,
 } from "./user-profile-button";
@@ -26,12 +27,14 @@ export default function AppHeader({
   ...profileProps
 }: AppHeaderProps) {
   const homeHref = logoHref ?? dashboardPath;
+  const headerVisible = useAppHeaderVisible();
+  const isHidden = hidden || !headerVisible;
 
   return (
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-[100] flex h-16 items-center justify-between bg-walls-white px-4 transition-transform duration-300 sm:px-6",
-        hidden ? "-translate-y-full" : "translate-y-0",
+        isHidden ? "-translate-y-full" : "translate-y-0",
         className,
       )}
     >

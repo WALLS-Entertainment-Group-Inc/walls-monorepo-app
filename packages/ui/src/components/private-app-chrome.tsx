@@ -1,6 +1,10 @@
 "use client";
 
 import AppHeader, { type AppHeaderProps } from "./app-header";
+import {
+  AppHeaderVisibilityProvider,
+  useAppHeaderVisible,
+} from "./app-header-context";
 import UserProfileButton, {
   type UserProfileButtonProps,
 } from "./user-profile-button";
@@ -14,7 +18,9 @@ export function PrivateAppChrome(props: PrivateAppChromeProps) {
 
 export {
   AppHeader,
+  AppHeaderVisibilityProvider,
   UserProfileButton,
+  useAppHeaderVisible,
   type AppHeaderProps,
   type UserProfileButtonProps,
 };

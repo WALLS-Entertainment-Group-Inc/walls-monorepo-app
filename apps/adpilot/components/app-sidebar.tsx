@@ -26,7 +26,7 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-export function AppSidebar() {
+export function AppSidebar({ headerVisible = true }: { headerVisible?: boolean }) {
   const { isLoading } = useAuth();
   const pathname = usePathname();
   const { isCollapsed, setIsCollapsed, isHoverExpanded, setIsHoverExpanded, isExpanded } =
@@ -37,8 +37,9 @@ export function AppSidebar() {
   return (
     <div
       className={cn(
-        "fixed top-16 left-0 z-40 hidden h-[calc(100vh-4rem)] bg-transparent md:block",
-        "transition-all duration-500 ease-in-out",
+        "fixed left-0 z-40 hidden bg-transparent md:block",
+        "transition-all duration-300 ease-in-out",
+        headerVisible ? "top-16 h-[calc(100vh-4rem)]" : "top-0 h-screen",
         isExpanded ? "w-40" : "w-16",
       )}
       onMouseEnter={() => setIsHoverExpanded(true)}

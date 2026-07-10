@@ -204,8 +204,6 @@ export function DashboardPage() {
               key={stat.label}
               label={stat.label}
               value={stat.value}
-              change={stat.change}
-              positive={stat.positive}
               icon={HERO_ICONS[index] ?? CircleDollarSign}
               accentColor={HERO_ACCENTS[index] ?? HERO_ACCENTS[0]}
               loading={loading}
