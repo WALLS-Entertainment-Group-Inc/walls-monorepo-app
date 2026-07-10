@@ -26,7 +26,11 @@ export function GlassSurface({
     <View
       style={[
         elevated ? styles.shadowElevated : styles.shadow,
-        { borderRadius, shadowColor: colors.shadowColor },
+        {
+          borderRadius,
+          shadowColor: colors.shadowColor,
+          backgroundColor: colors.surface,
+        },
         style,
       ]}
     >
