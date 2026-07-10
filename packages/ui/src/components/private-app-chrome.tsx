@@ -1,14 +1,20 @@
 "use client";
 
+import AppHeader, { type AppHeaderProps } from "./app-header";
 import UserProfileButton, {
   type UserProfileButtonProps,
 } from "./user-profile-button";
 
-export type PrivateAppChromeProps = UserProfileButtonProps;
+export type PrivateAppChromeProps = AppHeaderProps;
 
-/** Profile control — position via parent (e.g. absolute overlay in app shell). */
+/** Fixed app header with logo and profile controls. */
 export function PrivateAppChrome(props: PrivateAppChromeProps) {
-  return <UserProfileButton {...props} />;
+  return <AppHeader {...props} />;
 }
 
-export { UserProfileButton, type UserProfileButtonProps };
+export {
+  AppHeader,
+  UserProfileButton,
+  type AppHeaderProps,
+  type UserProfileButtonProps,
+};

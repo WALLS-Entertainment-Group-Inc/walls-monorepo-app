@@ -37,7 +37,7 @@ export function AppSidebar() {
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 z-40 hidden h-screen bg-transparent md:block",
+        "fixed top-16 left-0 z-40 hidden h-[calc(100vh-4rem)] bg-transparent md:block",
         "transition-all duration-500 ease-in-out",
         isExpanded ? "w-40" : "w-16",
       )}
@@ -45,7 +45,7 @@ export function AppSidebar() {
       onMouseLeave={() => setIsHoverExpanded(false)}
     >
       <div className="relative flex h-full flex-col overflow-y-auto">
-        <div className="space-y-1 p-2 pt-48">
+        <div className="space-y-1 p-2 pt-32">
             <Button
               variant="ghost"
               size="icon"

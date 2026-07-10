@@ -197,7 +197,7 @@ export function DashboardPage() {
 
   return (
     <div className="min-h-full bg-walls-white">
-      <div className="space-y-16 px-6 pt-16 pb-12 md:px-10 md:pt-20 md:pb-10">
+      <div className="space-y-16 px-6 pt-6 pb-12 md:px-10 md:pt-8 md:pb-10">
         <div className="flex flex-row flex-wrap items-stretch justify-center gap-6 pb-2 pt-2 md:gap-8">
           {stats.map((stat, index) => (
             <HeroStat
