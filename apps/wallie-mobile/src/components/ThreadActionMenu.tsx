@@ -65,6 +65,13 @@ function createStyles(colors: AppColors) {
       shadowOpacity: 0.08,
       shadowRadius: 6,
       elevation: 2,
+      justifyContent: "center",
+      paddingHorizontal: 12,
+    },
+    rowHighlightTitle: {
+      fontSize: 16,
+      lineHeight: 22,
+      color: colors.textSecondary,
     },
     menu: {
       position: "absolute",
@@ -212,7 +219,11 @@ export function ThreadActionMenu({
           <View
             pointerEvents="none"
             style={[styles.rowHighlight, highlightLayout]}
-          />
+          >
+            <Text style={styles.rowHighlightTitle} numberOfLines={1}>
+              {thread.title?.trim() || "New Chat"}
+            </Text>
+          </View>
         ) : null}
 
         <View
