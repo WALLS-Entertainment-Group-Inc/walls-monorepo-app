@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 import type { WallieVoiceState } from "@/hooks/useWallieVoice";
+import { useTheme } from "@/context/ThemeContext";
 
 interface VoiceOrbProps {
   state: WallieVoiceState;
@@ -27,7 +28,7 @@ interface OrbPalette {
   halo: string;
 }
 
-const PALETTES: Record<WallieVoiceState, OrbPalette> = {
+const DARK_PALETTES: Record<WallieVoiceState, OrbPalette> = {
   idle: {
     blobA: "rgba(161, 161, 170, 0.7)",
     blobB: "rgba(113, 113, 122, 0.65)",
@@ -62,6 +63,41 @@ const PALETTES: Record<WallieVoiceState, OrbPalette> = {
   },
 };
 
+const LIGHT_PALETTES: Record<WallieVoiceState, OrbPalette> = {
+  idle: {
+    blobA: "rgba(161, 161, 170, 0.55)",
+    blobB: "rgba(113, 113, 122, 0.45)",
+    blobC: "rgba(212, 212, 216, 0.65)",
+    blobD: "rgba(255, 255, 255, 0.75)",
+    core: "#FFFFFF",
+    halo: "rgba(161, 161, 170, 0.14)",
+  },
+  listening: {
+    blobA: "rgba(99, 102, 241, 0.72)",
+    blobB: "rgba(34, 211, 238, 0.62)",
+    blobC: "rgba(167, 139, 250, 0.58)",
+    blobD: "rgba(255, 255, 255, 0.8)",
+    core: "#F8FAFF",
+    halo: "rgba(99, 102, 241, 0.18)",
+  },
+  processing: {
+    blobA: "rgba(251, 146, 60, 0.78)",
+    blobB: "rgba(244, 63, 94, 0.68)",
+    blobC: "rgba(250, 204, 21, 0.62)",
+    blobD: "rgba(255, 255, 255, 0.82)",
+    core: "#FFFCF8",
+    halo: "rgba(251, 146, 60, 0.2)",
+  },
+  speaking: {
+    blobA: "rgba(56, 189, 248, 0.78)",
+    blobB: "rgba(37, 99, 235, 0.72)",
+    blobC: "rgba(125, 211, 252, 0.65)",
+    blobD: "rgba(255, 255, 255, 0.85)",
+    core: "#F5FAFF",
+    halo: "rgba(56, 189, 248, 0.22)",
+  },
+};
+
 const STATE_STOPS = [0, 1, 2, 3] as const;
 const COLOR_TRANSITION_MS = 1100;
 
@@ -78,9 +114,10 @@ function stateToStop(state: WallieVoiceState): number {
   }
 }
 
-function useOrbPalette(state: WallieVoiceState) {
+function useOrbPalette(state: WallieVoiceState, isDark: boolean) {
   const paletteProgress = useSharedValue(stateToStop(state));
-  const { idle, listening, processing, speaking } = PALETTES;
+  const palettes = isDark ? DARK_PALETTES : LIGHT_PALETTES;
+  const { idle, listening, processing, speaking } = palettes;
 
   useEffect(() => {
     paletteProgress.value = withTiming(stateToStop(state), {
@@ -237,6 +274,7 @@ function useOrbMotion(audioLevel: number, state: WallieVoiceState) {
 }
 
 export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
+  const { isDark, blurTint } = useTheme();
   const {
     haloColorStyle,
     coreColorStyle,
@@ -244,7 +282,7 @@ export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
     blobBColorStyle,
     blobCColorStyle,
     blobDColorStyle,
-  } = useOrbPalette(state);
+  } = useOrbPalette(state, isDark);
   const {
     orbitAStyle,
     orbitBStyle,
@@ -319,14 +357,29 @@ export function VoiceOrb({ state, audioLevel = 0 }: VoiceOrbProps) {
         </Animated.View>
 
         <Animated.View style={[styles.melt, meltStyle]}>
-          <BlurView intensity={68} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={isDark ? 68 : 48}
+            tint={blurTint}
+            style={StyleSheet.absoluteFill}
+          />
         </Animated.View>
 
         <Animated.View style={[styles.meltSoft, meltStyle]}>
-          <BlurView intensity={28} tint="light" style={StyleSheet.absoluteFill} />
+          <BlurView
+            intensity={isDark ? 28 : 20}
+            tint={isDark ? "light" : "dark"}
+            style={StyleSheet.absoluteFill}
+          />
         </Animated.View>
 
-        <Animated.View style={[styles.core, coreColorStyle, coreStyle]} />
+        <Animated.View
+          style={[
+            styles.core,
+            isDark ? styles.coreShadowDark : styles.coreShadowLight,
+            coreColorStyle,
+            coreStyle,
+          ]}
+        />
       </View>
     </View>
   );
@@ -393,10 +446,19 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
+  },
+  coreShadowDark: {
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.45,
     shadowRadius: 28,
     elevation: 16,
+  },
+  coreShadowLight: {
+    shadowColor: "#64748B",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 8,
   },
 });

@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { colors } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 
 interface TwoLineMenuIconProps {
   color?: string;
@@ -8,13 +8,16 @@ interface TwoLineMenuIconProps {
 }
 
 export function TwoLineMenuIcon({
-  color = colors.text,
+  color,
   size = 18,
 }: TwoLineMenuIconProps) {
+  const { colors } = useTheme();
+  const barColor = color ?? colors.text;
+
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      <View style={[styles.bar, { width: size, backgroundColor: color }]} />
-      <View style={[styles.bar, { width: size, backgroundColor: color }]} />
+      <View style={[styles.bar, { width: size, backgroundColor: barColor }]} />
+      <View style={[styles.bar, { width: size, backgroundColor: barColor }]} />
     </View>
   );
 }

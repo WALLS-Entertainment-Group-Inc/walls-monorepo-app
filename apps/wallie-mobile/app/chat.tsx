@@ -20,7 +20,8 @@ import { GlassSurface } from "@/components/GlassSurface";
 import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { TwoLineMenuIcon } from "@/components/TwoLineMenuIcon";
 import { WallieVoiceOverlay } from "@/components/WallieVoiceOverlay";
-import { colors, spacing } from "@/constants/theme";
+import { spacing } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
 import { useWallieChat } from "@/hooks/useWallieChat";
 import { useWallieThreads } from "@/hooks/useWallieThreads";
@@ -32,6 +33,7 @@ const FLOATING_COMPOSER_HEIGHT = 84;
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { user, loading } = useAuth();
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
@@ -278,7 +280,9 @@ export default function ChatScreen() {
                   },
                 ]}
               >
-                <Text style={styles.emptyTitle}>{greeting}</Text>
+                <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
+                  {greeting}
+                </Text>
                 {isLoading ? (
                   <View style={styles.emptyLoading}>
                     <LoadingIndicator status={loadingStatus} />
@@ -393,7 +397,6 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 32,
     fontWeight: "600",
-    color: "#404040",
     textAlign: "center",
     lineHeight: 40,
   },
