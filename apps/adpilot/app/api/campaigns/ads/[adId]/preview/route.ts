@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@walls/supabase/admin";
 
-import { getCurrentUserId } from "@/lib/connections-server";
+import { entityBelongsToScope, getAdDataScope } from "@/lib/ad-scope";
 import { fetchMetaAdPreview } from "@/lib/meta-graph";
 
 type RouteContext = {
@@ -10,8 +10,8 @@ type RouteContext = {
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const scope = await getAdDataScope();
+  if (!scope) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,8 +31,11 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Failed to load ad" }, { status: 500 });
     }
 
-    // Enforce ownership: the ad must belong to the requesting user.
-    if (!entity || entity.user_id !== userId || entity.entity_type !== "ad") {
+    if (
+      !entity ||
+      !entityBelongsToScope(entity as { user_id: string }, scope) ||
+      entity.entity_type !== "ad"
+    ) {
       return NextResponse.json({ error: "Ad not found" }, { status: 404 });
     }
 
@@ -40,7 +43,7 @@ export async function GET(_request: Request, context: RouteContext) {
       .from("user_connections")
       .select("access_token")
       .eq("id", entity.user_connection_id)
-      .eq("user_id", userId)
+      .eq("user_id", scope.userId)
       .is("revoked_at", null)
       .maybeSingle();
 

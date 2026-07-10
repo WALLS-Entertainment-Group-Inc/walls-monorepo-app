@@ -176,8 +176,6 @@ export function EntityMetricsGrid({ metrics }: { metrics: EntityDetailMetrics })
           key={metric.label}
           label={metric.label}
           value={metric.value}
-          change="—"
-          positive
           icon={ENTITY_METRIC_ICONS[index] ?? CircleDollarSign}
           accentColor={ENTITY_METRIC_ACCENTS[index] ?? ENTITY_METRIC_ACCENTS[0]}
           delay={index * 0.06}

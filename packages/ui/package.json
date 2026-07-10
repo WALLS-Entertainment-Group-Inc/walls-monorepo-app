@@ -25,6 +25,8 @@
     "./slider": "./src/components/slider.tsx",
     "./switch": "./src/components/switch.tsx",
     "./user-profile-button": "./src/components/user-profile-button.tsx",
+    "./app-header": "./src/components/app-header.tsx",
+    "./app-header-context": "./src/components/app-header-context.tsx",
     "./private-app-chrome": "./src/components/private-app-chrome.tsx",
     "./lib/utils": "./src/lib/utils.ts",
     "./utils": "./src/lib/utils.ts"

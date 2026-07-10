@@ -3,8 +3,6 @@
 import { motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 
-import { cn } from "@walls/utils";
-
 import { AnimatedMetricValue } from "./animated-metric-value";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -22,8 +20,6 @@ function HeroStatSkeleton() {
 type HeroStatProps = {
   label: string;
   value: string;
-  change: string;
-  positive: boolean;
   icon: LucideIcon;
   accentColor: string;
   loading?: boolean;
@@ -33,8 +29,6 @@ type HeroStatProps = {
 function HeroStat({
   label,
   value,
-  change,
-  positive,
   icon: Icon,
   accentColor,
   loading,
@@ -69,17 +63,6 @@ function HeroStat({
           style={{ borderColor: accentColor }}
         />
       </span>
-
-      {!loading && change !== "—" && (
-        <span
-          className={cn(
-            "mt-2 text-[11px] font-medium tabular-nums",
-            positive ? "text-emerald-600" : "text-rose-500",
-          )}
-        >
-          {change}
-        </span>
-      )}
     </motion.div>
   );
 }
