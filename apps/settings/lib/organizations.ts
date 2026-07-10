@@ -1,32 +1,30 @@
+import {
+  deleteObjectsWithPrefix,
+  organizationIconPrefix,
+} from "@walls/storage/server";
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
 
-export type OrganizationRole = "owner" | "admin" | "member";
+import {
+  normalizeOrganizationSlug,
+  type OrganizationRecord,
+  type OrganizationRole,
+  type OrganizationUpdateInput,
+} from "./organizations-shared";
 
-export type OrganizationMembership = {
-  id: string;
-  role: OrganizationRole;
-  isDefault: boolean;
-};
+export type {
+  OrganizationMembership,
+  OrganizationRecord,
+  OrganizationRole,
+  OrganizationUpdateInput,
+} from "./organizations-shared";
 
-export type OrganizationRecord = {
-  id: string;
-  name: string;
-  slug: string;
-  iconUrl: string | null;
-  website: string | null;
-  description: string | null;
-  email: string | null;
-  phone: string | null;
-  addressLine1: string | null;
-  addressLine2: string | null;
-  city: string | null;
-  stateProvince: string | null;
-  postalCode: string | null;
-  countryCode: string | null;
-  role: OrganizationRole;
-  isDefault: boolean;
-};
+export {
+  canDeleteOrganization,
+  canEditOrganization,
+  normalizeOrganizationSlug,
+  slugifyOrganizationName,
+} from "./organizations-shared";
 
 type OrganizationRow = {
   id: string;
@@ -146,30 +144,59 @@ export async function getOrganizationForUser(
   });
 }
 
-export function canEditOrganization(role: OrganizationRole): boolean {
-  return role === "owner" || role === "admin";
-}
+export async function isOrganizationSlugAvailable(
+  slug: string,
+  excludeOrganizationId?: string,
+): Promise<boolean> {
+  const normalized = normalizeOrganizationSlug(slug);
+  if (!normalized) {
+    return false;
+  }
 
-export type OrganizationUpdateInput = {
-  name?: string;
-  slug?: string;
-  iconUrl?: string | null;
-  website?: string | null;
-  description?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  addressLine1?: string | null;
-  addressLine2?: string | null;
-  city?: string | null;
-  stateProvince?: string | null;
-  postalCode?: string | null;
-  countryCode?: string | null;
-};
+  const admin = createAdminClient();
+  let query = admin
+    .from("organizations")
+    .select("id")
+    .eq("slug", normalized);
+
+  if (excludeOrganizationId) {
+    query = query.neq("id", excludeOrganizationId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error("[settings] check organization slug:", error);
+    return false;
+  }
+
+  return !data;
+}
 
 export async function updateOrganization(
   organizationId: string,
   input: OrganizationUpdateInput,
-): Promise<boolean> {
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (input.slug !== undefined) {
+    const normalized = normalizeOrganizationSlug(input.slug);
+    if (!normalized) {
+      return {
+        ok: false,
+        error: "Slug must be at least 2 characters and use letters or numbers",
+      };
+    }
+
+    const available = await isOrganizationSlugAvailable(
+      normalized,
+      organizationId,
+    );
+    if (!available) {
+      return { ok: false, error: "This slug is already taken" };
+    }
+
+    input = { ...input, slug: normalized };
+  }
+
   const admin = createAdminClient();
   const { error } = await admin
     .from("organizations")
@@ -203,10 +230,36 @@ export async function updateOrganization(
 
   if (error) {
     console.error("[settings] update organization:", error);
-    return false;
+    if (error.code === "23505") {
+      return { ok: false, error: "This slug is already taken" };
+    }
+    return { ok: false, error: "Failed to update organization" };
   }
 
-  return true;
+  return { ok: true };
+}
+
+export async function deleteOrganization(
+  organizationId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await deleteObjectsWithPrefix(organizationIconPrefix(organizationId));
+  } catch (error) {
+    console.warn("[settings] delete organization icons:", error);
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("organizations")
+    .delete()
+    .eq("id", organizationId);
+
+  if (error) {
+    console.error("[settings] delete organization:", error);
+    return { ok: false, error: "Failed to delete organization" };
+  }
+
+  return { ok: true };
 }
 
 export async function createOrganizationForUser(input: {
@@ -215,7 +268,22 @@ export async function createOrganizationForUser(input: {
   slug: string;
   iconUrl?: string | null;
   website?: string | null;
-}): Promise<OrganizationRecord | null> {
+}): Promise<
+  | { organization: OrganizationRecord; error?: undefined }
+  | { organization?: undefined; error: string }
+> {
+  const normalized = normalizeOrganizationSlug(input.slug);
+  if (!normalized) {
+    return {
+      error: "Slug must be at least 2 characters and use letters or numbers",
+    };
+  }
+
+  const available = await isOrganizationSlugAvailable(normalized);
+  if (!available) {
+    return { error: "This slug is already taken" };
+  }
+
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
@@ -223,7 +291,7 @@ export async function createOrganizationForUser(input: {
     .from("organizations")
     .insert({
       name: input.name,
-      slug: input.slug.toLowerCase(),
+      slug: normalized,
       icon_url: input.iconUrl ?? null,
       website: input.website ?? null,
       updated_at: now,
@@ -235,7 +303,10 @@ export async function createOrganizationForUser(input: {
 
   if (organizationError || !organization) {
     console.error("[settings] create organization:", organizationError);
-    return null;
+    if (organizationError?.code === "23505") {
+      return { error: "This slug is already taken" };
+    }
+    return { error: "Failed to create organization" };
   }
 
   const { error: membershipError } = await admin.from("user_organizations").insert({
@@ -248,11 +319,13 @@ export async function createOrganizationForUser(input: {
 
   if (membershipError) {
     console.error("[settings] create organization membership:", membershipError);
-    return null;
+    return { error: "Failed to create organization membership" };
   }
 
-  return mapOrganization(organization as OrganizationRow, {
-    role: "owner",
-    is_default: true,
-  });
+  return {
+    organization: mapOrganization(organization as OrganizationRow, {
+      role: "owner",
+      is_default: true,
+    }),
+  };
 }

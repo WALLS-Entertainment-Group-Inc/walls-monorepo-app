@@ -3,59 +3,62 @@
 import { useCallback } from "react";
 
 import { wallsToast } from "@/components/ui/walls-toast";
-import { getSupabaseClient, useAuth } from "@/lib/auth";
+import {
+  useUploadOrganizationIcon as useR2UploadOrganizationIcon,
+  useUploadProfilePicture as useR2UploadProfilePicture,
+} from "@walls/storage/react";
 
 export function useUploadProfilePicture() {
-  const { user } = useAuth();
+  const { mutate: uploadProfilePicture, isUploading } = useR2UploadProfilePicture({
+    onSuccess: () => {
+      wallsToast.success(
+        "Profile picture updated",
+        "Your avatar has been saved",
+      );
+    },
+    onError: () => {
+      wallsToast.error("Upload failed", "Could not update profile picture");
+    },
+  });
 
   const mutate = useCallback(
     async (file: File) => {
-      if (!user?.id) {
-        return;
-      }
-
       try {
-        const supabase = getSupabaseClient();
-        const extension = file.name.split(".").pop() || "jpg";
-        const path = `${user.id}/${Date.now()}.${extension}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(path, file, { upsert: true });
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from("avatars")
-          .getPublicUrl(path);
-
-        const { error: updateError } = await supabase
-          .from("users")
-          .update({ avatar_url: publicUrlData.publicUrl })
-          .eq("id", user.id);
-
-        if (updateError) {
-          throw updateError;
-        }
-
-        wallsToast.success(
-          "Profile picture updated",
-          "Your avatar has been saved",
-        );
-      } catch (error) {
-        console.error("Error uploading profile picture:", error);
-        wallsToast.error(
-          "Upload failed",
-          "Could not update profile picture",
-        );
+        await uploadProfilePicture(file);
+      } catch {
+        // Toast handled in onError.
       }
     },
-    [user?.id],
+    [uploadProfilePicture],
   );
 
-  return { mutate };
+  return { mutate, isUploading };
+}
+
+export function useUploadOrganizationIcon(organizationId: string | null) {
+  const { mutate: uploadOrganizationIcon, isUploading } =
+    useR2UploadOrganizationIcon(organizationId, {
+      onSuccess: () => {
+        wallsToast.success("Icon updated", "Organization icon has been saved");
+      },
+      onError: () => {
+        wallsToast.error("Upload failed", "Could not update organization icon");
+      },
+    });
+
+  const mutate = useCallback(
+    async (file: File) => {
+      try {
+        return await uploadOrganizationIcon(file);
+      } catch {
+        // Toast handled in onError.
+        return null;
+      }
+    },
+    [uploadOrganizationIcon],
+  );
+
+  return { mutate, isUploading };
 }
 
 export function useUploadTimezone() {

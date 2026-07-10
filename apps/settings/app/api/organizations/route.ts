@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const organization = await createOrganizationForUser({
+  const result = await createOrganizationForUser({
     userId,
     name: body.name.trim(),
     slug: body.slug.trim(),
@@ -44,12 +44,17 @@ export async function POST(request: Request) {
     website: body.website ?? null,
   });
 
-  if (!organization) {
+  if ("error" in result && result.error) {
+    const status = result.error.includes("taken") ? 409 : 400;
+    return NextResponse.json({ error: result.error }, { status });
+  }
+
+  if (!result.organization) {
     return NextResponse.json(
       { error: "Failed to create organization" },
       { status: 500 },
     );
   }
 
-  return NextResponse.json({ organization });
+  return NextResponse.json({ organization: result.organization });
 }

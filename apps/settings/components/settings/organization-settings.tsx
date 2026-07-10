@@ -2,26 +2,69 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, Check, Loader2, Plus } from "lucide-react";
+import { Building2, Check, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Button } from "@/components/ui/button";
 import { Input as BorderlessInput } from "@/components/ui/borderless-input";
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SquareImageCrop } from "@/components/ui/square-image-crop";
 import { Toaster } from "@/components/ui/toaster";
-import type { OrganizationRecord } from "@/lib/organizations";
+import { useUploadOrganizationIcon } from "@/hooks/useMutations";
+import {
+  slugifyOrganizationName,
+  type OrganizationRecord,
+} from "@/lib/organizations-shared";
 
 const fieldClass =
   "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--walls-sky)] bg-transparent w-full placeholder:text-neutral-300";
 const labelClass =
   "text-xs font-normal text-neutral-400 tracking-wide block mb-1";
+const readonlyFieldClass =
+  "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light bg-transparent w-full text-neutral-400 placeholder:text-neutral-300 cursor-not-allowed";
 
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function SectionDivider({ title }: { title: string }) {
+  return (
+    <div className="mb-8 mt-8 flex items-center first:mt-0">
+      <span className="mr-4 text-4xl font-black text-black">{title}</span>
+      <div className="h-px flex-1 border-t border-black" />
+    </div>
+  );
+}
+
+type SlugCheckStatus = "idle" | "checking" | "available" | "taken" | "invalid";
+
+function SlugFieldHint({ status }: { status: SlugCheckStatus }) {
+  if (status === "idle" || status === "checking") {
+    return null;
+  }
+
+  if (status === "available") {
+    return (
+      <p className="mt-1 text-xs font-light text-emerald-600">
+        This slug is available
+      </p>
+    );
+  }
+
+  if (status === "taken") {
+    return (
+      <p className="mt-1 text-xs font-light text-red-600">
+        This slug is already taken
+      </p>
+    );
+  }
+
+  return (
+    <p className="mt-1 text-xs font-light text-red-600">
+      Slug must be at least 2 characters (letters and numbers only)
+    </p>
+  );
 }
 
 function OrganizationAvatar({
@@ -36,9 +79,9 @@ function OrganizationAvatar({
       <Image
         src={iconUrl}
         alt={`${name} icon`}
-        width={64}
-        height={64}
-        className="h-16 w-16 rounded-2xl object-cover"
+        width={120}
+        height={120}
+        className="h-[120px] w-[120px] rounded-2xl object-cover"
       />
     );
   }
@@ -50,9 +93,87 @@ function OrganizationAvatar({
     .join("");
 
   return (
-    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-100 text-lg font-semibold text-neutral-700">
-      {initials || <Building2 className="h-6 w-6" />}
+    <div className="flex h-[120px] w-[120px] items-center justify-center rounded-2xl bg-neutral-100 text-2xl font-semibold text-neutral-700">
+      {initials || <Building2 className="h-8 w-8" />}
     </div>
+  );
+}
+
+function OrganizationIconUpload({
+  name,
+  iconUrl,
+  canEdit,
+  isUploading,
+  onSelectFile,
+}: {
+  name: string;
+  iconUrl: string | null;
+  canEdit: boolean;
+  isUploading: boolean;
+  onSelectFile: (file: File) => void;
+}) {
+  const [tempImage, setTempImage] = useState<string | null>(null);
+  const [showCropDialog, setShowCropDialog] = useState(false);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setTempImage(reader.result as string);
+        setShowCropDialog(true);
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = "";
+  };
+
+  const avatar = (
+    <OrganizationAvatar name={name} iconUrl={iconUrl} />
+  );
+
+  if (!canEdit) {
+    return avatar;
+  }
+
+  return (
+    <>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+        id="organization-icon-upload"
+        disabled={isUploading}
+      />
+      <label
+        htmlFor="organization-icon-upload"
+        className={`relative block cursor-pointer group ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+      >
+        {avatar}
+        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          {isUploading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-white" />
+          ) : (
+            <Plus className="h-6 w-6 text-white" />
+          )}
+        </div>
+      </label>
+
+      {tempImage ? (
+        <SquareImageCrop
+          open={showCropDialog}
+          onOpenChange={setShowCropDialog}
+          imageUrl={tempImage}
+          onCropComplete={(file) => {
+            onSelectFile(file);
+            setTempImage(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -63,6 +184,19 @@ export default function OrganizationSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
+  const [isHoveringSave, setIsHoveringSave] = useState(false);
+  const [isHoveringCancel, setIsHoveringCancel] = useState(false);
+  const [createSlugTouched, setCreateSlugTouched] = useState(false);
+  const [editSlugTouched, setEditSlugTouched] = useState(false);
+  const [createSlugStatus, setCreateSlugStatus] =
+    useState<SlugCheckStatus>("idle");
+  const [editSlugStatus, setEditSlugStatus] = useState<SlugCheckStatus>("idle");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { mutate: uploadOrganizationIcon, isUploading: isUploadingIcon } =
+    useUploadOrganizationIcon(selectedId);
 
   const [form, setForm] = useState({
     name: "",
@@ -84,7 +218,6 @@ export default function OrganizationSettingsPage() {
     name: "",
     slug: "",
     website: "",
-    iconUrl: "",
   });
 
   const selectedOrganization = useMemo(
@@ -96,6 +229,33 @@ export default function OrganizationSettingsPage() {
     ? selectedOrganization.role === "owner" ||
       selectedOrganization.role === "admin"
     : false;
+
+  const canDelete = selectedOrganization?.role === "owner";
+
+  const displayIconUrl =
+    iconPreviewUrl || form.iconUrl.trim() || selectedOrganization?.iconUrl || null;
+
+  const handleIconUpload = useCallback(
+    async (file: File) => {
+      setIconPreviewUrl(URL.createObjectURL(file));
+
+      const result = await uploadOrganizationIcon(file);
+      if (!result?.url || !selectedId) {
+        return;
+      }
+
+      setForm((current) => ({ ...current, iconUrl: result.url }));
+      setIconPreviewUrl(result.url);
+      setOrganizations((current) =>
+        current.map((organization) =>
+          organization.id === selectedId
+            ? { ...organization, iconUrl: result.url }
+            : organization,
+        ),
+      );
+    },
+    [selectedId, uploadOrganizationIcon],
+  );
 
   const loadOrganizations = useCallback(async () => {
     setLoading(true);
@@ -123,6 +283,89 @@ export default function OrganizationSettingsPage() {
   useEffect(() => {
     void loadOrganizations();
   }, [loadOrganizations]);
+
+  useEffect(() => {
+    setIconPreviewUrl(null);
+    setEditSlugTouched(false);
+    setEditSlugStatus("idle");
+  }, [selectedOrganization?.id]);
+
+  useEffect(() => {
+    if (!showCreateForm) {
+      setCreateSlugTouched(false);
+      setCreateSlugStatus("idle");
+    }
+  }, [showCreateForm]);
+
+  useEffect(() => {
+    const slug = createForm.slug.trim();
+    if (!slug) {
+      setCreateSlugStatus("idle");
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setCreateSlugStatus("checking");
+      try {
+        const response = await fetch(
+          `/api/organizations/check-slug?slug=${encodeURIComponent(slug)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          setCreateSlugStatus("invalid");
+          return;
+        }
+        const payload = (await response.json()) as {
+          available?: boolean;
+          reason?: string | null;
+        };
+        if (payload.reason === "invalid") {
+          setCreateSlugStatus("invalid");
+        } else {
+          setCreateSlugStatus(payload.available ? "available" : "taken");
+        }
+      } catch {
+        setCreateSlugStatus("idle");
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [createForm.slug]);
+
+  useEffect(() => {
+    const slug = form.slug.trim();
+    if (!slug || !selectedId) {
+      setEditSlugStatus("idle");
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setEditSlugStatus("checking");
+      try {
+        const response = await fetch(
+          `/api/organizations/check-slug?slug=${encodeURIComponent(slug)}&excludeOrganizationId=${encodeURIComponent(selectedId)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          setEditSlugStatus("invalid");
+          return;
+        }
+        const payload = (await response.json()) as {
+          available?: boolean;
+          reason?: string | null;
+        };
+        if (payload.reason === "invalid") {
+          setEditSlugStatus("invalid");
+        } else {
+          setEditSlugStatus(payload.available ? "available" : "taken");
+        }
+      } catch {
+        setEditSlugStatus("idle");
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [form.slug, selectedId]);
 
   useEffect(() => {
     if (!selectedOrganization) {
@@ -164,6 +407,11 @@ export default function OrganizationSettingsPage() {
   async function handleSave() {
     if (!selectedId || !canEdit) return;
 
+    if (isEditSlugBlocking) {
+      wallsToast.error("Invalid slug", "Choose a different organization slug");
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch(`/api/organizations/${selectedId}`, {
@@ -187,7 +435,8 @@ export default function OrganizationSettingsPage() {
       });
 
       if (!response.ok) {
-        wallsToast.error("Error", "Failed to save organization settings");
+        const payload = (await response.json()) as { error?: string };
+        wallsToast.error("Error", payload.error || "Failed to save organization settings");
         return;
       }
 
@@ -211,9 +460,93 @@ export default function OrganizationSettingsPage() {
     }
   }
 
+  function handleRevert() {
+    if (!selectedOrganization) return;
+
+    setForm({
+      name: selectedOrganization.name,
+      slug: selectedOrganization.slug,
+      iconUrl: selectedOrganization.iconUrl ?? "",
+      website: selectedOrganization.website ?? "",
+      description: selectedOrganization.description ?? "",
+      email: selectedOrganization.email ?? "",
+      phone: selectedOrganization.phone ?? "",
+      addressLine1: selectedOrganization.addressLine1 ?? "",
+      addressLine2: selectedOrganization.addressLine2 ?? "",
+      city: selectedOrganization.city ?? "",
+      stateProvince: selectedOrganization.stateProvince ?? "",
+      postalCode: selectedOrganization.postalCode ?? "",
+      countryCode: selectedOrganization.countryCode ?? "",
+    });
+    setIconPreviewUrl(null);
+    setEditSlugTouched(false);
+    setEditSlugStatus("idle");
+    wallsToast.success("Changes reverted", "All changes have been discarded");
+  }
+
+  async function handleDelete() {
+    if (!selectedId || !canDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/organizations/${selectedId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        wallsToast.error(
+          "Error",
+          payload.error || "Failed to delete organization",
+        );
+        return;
+      }
+
+      const deletedId = selectedId;
+      const remaining = organizations.filter(
+        (organization) => organization.id !== deletedId,
+      );
+
+      setOrganizations(remaining);
+      setSelectedId(remaining[0]?.id ?? null);
+      setShowDeleteDialog(false);
+      wallsToast.success(
+        "Organization deleted",
+        "The organization has been permanently removed",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  const isFormChanged = selectedOrganization
+    ? form.name !== selectedOrganization.name ||
+      form.slug !== selectedOrganization.slug ||
+      form.website !== (selectedOrganization.website ?? "") ||
+      form.description !== (selectedOrganization.description ?? "") ||
+      form.email !== (selectedOrganization.email ?? "") ||
+      form.phone !== (selectedOrganization.phone ?? "") ||
+      form.addressLine1 !== (selectedOrganization.addressLine1 ?? "") ||
+      form.addressLine2 !== (selectedOrganization.addressLine2 ?? "") ||
+      form.city !== (selectedOrganization.city ?? "") ||
+      form.stateProvince !== (selectedOrganization.stateProvince ?? "") ||
+      form.postalCode !== (selectedOrganization.postalCode ?? "") ||
+      form.countryCode !== (selectedOrganization.countryCode ?? "")
+    : false;
+
+  const isEditSlugBlocking =
+    editSlugStatus === "taken" || editSlugStatus === "invalid";
+  const isCreateSlugBlocking =
+    createSlugStatus === "taken" || createSlugStatus === "invalid";
+
   async function handleCreate() {
     if (!createForm.name.trim() || !createForm.slug.trim()) {
       wallsToast.error("Missing fields", "Organization name and slug are required");
+      return;
+    }
+
+    if (isCreateSlugBlocking) {
+      wallsToast.error("Invalid slug", "Choose a different organization slug");
       return;
     }
 
@@ -226,12 +559,12 @@ export default function OrganizationSettingsPage() {
           name: createForm.name.trim(),
           slug: createForm.slug.trim(),
           website: createForm.website.trim() || null,
-          iconUrl: createForm.iconUrl.trim() || null,
         }),
       });
 
       if (!response.ok) {
-        wallsToast.error("Error", "Failed to create organization");
+        const payload = (await response.json()) as { error?: string };
+        wallsToast.error("Error", payload.error || "Failed to create organization");
         return;
       }
 
@@ -243,7 +576,7 @@ export default function OrganizationSettingsPage() {
         setOrganizations((current) => [...current, payload.organization!]);
         setSelectedId(payload.organization.id);
         setShowCreateForm(false);
-        setCreateForm({ name: "", slug: "", website: "", iconUrl: "" });
+        setCreateForm({ name: "", slug: "", website: "" });
         wallsToast.success("Created", "Organization created successfully");
       }
     } finally {
@@ -253,381 +586,535 @@ export default function OrganizationSettingsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl px-6 py-10 md:px-10">
-        <Skeleton className="mb-6 h-8 w-48" />
-        <Skeleton className="mb-4 h-12 w-full" />
-        <Skeleton className="mb-4 h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
+      <div className="flex h-full flex-col overflow-y-auto overscroll-none bg-gray-50">
+        <div className="mx-auto w-full max-w-5xl px-8 pb-8">
+          <Skeleton className="mb-8 mt-8 h-10 w-64" />
+          <Skeleton className="mb-4 h-[120px] w-[120px] rounded-2xl" />
+          <Skeleton className="mb-4 h-12 w-full" />
+          <Skeleton className="mb-4 h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto max-w-3xl px-6 py-10 md:px-10">
-      <Toaster />
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-            Organization
-          </h1>
-          <p className="mt-1 text-sm font-light text-neutral-500">
-            Manage organization profile, branding, and contact details shared
-            across AdPilot and other WALLS apps.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          className="rounded-full border border-neutral-200 bg-white px-4"
-          onClick={() => setShowCreateForm((value) => !value)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New organization
-        </Button>
-      </div>
+  const inputClass = (editable: boolean) =>
+    editable ? fieldClass : readonlyFieldClass;
 
-      {showCreateForm ? (
-        <section className="mb-10 rounded-[24px] border border-neutral-200/70 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-sm font-medium uppercase tracking-[0.14em] text-neutral-500">
-            Create organization
-          </h2>
-          <div className="grid gap-5 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className={labelClass}>Name</label>
-              <BorderlessInput
-                value={createForm.name}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                    slug:
-                      current.slug || slugify(event.target.value),
-                  }))
-                }
-                className={fieldClass}
-              />
-            </div>
+  return (
+    <div className="flex h-full flex-col overflow-y-auto overscroll-none bg-gray-50">
+      <div className="mx-auto w-full max-w-5xl px-8 pb-8">
+        <Toaster />
+
+        <div className="mb-8 pt-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <label className={labelClass}>Slug</label>
-              <BorderlessInput
-                value={createForm.slug}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    slug: slugify(event.target.value),
-                  }))
-                }
-                className={fieldClass}
-              />
+              <h1 className="text-3xl font-bold text-foreground">Organization</h1>
+              <p className="text-sm font-light text-neutral-500">
+                Manage organization profile, branding, and contact details shared
+                across AdPilot and other WALLS apps.
+              </p>
             </div>
-            <div>
-              <label className={labelClass}>Website</label>
-              <BorderlessInput
-                value={createForm.website}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    website: event.target.value,
-                  }))
-                }
-                className={fieldClass}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className={labelClass}>Icon URL</label>
-              <BorderlessInput
-                value={createForm.iconUrl}
-                onChange={(event) =>
-                  setCreateForm((current) => ({
-                    ...current,
-                    iconUrl: event.target.value,
-                  }))
-                }
-                className={fieldClass}
-              />
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end gap-3">
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setShowCreateForm(false)}
+              className="rounded-none border border-neutral-200/50 bg-background px-6 py-6 font-normal hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]"
+              onClick={() => setShowCreateForm((value) => !value)}
             >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={creating}
-              className="rounded-full bg-walls-yellow text-black hover:bg-walls-yellow"
-              onClick={() => void handleCreate()}
-            >
-              {creating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Create organization
+              <Plus className="mr-2 h-4 w-4" />
+              New organization
             </Button>
           </div>
-        </section>
-      ) : null}
-
-      {organizations.length === 0 ? (
-        <div className="rounded-[24px] border border-dashed border-neutral-300 bg-white p-10 text-center">
-          <Building2 className="mx-auto mb-4 h-10 w-10 text-neutral-300" />
-          <p className="text-sm font-light text-neutral-500">
-            You are not part of an organization yet. Create one to share AdPilot
-            data with your team.
-          </p>
         </div>
-      ) : (
-        <>
-          {organizations.length > 1 ? (
-            <div className="mb-6 flex flex-wrap gap-2">
-              {organizations.map((organization) => (
-                <button
-                  key={organization.id}
-                  type="button"
-                  onClick={() => setSelectedId(organization.id)}
-                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                    selectedId === organization.id
-                      ? "border-walls-blue bg-walls-blue/10 text-walls-blue"
-                      : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
-                  }`}
-                >
-                  {organization.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
 
-          {selectedOrganization ? (
-            <section className="rounded-[24px] border border-neutral-200/70 bg-white p-6 shadow-sm">
-              <div className="mb-8 flex items-center gap-4">
-                <OrganizationAvatar
-                  name={form.name || selectedOrganization.name}
-                  iconUrl={form.iconUrl.trim() || null}
+        {organizations.length > 1 ? (
+          <div className="mb-8 flex flex-wrap gap-2">
+            {organizations.map((organization) => (
+              <button
+                key={organization.id}
+                type="button"
+                onClick={() => setSelectedId(organization.id)}
+                className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                  selectedId === organization.id
+                    ? "border-walls-blue bg-walls-blue/10 text-walls-blue"
+                    : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                {organization.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {showCreateForm ? (
+          <div className="space-y-8">
+            <SectionDivider title="Create organization" />
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>Organization name</label>
+                <BorderlessInput
+                  value={createForm.name}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                      slug: createSlugTouched
+                        ? current.slug
+                        : slugifyOrganizationName(event.target.value),
+                    }))
+                  }
+                  className={fieldClass}
+                  placeholder="Organization name"
                 />
-                <div>
-                  <p className="text-lg font-semibold text-neutral-900">
-                    {selectedOrganization.name}
-                  </p>
-                  <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">
-                    {selectedOrganization.role}
-                    {selectedOrganization.isDefault ? " · Default" : ""}
-                  </p>
-                </div>
               </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Organization name</label>
-                  <BorderlessInput
-                    value={form.name}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                    className={fieldClass}
-                  />
-                </div>
-                <div>
+              <div className="flex gap-4">
+                <div className="flex-1">
                   <label className={labelClass}>Slug</label>
                   <BorderlessInput
-                    value={form.slug}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
+                    value={createForm.slug}
+                    onChange={(event) => {
+                      setCreateSlugTouched(true);
+                      setCreateForm((current) => ({
                         ...current,
-                        slug: slugify(event.target.value),
-                      }))
-                    }
+                        slug: slugifyOrganizationName(event.target.value),
+                      }));
+                    }}
                     className={fieldClass}
+                    placeholder="organization-slug"
                   />
+                  <SlugFieldHint status={createSlugStatus} />
                 </div>
-                <div>
+                <div className="flex-1">
                   <label className={labelClass}>Website</label>
                   <BorderlessInput
-                    value={form.website}
-                    disabled={!canEdit}
+                    value={createForm.website}
                     onChange={(event) =>
-                      setForm((current) => ({
+                      setCreateForm((current) => ({
                         ...current,
                         website: event.target.value,
                       }))
                     }
                     className={fieldClass}
+                    placeholder="https://example.com"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Icon URL</label>
-                  <BorderlessInput
-                    value={form.iconUrl}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        iconUrl: event.target.value,
-                      }))
-                    }
-                    className={fieldClass}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Description</label>
-                  <BorderlessInput
-                    value={form.description}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        description: event.target.value,
-                      }))
-                    }
-                    className={fieldClass}
-                  />
-                </div>
+              </div>
+              <p className="text-xs font-light text-neutral-400">
+                You can upload an organization icon after it is created.
+              </p>
+            </div>
+            <div className="flex justify-start gap-3 pb-8">
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-none border border-neutral-200/50 bg-background px-8 py-6 font-normal"
+                onClick={() => setShowCreateForm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={creating || isCreateSlugBlocking}
+                className="rounded-none border border-neutral-200/50 bg-walls-yellow px-8 py-6 font-normal text-black hover:bg-walls-yellow"
+                onClick={() => void handleCreate()}
+              >
+                {creating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Create organization
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {organizations.length === 0 && !showCreateForm ? (
+          <div className="py-16 text-center">
+            <Building2 className="mx-auto mb-4 h-12 w-12 text-neutral-300" />
+            <p className="text-sm font-light text-neutral-500">
+              You are not part of an organization yet. Create one to share AdPilot
+              data with your team.
+            </p>
+          </div>
+        ) : null}
+
+        {selectedOrganization && !showCreateForm ? (
+          <div className="space-y-8">
+            <SectionDivider title="Organization profile" />
+
+            <div className="flex gap-8">
+              <div className="flex-shrink-0">
+                <OrganizationIconUpload
+                  name={form.name || selectedOrganization.name}
+                  iconUrl={displayIconUrl}
+                  canEdit={canEdit}
+                  isUploading={isUploadingIcon}
+                  onSelectFile={(file) => void handleIconUpload(file)}
+                />
+                <p className="mt-3 max-w-[120px] text-center text-[10px] font-light uppercase tracking-wide text-neutral-400">
+                  {selectedOrganization.role}
+                  {selectedOrganization.isDefault ? " · Default" : ""}
+                </p>
+              </div>
+
+              <div className="flex-1 space-y-4">
                 <div>
-                  <label className={labelClass}>Email</label>
+                  <label className={labelClass}>Organization name</label>
                   <BorderlessInput
-                    value={form.email}
-                    disabled={!canEdit}
+                    value={form.name}
+                    readOnly={!canEdit}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        email: event.target.value,
+                        name: event.target.value,
+                        slug: editSlugTouched
+                          ? current.slug
+                          : slugifyOrganizationName(event.target.value),
                       }))
                     }
-                    className={fieldClass}
+                    className={inputClass(canEdit)}
+                    placeholder="Organization name"
                   />
                 </div>
-                <div>
-                  <label className={labelClass}>Phone</label>
-                  <BorderlessInput
-                    value={form.phone}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        phone: event.target.value,
-                      }))
-                    }
-                    className={fieldClass}
-                  />
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className={labelClass}>Slug</label>
+                    <BorderlessInput
+                      value={form.slug}
+                      readOnly={!canEdit}
+                      onChange={(event) => {
+                        setEditSlugTouched(true);
+                        setForm((current) => ({
+                          ...current,
+                          slug: slugifyOrganizationName(event.target.value),
+                        }));
+                      }}
+                      className={inputClass(canEdit)}
+                      placeholder="organization-slug"
+                    />
+                    {canEdit ? <SlugFieldHint status={editSlugStatus} /> : null}
+                  </div>
+                  <div className="flex-1">
+                    <label className={labelClass}>Website</label>
+                    <BorderlessInput
+                      value={form.website}
+                      readOnly={!canEdit}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          website: event.target.value,
+                        }))
+                      }
+                      className={inputClass(canEdit)}
+                      placeholder="https://example.com"
+                    />
+                  </div>
                 </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Address line 1</label>
-                  <BorderlessInput
-                    value={form.addressLine1}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        addressLine1: event.target.value,
-                      }))
-                    }
-                    className={fieldClass}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className={labelClass}>Address line 2</label>
-                  <BorderlessInput
-                    value={form.addressLine2}
-                    disabled={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        addressLine2: event.target.value,
-                      }))
-                    }
-                    className={fieldClass}
-                  />
-                </div>
-                <div>
+              </div>
+            </div>
+
+            <SectionDivider title="About" />
+            <div>
+              <label className={labelClass}>Description</label>
+              <BorderlessInput
+                value={form.description}
+                readOnly={!canEdit}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: event.target.value,
+                  }))
+                }
+                className={inputClass(canEdit)}
+                placeholder="What does your organization do?"
+              />
+            </div>
+
+            <SectionDivider title="Contact information" />
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className={labelClass}>Email</label>
+                <BorderlessInput
+                  value={form.email}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="contact@organization.com"
+                />
+              </div>
+              <div className="flex-1">
+                <label className={labelClass}>Phone</label>
+                <BorderlessInput
+                  value={form.phone}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="+13103878027"
+                />
+              </div>
+            </div>
+
+            <SectionDivider title="Location" />
+            <div className="space-y-4">
+              <div>
+                <label className={labelClass}>Address line 1</label>
+                <BorderlessInput
+                  value={form.addressLine1}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      addressLine1: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="Street address"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Address line 2</label>
+                <BorderlessInput
+                  value={form.addressLine2}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      addressLine2: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="Suite, unit, etc."
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
                   <label className={labelClass}>City</label>
                   <BorderlessInput
                     value={form.city}
-                    disabled={!canEdit}
+                    readOnly={!canEdit}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
                         city: event.target.value,
                       }))
                     }
-                    className={fieldClass}
+                    className={inputClass(canEdit)}
+                    placeholder="City"
                   />
                 </div>
-                <div>
+                <div className="flex-1">
                   <label className={labelClass}>State / Province</label>
                   <BorderlessInput
                     value={form.stateProvince}
-                    disabled={!canEdit}
+                    readOnly={!canEdit}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
                         stateProvince: event.target.value,
                       }))
                     }
-                    className={fieldClass}
+                    className={inputClass(canEdit)}
+                    placeholder="State or province"
                   />
                 </div>
-                <div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
                   <label className={labelClass}>Postal code</label>
                   <BorderlessInput
                     value={form.postalCode}
-                    disabled={!canEdit}
+                    readOnly={!canEdit}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
                         postalCode: event.target.value,
                       }))
                     }
-                    className={fieldClass}
+                    className={inputClass(canEdit)}
+                    placeholder="Postal code"
                   />
                 </div>
-                <div>
+                <div className="flex-1">
                   <label className={labelClass}>Country code</label>
                   <BorderlessInput
                     value={form.countryCode}
-                    disabled={!canEdit}
+                    readOnly={!canEdit}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
                         countryCode: event.target.value.toUpperCase(),
                       }))
                     }
-                    className={fieldClass}
+                    className={inputClass(canEdit)}
+                    placeholder="US"
                   />
                 </div>
               </div>
+            </div>
 
-              {canEdit ? (
-                <div className="mt-8 flex justify-end">
-                  <Button
-                    type="button"
-                    disabled={saving}
-                    className="rounded-full bg-walls-yellow px-6 text-black hover:bg-walls-yellow"
-                    onClick={() => void handleSave()}
+            {canEdit ? (
+              <div className="flex justify-start gap-3 pb-8 pt-4">
+                <Button
+                  type="button"
+                  disabled={!isFormChanged || saving || isEditSlugBlocking}
+                  variant="ghost"
+                  onMouseEnter={() => setIsHoveringSave(true)}
+                  onMouseLeave={() => setIsHoveringSave(false)}
+                  className="relative overflow-hidden rounded-none border border-neutral-200/50 bg-background px-8 py-6 font-normal text-foreground transition-all hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => void handleSave()}
+                >
+                  <AnimatePresence>
+                    {isHoveringSave && isFormChanged && !saving ? (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10, scale: 0.8 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -10, scale: 0.8 }}
+                        className="absolute left-4 flex items-center pointer-events-none"
+                      >
+                        <Check className="h-4 w-4 text-walls-yellow" />
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                  <motion.span
+                    className="inline-block"
+                    animate={{ x: isHoveringSave && isFormChanged ? 8 : 0 }}
                   >
                     {saving ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </span>
                     ) : (
-                      <Check className="mr-2 h-4 w-4" />
+                      "Save changes"
                     )}
-                    Save organization
+                  </motion.span>
+                </Button>
+
+                <Button
+                  type="button"
+                  disabled={!isFormChanged || saving}
+                  variant="ghost"
+                  onMouseEnter={() => setIsHoveringCancel(true)}
+                  onMouseLeave={() => setIsHoveringCancel(false)}
+                  className="relative overflow-hidden rounded-none border border-neutral-200/50 bg-background px-8 py-6 font-normal text-foreground transition-all hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={handleRevert}
+                >
+                  <AnimatePresence>
+                    {isHoveringCancel && isFormChanged ? (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10, scale: 0.8 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -10, scale: 0.8 }}
+                        className="absolute left-4 flex items-center pointer-events-none"
+                      >
+                        <RotateCcw className="h-4 w-4 text-neutral-500" />
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                  <motion.span
+                    className="inline-block"
+                    animate={{ x: isHoveringCancel && isFormChanged ? 8 : 0 }}
+                  >
+                    Cancel
+                  </motion.span>
+                </Button>
+              </div>
+            ) : (
+              <p className="pb-8 pt-4 text-sm font-light text-neutral-500">
+                You have member access to this organization. Contact an owner or
+                admin to update settings.
+              </p>
+            )}
+
+            {canDelete && selectedOrganization ? (
+              <>
+                <SectionDivider title="Danger zone" />
+                <div className="pb-8">
+                  <p className="mb-4 max-w-2xl text-sm font-light text-neutral-500">
+                    Permanently delete this organization and remove all members.
+                    AdPilot data linked to this organization will be unlinked.
+                    This action cannot be undone.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={isDeleting || saving}
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="rounded-none border border-red-200 bg-background px-8 py-6 font-normal text-red-600 transition-all hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isDeleting ? (
+                      <span className="flex items-center">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting...
+                      </span>
+                    ) : (
+                      <span className="flex items-center">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete organization
+                      </span>
+                    )}
                   </Button>
                 </div>
-              ) : (
-                <p className="mt-8 text-sm font-light text-neutral-500">
-                  You have member access to this organization. Contact an owner
-                  or admin to update settings.
-                </p>
-              )}
-            </section>
-          ) : null}
-        </>
-      )}
+
+                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                  <DialogContent showCloseButton={!isDeleting}>
+                    <div className="space-y-4">
+                      <div>
+                        <h2 className="text-lg font-semibold text-foreground">
+                          Delete organization?
+                        </h2>
+                        <p className="mt-2 text-sm font-light text-neutral-500">
+                          Are you sure you want to delete{" "}
+                          <span className="font-normal text-foreground">
+                            {selectedOrganization.name}
+                          </span>
+                          ? This cannot be undone.
+                        </p>
+                      </div>
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={isDeleting}
+                          onClick={() => setShowDeleteDialog(false)}
+                          className="rounded-none border border-neutral-200/50 px-6 py-2 font-normal"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={isDeleting}
+                          onClick={() => void handleDelete()}
+                          className="rounded-none border border-red-200 bg-red-50 px-6 py-2 font-normal text-red-600 hover:bg-red-100 hover:text-red-700"
+                        >
+                          {isDeleting ? (
+                            <span className="flex items-center">
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deleting...
+                            </span>
+                          ) : (
+                            "Delete organization"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

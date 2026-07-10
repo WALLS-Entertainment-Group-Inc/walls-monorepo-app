@@ -70,6 +70,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@walls/auth",
     "@walls/config",
+    "@walls/storage",
     "@walls/supabase",
     "@walls/ui",
     "@walls/utils",
