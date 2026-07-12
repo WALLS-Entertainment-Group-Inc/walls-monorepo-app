@@ -24,9 +24,15 @@ function inlineToHtml(text: string): string {
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 }
 
+function normalizeMarkdownBlocks(content: string): string {
+  return content
+    .replace(/\r\n/g, "\n")
+    .replace(/([^\n])\s+(#{1,3}\s+)/g, "$1\n\n$2");
+}
+
 /** Convert our lightweight markdown dialect to selectable HTML. */
 export function markdownToHtml(content: string): string {
-  const lines = content.split("\n");
+  const lines = normalizeMarkdownBlocks(content).split("\n");
   const parts: string[] = [];
   let listItems: string[] = [];
 
@@ -64,7 +70,7 @@ export function markdownToHtml(content: string): string {
 }
 
 export function markdownToPlainText(content: string): string {
-  return content
+  return normalizeMarkdownBlocks(content)
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
     .replace(/^#{1,3}\s+/gm, "")

@@ -28,6 +28,12 @@ function normalizeCollapsedMarkdownTables(content: string): string {
     .join("\n");
 }
 
+function normalizeMarkdownBlocks(content: string): string {
+  return normalizeCollapsedMarkdownTables(content)
+    .replace(/\r\n/g, "\n")
+    .replace(/([^\n])\s+(#{1,4}\s+)/g, "$1\n\n$2");
+}
+
 function isTableRow(line: string): boolean {
   const trimmed = line.trim();
   return trimmed.startsWith("|") && trimmed.endsWith("|");
@@ -95,7 +101,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
   const renderedContent = useMemo(() => {
     if (!content) return null;
 
-    const lines = normalizeCollapsedMarkdownTables(content).split("\n");
+    const lines = normalizeMarkdownBlocks(content).split("\n");
     const elements: ReactElement[] = [];
     let currentParagraph: string[] = [];
     let key = 0;
