@@ -142,7 +142,7 @@ function withIosBuildFixes(config) {
   ]);
 
   return withPodfile(config, (podfile) => {
-    let contents = podfile.contents;
+    let contents = podfile.modResults.contents;
 
     if (!contents.includes("Xcode 26 workaround")) {
       contents = contents.replace(
@@ -179,7 +179,7 @@ function withIosBuildFixes(config) {
       );
     }
 
-    podfile.contents = contents;
+    podfile.modResults.contents = contents;
     return podfile;
   });
 }
