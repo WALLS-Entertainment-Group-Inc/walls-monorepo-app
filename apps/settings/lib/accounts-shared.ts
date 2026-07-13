@@ -1,4 +1,4 @@
-export type AccountType = "personal" | "business";
+export type AccountType = "personal" | "organization";
 
 export type AccountRole = "owner" | "admin" | "member";
 
@@ -6,7 +6,6 @@ export type AccountRecord = {
   id: string;
   accountType: AccountType;
   name: string;
-  organizationId: string | null;
   personalOwnerId: string | null;
 };
 

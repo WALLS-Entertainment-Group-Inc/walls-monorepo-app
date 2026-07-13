@@ -26,10 +26,13 @@ export {
   slugifyOrganizationName,
 } from "./organizations-shared";
 
-type OrganizationRow = {
+// Organizations are now `accounts` rows with account_type = 'organization'.
+// The account id IS the organization id everywhere in the settings app.
+
+type AccountRow = {
   id: string;
   name: string;
-  slug: string;
+  slug: string | null;
   icon_url: string | null;
   website: string | null;
   description: string | null;
@@ -46,17 +49,20 @@ type OrganizationRow = {
 type MembershipRow = {
   role: OrganizationRole;
   is_default: boolean;
-  organizations: OrganizationRow | OrganizationRow[] | null;
+  accounts: AccountRow | AccountRow[] | null;
 };
 
+const ACCOUNT_FIELDS =
+  "id, name, slug, icon_url, website, description, email, phone, address_line_1, address_line_2, city, state_province, postal_code, country_code";
+
 function mapOrganization(
-  row: OrganizationRow,
+  row: AccountRow,
   membership: { role: OrganizationRole; is_default: boolean },
 ): OrganizationRecord {
   return {
     id: row.id,
     name: row.name,
-    slug: row.slug,
+    slug: row.slug ?? "",
     iconUrl: row.icon_url,
     website: row.website,
     description: row.description,
@@ -73,19 +79,27 @@ function mapOrganization(
   };
 }
 
+function extractAccount(membership: MembershipRow): AccountRow | null {
+  const account = Array.isArray(membership.accounts)
+    ? membership.accounts[0]
+    : membership.accounts;
+  if (!account) return null;
+  return account;
+}
+
 export async function listOrganizationsForUser(
   userId: string,
 ): Promise<OrganizationRecord[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("user_organizations")
+    .from("account_users")
     .select(
-      `role, is_default, organizations (
-        id, name, slug, icon_url, website, description, email, phone,
-        address_line_1, address_line_2, city, state_province, postal_code, country_code
+      `role, is_default, accounts!inner (
+        ${ACCOUNT_FIELDS}, account_type
       )`,
     )
     .eq("user_id", userId)
+    .eq("accounts.account_type", "organization")
     .order("is_default", { ascending: false })
     .order("created_at", { ascending: true });
 
@@ -97,11 +111,9 @@ export async function listOrganizationsForUser(
   return (data ?? [])
     .map((row) => {
       const membership = row as MembershipRow;
-      const organization = Array.isArray(membership.organizations)
-        ? membership.organizations[0]
-        : membership.organizations;
-      if (!organization) return null;
-      return mapOrganization(organization, {
+      const account = extractAccount(membership);
+      if (!account) return null;
+      return mapOrganization(account, {
         role: membership.role,
         is_default: membership.is_default,
       });
@@ -115,30 +127,27 @@ export async function getOrganizationForUser(
 ): Promise<OrganizationRecord | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("user_organizations")
+    .from("account_users")
     .select(
-      `role, is_default, organizations (
-        id, name, slug, icon_url, website, description, email, phone,
-        address_line_1, address_line_2, city, state_province, postal_code, country_code
+      `role, is_default, accounts!inner (
+        ${ACCOUNT_FIELDS}, account_type
       )`,
     )
     .eq("user_id", userId)
-    .eq("organization_id", organizationId)
+    .eq("account_id", organizationId)
+    .eq("accounts.account_type", "organization")
     .maybeSingle();
 
   if (error || !data) {
-    console.error("[settings] get organization:", error);
+    if (error) console.error("[settings] get organization:", error);
     return null;
   }
 
   const membership = data as MembershipRow;
-  const organization = Array.isArray(membership.organizations)
-    ? membership.organizations[0]
-    : membership.organizations;
+  const account = extractAccount(membership);
+  if (!account) return null;
 
-  if (!organization) return null;
-
-  return mapOrganization(organization, {
+  return mapOrganization(account, {
     role: membership.role,
     is_default: membership.is_default,
   });
@@ -155,8 +164,9 @@ export async function isOrganizationSlugAvailable(
 
   const admin = createAdminClient();
   let query = admin
-    .from("organizations")
+    .from("accounts")
     .select("id")
+    .eq("account_type", "organization")
     .eq("slug", normalized);
 
   if (excludeOrganizationId) {
@@ -199,7 +209,7 @@ export async function updateOrganization(
 
   const admin = createAdminClient();
   const { error } = await admin
-    .from("organizations")
+    .from("accounts")
     .update({
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.slug !== undefined ? { slug: input.slug.toLowerCase() } : {}),
@@ -226,7 +236,8 @@ export async function updateOrganization(
         : {}),
       updated_at: new Date().toISOString(),
     })
-    .eq("id", organizationId);
+    .eq("id", organizationId)
+    .eq("account_type", "organization");
 
   if (error) {
     console.error("[settings] update organization:", error);
@@ -250,9 +261,10 @@ export async function deleteOrganization(
 
   const admin = createAdminClient();
   const { error } = await admin
-    .from("organizations")
+    .from("accounts")
     .delete()
-    .eq("id", organizationId);
+    .eq("id", organizationId)
+    .eq("account_type", "organization");
 
   if (error) {
     console.error("[settings] delete organization:", error);
@@ -287,45 +299,52 @@ export async function createOrganizationForUser(input: {
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  const { data: organization, error: organizationError } = await admin
-    .from("organizations")
+  const { data: account, error: accountError } = await admin
+    .from("accounts")
     .insert({
+      account_type: "organization",
       name: input.name,
       slug: normalized,
       icon_url: input.iconUrl ?? null,
       website: input.website ?? null,
       updated_at: now,
     })
-    .select(
-      "id, name, slug, icon_url, website, description, email, phone, address_line_1, address_line_2, city, state_province, postal_code, country_code",
-    )
+    .select(ACCOUNT_FIELDS)
     .single();
 
-  if (organizationError || !organization) {
-    console.error("[settings] create organization:", organizationError);
-    if (organizationError?.code === "23505") {
+  if (accountError || !account) {
+    console.error("[settings] create organization:", accountError);
+    if (accountError?.code === "23505") {
       return { error: "This slug is already taken" };
     }
     return { error: "Failed to create organization" };
   }
 
-  const { error: membershipError } = await admin.from("user_organizations").insert({
+  const { data: existingDefault } = await admin
+    .from("account_users")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("is_default", true)
+    .maybeSingle();
+
+  const { error: membershipError } = await admin.from("account_users").insert({
+    account_id: account.id,
     user_id: input.userId,
-    organization_id: organization.id,
     role: "owner",
-    is_default: true,
+    is_default: !existingDefault,
     updated_at: now,
   });
 
   if (membershipError) {
     console.error("[settings] create organization membership:", membershipError);
+    await admin.from("accounts").delete().eq("id", account.id);
     return { error: "Failed to create organization membership" };
   }
 
   return {
-    organization: mapOrganization(organization as OrganizationRow, {
+    organization: mapOrganization(account as AccountRow, {
       role: "owner",
-      is_default: true,
+      is_default: !existingDefault,
     }),
   };
 }

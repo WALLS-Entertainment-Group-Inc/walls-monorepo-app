@@ -31,13 +31,13 @@ function fileExtension(file: File): string {
 async function assertCanEditOrganization(
   supabase: SupabaseClient,
   userId: string,
-  organizationId: string,
+  accountId: string,
 ): Promise<void> {
   const { data, error } = await supabase
-    .from("user_organizations")
+    .from("account_users")
     .select("role")
     .eq("user_id", userId)
-    .eq("organization_id", organizationId)
+    .eq("account_id", accountId)
     .maybeSingle();
 
   if (error || !data?.role || !EDITABLE_ORG_ROLES.has(data.role)) {
@@ -109,9 +109,10 @@ export async function uploadImage({
   const { url, key } = await uploadToPrefix(file, prefix);
 
   const { error } = await supabase
-    .from("organizations")
+    .from("accounts")
     .update({ icon_url: url })
-    .eq("id", target.organizationId);
+    .eq("id", target.organizationId)
+    .eq("account_type", "organization");
 
   if (error) {
     throw new Error(error.message || "Failed to save organization icon URL");

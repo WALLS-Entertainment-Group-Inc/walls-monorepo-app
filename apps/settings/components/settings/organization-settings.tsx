@@ -20,6 +20,7 @@ import {
   slugifyOrganizationName,
   type OrganizationRecord,
 } from "@/lib/organizations-shared";
+import { OrganizationMembers } from "@/components/settings/organization-members";
 
 const fieldClass =
   "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--walls-sky)] bg-transparent w-full placeholder:text-neutral-300";
@@ -611,8 +612,8 @@ export default function OrganizationSettingsPage() {
             <div>
               <h1 className="text-3xl font-bold text-foreground">Organization</h1>
               <p className="text-sm font-light text-neutral-500">
-                Manage organization profile, branding, and contact details shared
-                across AdPilot and other WALLS apps.
+                Manage organization profile, branding, contact details, and team
+                members shared across AdPilot and other WALLS apps.
               </p>
             </div>
             <Button
@@ -960,6 +961,13 @@ export default function OrganizationSettingsPage() {
                 </div>
               </div>
             </div>
+
+            <SectionDivider title="Members" />
+            <OrganizationMembers
+              organizationId={selectedOrganization.id}
+              actorRole={selectedOrganization.role}
+              canEdit={canEdit}
+            />
 
             {canEdit ? (
               <div className="flex justify-start gap-3 pb-8 pt-4">

@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     console.error('🔵 Starting create-recipient request');
     
     // Initialize Supabase client once at the start
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     console.error('🔍 All cookies:', cookieStore.getAll().reduce((acc, cookie) => {
       acc[cookie.name] = cookie.value;
       return acc;
