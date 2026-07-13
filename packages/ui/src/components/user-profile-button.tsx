@@ -483,100 +483,115 @@ export default function UserProfileButton({
           <DropdownMenuContent
             align="end"
             sideOffset={12}
-            className="w-[400px] border-0 p-4 rounded-[20px] bg-gray-50 shadow-xs outline-none ring-0 drop-shadow-[0_4px_12px_rgba(0,0,0,0.2)] overflow-hidden"
+            className="z-[110] w-[min(100vw-2rem,384px)] overflow-hidden rounded-3xl border-0 bg-walls-white p-0 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.35)] outline-none ring-0"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: -10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: -10 }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 25,
-                mass: 0.8,
-              }}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              {/* Dashboard Container */}
-              <motion.div
-                className="bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 rounded-[50px] mb-4"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.1,
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 25,
-                }}
-              >
-                <motion.div
-                  whileHover="hover"
-                  variants={{
-                    hover: {},
-                  }}
-                >
-                  <DropdownMenuItem
-                    onClick={navigate("dashboard")}
-                    className="flex items-center gap-3 p-2 pl-4 cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:bg-transparent focus:bg-transparent rounded-[50px] w-full transition-all duration-300"
-                  >
-                    <div className="p-2 rounded-full bg-muted/10">
-                      <Image
-                        src="https://assets.wallsentertainment.com/walls-app-icons/dashboard.svg"
-                        alt="Dashboard icon"
-                        width={40}
-                        height={40}
-                        priority
-                      />
-                    </div>
-                    <motion.span
-                      className="text-walls-blue flex-1"
-                      variants={{
-                        hover: { x: 4 },
-                      }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                    >
-                      Visit Your Dashboard
-                    </motion.span>
-                    <ChevronRight className="w-5 h-5 text-walls-blue mr-2" />
-                  </DropdownMenuItem>
-                </motion.div>
-              </motion.div>
-
-              {/* Apps Container */}
-              <motion.div
-                className="bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 rounded-3xl mb-4 overflow-hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.15 }}
-              >
-                {reorderMode && (
-                  <p className="text-xs text-zinc-500 text-center pt-4 px-4 pb-2">
-                    Drag to reorder • tap Done when finished
-                  </p>
-                )}
+              {/* Branded header band */}
+              <div className="relative overflow-hidden bg-neutral-950 px-4 pb-5 pt-4 text-walls-white">
                 <div
-                  className={`grid grid-cols-3 gap-x-3 gap-y-4 [@media(max-height:750px)]:gap-x-2.5 [@media(max-height:750px)]:gap-y-3.5 ${apps.length > 6 ? "max-h-[min(392px,calc(100vh-376px))] [@media(max-height:750px)]:max-h-[min(304px,calc(100vh-416px))] overflow-y-auto" : "p-4 [@media(max-height:750px)]:p-3"}`}
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-walls-blue/40 blur-3xl"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-walls-yellow/20 blur-3xl"
+                />
+                <div className="relative flex items-center gap-3">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/10 ring-2 ring-white/30">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt=""
+                        width={48}
+                        height={48}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-base font-semibold text-white">
+                        {initials}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">
+                      {profile?.userFullName || "Your account"}
+                    </p>
+                    {user.email ? (
+                      <p className="truncate text-xs text-white/60">
+                        {user.email}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={navigate("dashboard")}
+                  className="group relative mt-4 flex w-full items-center gap-3 rounded-2xl bg-white/10 px-3 py-2.5 text-left backdrop-blur-sm transition-colors hover:bg-white/15"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+                    <Image
+                      src="https://assets.wallsentertainment.com/walls-app-icons/dashboard.svg"
+                      alt=""
+                      width={26}
+                      height={26}
+                      priority
+                    />
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold text-white">
+                      Your dashboard
+                    </span>
+                    <span className="block text-[11px] text-white/60">
+                      Back to the WALLS home
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-white/70 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-3">
+                {/* Apps */}
+                <div className="mb-1.5 flex items-center justify-between px-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                    Your apps
+                  </p>
+                  {reorderMode ? (
+                    <button
+                      type="button"
+                      onClick={saveAppOrder}
+                      className="text-[11px] font-semibold text-walls-blue hover:underline"
+                    >
+                      Done
+                    </button>
+                  ) : null}
+                </div>
+                <div
+                  className={cn(
+                    "grid grid-cols-3 gap-1.5",
+                    apps.length > 6 &&
+                      "max-h-[min(300px,calc(100vh-360px))] overflow-y-auto pr-0.5",
+                  )}
                   style={
                     apps.length > 6
                       ? ({
                           scrollbarWidth: "thin",
                           scrollbarColor: "#d4d4d8 transparent",
-                          paddingTop: "0.5rem",
-                          paddingBottom: "0.5rem",
-                          paddingLeft: "1rem",
-                          paddingRight: "1rem",
                         } as React.CSSProperties)
                       : undefined
                   }
                 >
                   {apps.map((app, index) => (
-                    <motion.div
+                    <div
                       key={app.app_id}
-                      className="group"
                       draggable={reorderMode}
                       onDragStart={() => reorderMode && handleDragStart(index)}
-                      onDragOver={(e) =>
-                        reorderMode && handleDragOver(e, index)
-                      }
+                      onDragOver={(e) => reorderMode && handleDragOver(e, index)}
                       onDragLeave={() => setDragOverIndex(null)}
                       onDragEnd={handleDragEnd}
                       onDrop={(e) => reorderMode && handleDrop(e, index)}
@@ -588,172 +603,82 @@ export default function UserProfileButton({
                       style={{
                         opacity:
                           dragOverIndex === index && dragIndex !== null
-                            ? 0.6
+                            ? 0.55
                             : 1,
                       }}
                     >
-                      <div className="w-full h-full">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            if (reorderMode) {
-                              e.preventDefault();
-                              return;
-                            }
-                            router.push(app.path);
-                          }}
-                          className="flex flex-col items-center justify-center gap-2 p-4 [@media(max-height:750px)]:p-3 cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:bg-transparent focus:bg-transparent h-[120px] [@media(max-height:750px)]:h-[104px] rounded-2xl transition-all duration-300 select-none"
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          if (reorderMode) {
+                            e.preventDefault();
+                            return;
+                          }
+                          router.push(app.path);
+                        }}
+                        className="group flex h-[100px] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl p-2.5 transition-all hover:bg-neutral-50 focus:bg-neutral-50"
+                      >
+                        <div
+                          className={cn(
+                            "pointer-events-none relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-white to-neutral-100 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.15)] transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-[0_8px_18px_-6px_rgba(0,0,0,0.25)]",
+                            reorderMode && "animate-pulse",
+                          )}
                         >
-                          <motion.div
-                            className="p-2 rounded-full bg-muted/10 pointer-events-none"
-                            animate={
-                              reorderMode
-                                ? { rotate: [0, -5, 5, -5, 5, 0] }
-                                : { rotate: 0 }
-                            }
-                            transition={
-                              reorderMode
-                                ? {
-                                    repeat: Infinity,
-                                    duration: 0.5,
-                                    ease: "easeInOut",
-                                  }
-                                : {}
-                            }
-                          >
-                            <Image
-                              src={app.icon}
-                              alt={`${app.name} icon`}
-                              width={54}
-                              height={54}
-                              priority
-                            />
-                          </motion.div>
-                          <span className="text-[13px] text-black/75 pointer-events-none">
-                            {app.name}
-                          </span>
-                        </DropdownMenuItem>
-                      </div>
-                    </motion.div>
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/70 to-transparent"
+                          />
+                          <Image
+                            src={app.icon}
+                            alt=""
+                            width={40}
+                            height={40}
+                            priority
+                          />
+                        </div>
+                        <span className="pointer-events-none line-clamp-2 text-center text-[11px] font-medium leading-tight text-neutral-700">
+                          {app.name}
+                        </span>
+                      </DropdownMenuItem>
+                    </div>
                   ))}
                 </div>
-                {reorderMode && (
-                  <div className="px-4 pb-4">
-                    <button
-                      type="button"
-                      onClick={saveAppOrder}
-                      className="mt-3 w-full py-2 rounded-xl bg-walls-yellow/90 hover:bg-walls-yellow text-zinc-900 text-sm font-medium transition-colors"
-                    >
-                      Done
-                    </button>
-                  </div>
-                )}
-              </motion.div>
 
-              {/* Documentation Container */}
-              <motion.div
-                className="bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 rounded-[50px] mb-4"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.12,
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 25,
-                }}
-              >
-                <motion.div
-                  whileHover="hover"
-                  variants={{
-                    hover: {},
-                  }}
-                >
+                {/* Quick actions */}
+                <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-neutral-100 pt-3">
                   <DropdownMenuItem
                     onClick={navigate("documentation")}
-                    className="flex items-center gap-3 p-1.5 pl-4 cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:bg-transparent focus:bg-transparent rounded-[50px] w-full transition-all duration-300"
+                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
                   >
-                    <div className="p-1.5 rounded-full bg-muted/10">
-                      <BookOpen className="h-4 w-4 text-neutral-500" />
-                    </div>
-                    <motion.span
-                      className="text-neutral-600 flex-1"
-                      variants={{
-                        hover: { x: 4 },
-                      }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                    >
-                      Documentation
-                    </motion.span>
-                    <ChevronRight className="w-5 h-5 text-neutral-500 mr-2" />
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-all duration-200 group-hover/qa:bg-neutral-700 group-hover/qa:text-white group-focus/qa:bg-neutral-700 group-focus/qa:text-white">
+                      <BookOpen className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-neutral-500 transition-colors group-hover/qa:text-neutral-700 group-focus/qa:text-neutral-700">
+                      Docs
+                    </span>
                   </DropdownMenuItem>
-                </motion.div>
-              </motion.div>
-
-              {/* Settings Container */}
-              <motion.div
-                className="bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 rounded-[50px] mb-4"
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: 0.13,
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 25,
-                }}
-              >
-                <motion.div
-                  whileHover="hover"
-                  variants={{
-                    hover: {},
-                  }}
-                >
                   <DropdownMenuItem
                     onClick={navigate("settings")}
-                    className="flex items-center gap-3 p-1.5 pl-4 cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:bg-transparent focus:bg-transparent rounded-[50px] w-full transition-all duration-300"
+                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
                   >
-                    <div className="p-1.5 rounded-full bg-muted/10">
-                      <Settings className="h-4 w-4 text-neutral-500" />
-                    </div>
-                    <motion.span
-                      className="text-neutral-600 flex-1"
-                      variants={{
-                        hover: { x: 4 },
-                      }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                    >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-all duration-200 group-hover/qa:bg-neutral-700 group-hover/qa:text-white group-focus/qa:bg-neutral-700 group-focus/qa:text-white">
+                      <Settings className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-neutral-500 transition-colors group-hover/qa:text-neutral-700 group-focus/qa:text-neutral-700">
                       Settings
-                    </motion.span>
-                    <ChevronRight className="w-5 h-5 text-neutral-500 mr-2" />
+                    </span>
                   </DropdownMenuItem>
-                </motion.div>
-              </motion.div>
-
-              {/* Logout Container */}
-              <div className="bg-neutral-100 backdrop-blur-md shadow-inner border border-neutral-200/50 rounded-[50px]">
-                <motion.div
-                  whileHover="hover"
-                  variants={{
-                    hover: {},
-                  }}
-                >
                   <DropdownMenuItem
                     onClick={handleLogout}
-                    className="flex items-center gap-3 p-1.5 pl-4 cursor-pointer hover:shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] hover:bg-red-100 focus:bg-red-100 bg-red-50 text-red-600 hover:text-red-700 focus:text-red-700 rounded-[50px] w-full transition-all duration-300"
+                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
                   >
-                    <div className="p-1.5 rounded-full bg-red-100">
-                      <LogOut className="h-4 w-4" />
-                    </div>
-                    <motion.span
-                      className="text-red-600 flex-1"
-                      variants={{
-                        hover: { x: 4 },
-                      }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
-                    >
-                      Logout
-                    </motion.span>
-                    <ChevronRight className="w-5 h-5 text-red-600 mr-2" />
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-red-500 transition-all duration-200 group-hover/qa:bg-red-600 group-hover/qa:text-white group-focus/qa:bg-red-600 group-focus/qa:text-white">
+                      <LogOut className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-red-500 transition-colors group-hover/qa:text-red-600 group-focus/qa:text-red-600">
+                      Log out
+                    </span>
                   </DropdownMenuItem>
-                </motion.div>
+                </div>
               </div>
             </motion.div>
           </DropdownMenuContent>
