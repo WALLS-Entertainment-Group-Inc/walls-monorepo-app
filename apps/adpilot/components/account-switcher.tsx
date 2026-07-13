@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Building2, Check, ChevronDown, Plus, User } from "lucide-react";
 
 import { cn } from "@walls/utils";
@@ -30,7 +29,6 @@ const SETTINGS_URL =
  * Selection is persisted via `/api/accounts` cookie, then the route tree refreshes.
  */
 export function AccountSwitcher() {
-  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [accounts, setAccounts] = React.useState<AdpilotAccount[]>([]);
   const [activeAccountId, setActiveAccountId] = React.useState<string | null>(
@@ -73,11 +71,16 @@ export function AccountSwitcher() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accountId }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        setSwitching(false);
+        return;
+      }
       setActiveAccountId(accountId);
       setOpen(false);
-      router.refresh();
-    } finally {
+      // Client pages fetch their data on mount (no shared query cache), so a
+      // full reload is required to drop stale data from the previous account.
+      window.location.reload();
+    } catch {
       setSwitching(false);
     }
   };

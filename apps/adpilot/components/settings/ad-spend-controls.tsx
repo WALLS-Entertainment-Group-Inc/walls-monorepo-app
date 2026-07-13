@@ -23,6 +23,7 @@ import {
 
 import { SliderField } from "@/components/ui/slider-field";
 
+import { primaryButtonClass, secondaryButtonClass } from "./button-styles";
 import { SectionLabel } from "./section-label";
 
 type ProfileFormState = {
@@ -264,7 +265,7 @@ export function AdSpendControls() {
             size="sm"
             disabled={creating}
             onClick={() => void handleCreatePreset()}
-            className="rounded-full border-neutral-200 bg-walls-white font-light"
+            className={secondaryButtonClass}
           >
             {creating ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -559,7 +560,7 @@ export function AdSpendControls() {
             type="button"
             disabled={saving || !form.name.trim()}
             onClick={() => void handleSave()}
-            className="rounded-full bg-walls-yellow/90 px-6 font-medium text-black hover:bg-walls-yellow"
+            className={cn(primaryButtonClass, "px-6")}
           >
             {saving ? (
               <>
