@@ -297,7 +297,7 @@ export async function upsertEntityAutomation(input: {
   const { data: entity, error: entityError } = await withAdScope(
     supabase
       .from("ad_entities")
-      .select("id, entity_type, user_connection_id")
+      .select("id, entity_type, account_connection_id")
       .eq("id", input.entityId),
     input.scope,
   ).maybeSingle();
@@ -356,7 +356,7 @@ export async function upsertEntityAutomation(input: {
 
   const row = {
     ...adScopeFields(input.scope),
-    user_connection_id: entity.user_connection_id as string,
+    account_connection_id: entity.account_connection_id as string,
     entity_id: input.entityId,
     enabled: nextEnabled,
     profile_id: profileId,

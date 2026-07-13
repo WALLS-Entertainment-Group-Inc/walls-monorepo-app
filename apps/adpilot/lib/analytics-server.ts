@@ -113,7 +113,7 @@ type MetricRow = {
 
 type AccountEntity = {
   id: string;
-  user_connection_id: string;
+  account_connection_id: string;
   name: string | null;
   status: string | null;
   provider_entity_id: string;
@@ -559,7 +559,7 @@ export async function getDashboardAnalytics(
     withAdScope(
       supabase
         .from("ad_entities")
-        .select("id, user_connection_id, name, status, provider_entity_id")
+        .select("id, account_connection_id, name, status, provider_entity_id")
         .eq("provider", META_PROVIDER)
         .eq("entity_type", "account"),
       scope,

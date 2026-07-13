@@ -2,12 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 
+import { upsertMetaConnections } from "@/lib/connections-server";
 import {
   getCurrentUserId,
-  upsertMetaConnections,
-} from "@/lib/connections-server";
+  resolveActiveAccountId,
+} from "@/lib/account-context";
 import { getAdDataScope } from "@/lib/ad-scope";
-import { syncMetaConnectionsForUser } from "@/lib/meta-sync";
+import { syncMetaConnectionsForAccount } from "@/lib/meta-sync";
 import {
   exchangeMetaCodeForToken,
   exchangeMetaForLongLivedToken,
@@ -45,6 +46,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(settingsUrl);
   }
 
+  const accountId = await resolveActiveAccountId(userId);
+  if (!accountId) {
+    settingsUrl.searchParams.set("error", "no_active_account");
+    return NextResponse.redirect(settingsUrl);
+  }
+
   try {
     const shortLived = await exchangeMetaCodeForToken(code);
     const longLived = await exchangeMetaForLongLivedToken(
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
     const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString();
 
     await upsertMetaConnections({
-      userId,
+      accountId,
       accessToken: longLived.access_token,
       tokenExpiry,
       scopes: META_AD_SCOPES.join(","),
@@ -74,7 +81,7 @@ export async function GET(request: NextRequest) {
       try {
         const scope = await getAdDataScope();
         if (scope) {
-          await syncMetaConnectionsForUser(scope);
+          await syncMetaConnectionsForAccount(scope);
         }
       } catch (syncError) {
         console.error("[adpilot] Meta sync after OAuth:", syncError);

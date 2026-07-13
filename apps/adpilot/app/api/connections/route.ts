@@ -1,25 +1,25 @@
 import { NextResponse } from "next/server";
 
+import { getAdDataScope } from "@/lib/ad-scope";
 import {
-  getCurrentUserId,
-  listSafeConnectionsForUser,
+  listSafeConnectionsForAccount,
   revokeMetaConnection,
 } from "@/lib/connections-server";
 import { META_PROVIDER, META_SERVICE } from "@/lib/connections";
 
 export async function GET() {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const scope = await getAdDataScope();
+  if (!scope) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const connections = await listSafeConnectionsForUser(userId);
+  const connections = await listSafeConnectionsForAccount(scope.accountId);
   return NextResponse.json({ connections });
 }
 
 export async function DELETE(request: Request) {
-  const userId = await getCurrentUserId();
-  if (!userId) {
+  const scope = await getAdDataScope();
+  if (!scope) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -29,7 +29,7 @@ export async function DELETE(request: Request) {
   };
 
   if (body.provider === META_PROVIDER && body.service === META_SERVICE) {
-    await revokeMetaConnection(userId);
+    await revokeMetaConnection(scope.accountId);
     return NextResponse.json({ ok: true });
   }
 

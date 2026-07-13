@@ -1,6 +1,14 @@
-import { getCurrentUserId } from "@/lib/connections-server";
+import {
+  getCurrentUserId,
+  resolveActiveAccountId,
+} from "@/lib/account-context";
 
+/**
+ * AdPilot tenancy scope. All ad_* data is keyed by WALLS `accountId`; `userId`
+ * is retained for audit fields (e.g. who manually triggered a budget change).
+ */
 export type AdDataScope = {
+  accountId: string;
   userId: string;
 };
 
@@ -11,23 +19,27 @@ type ScopedQuery = {
 export async function getAdDataScope(): Promise<AdDataScope | null> {
   const userId = await getCurrentUserId();
   if (!userId) return null;
-  return { userId };
+
+  const accountId = await resolveActiveAccountId(userId);
+  if (!accountId) return null;
+
+  return { accountId, userId };
 }
 
 export function withAdScope<T>(query: T, scope: AdDataScope): T {
   const scoped = query as ScopedQuery;
-  return scoped.eq("user_id", scope.userId) as T;
+  return scoped.eq("account_id", scope.accountId) as T;
 }
 
 export function adScopeFields(scope: AdDataScope) {
   return {
-    user_id: scope.userId,
+    account_id: scope.accountId,
   };
 }
 
 export function entityBelongsToScope(
-  row: { user_id: string },
+  row: { account_id: string },
   scope: AdDataScope,
 ): boolean {
-  return row.user_id === scope.userId;
+  return row.account_id === scope.accountId;
 }

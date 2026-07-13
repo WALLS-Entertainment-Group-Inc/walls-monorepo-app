@@ -18,7 +18,7 @@ import { Button } from "@walls/ui/button";
 import { cn } from "@walls/utils";
 
 import type { DashboardAnalytics } from "@/lib/analytics-server";
-import { META_PROVIDER, META_SERVICE, type SafeUserConnection } from "@/lib/connections";
+import { META_PROVIDER, META_SERVICE, type SafeAccountConnection } from "@/lib/connections";
 import { ZERO_DASHBOARD_STATS } from "@/lib/dashboard-defaults";
 import type { TimeRangeValue } from "@/lib/time-range";
 
@@ -44,11 +44,11 @@ const HERO_ICONS = [
   CircleDollarSign,
 ] as const;
 
-function formatConnectionLabel(connection: SafeUserConnection) {
+function formatConnectionLabel(connection: SafeAccountConnection) {
   const accountName = connection.token_payload?.account_name;
   if (accountName) return accountName;
-  if (connection.account_id) {
-    return connection.account_id.replace(/^act_/, "Ad account ");
+  if (connection.provider_account_id) {
+    return connection.provider_account_id.replace(/^act_/, "Ad account ");
   }
   return "Meta Ads";
 }
@@ -60,7 +60,7 @@ function parseMetricNumber(value: string): number {
 }
 
 export function DashboardPage() {
-  const [connections, setConnections] = React.useState<SafeUserConnection[]>([]);
+  const [connections, setConnections] = React.useState<SafeAccountConnection[]>([]);
   const [analytics, setAnalytics] = React.useState<DashboardAnalytics | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [timeRange, setTimeRange] = React.useState<TimeRangeValue>("30d");
@@ -74,7 +74,7 @@ export function DashboardPage() {
 
     if (connectionsResponse.ok) {
       const payload = (await connectionsResponse.json()) as {
-        connections?: SafeUserConnection[];
+        connections?: SafeAccountConnection[];
       };
       setConnections(payload.connections ?? []);
     }

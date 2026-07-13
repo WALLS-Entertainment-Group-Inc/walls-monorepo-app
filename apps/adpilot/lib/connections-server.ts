@@ -8,27 +8,19 @@ import {
   META_PROVIDER,
   META_SERVICE,
   type MetaConnectionRecord,
-  type SafeUserConnection,
+  type SafeAccountConnection,
 } from "@/lib/connections";
 
-export async function getCurrentUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
-}
-
-export async function listSafeConnectionsForUser(
-  userId: string,
-): Promise<SafeUserConnection[]> {
+export async function listSafeConnectionsForAccount(
+  accountId: string,
+): Promise<SafeAccountConnection[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("user_connections")
+    .from("account_connections")
     .select(
-      "id, provider, service, account_id, token_expiry, revoked_at, created_at, updated_at, token_payload",
+      "id, provider, service, provider_account_id, token_expiry, revoked_at, created_at, updated_at, token_payload",
     )
-    .eq("user_id", userId)
+    .eq("account_id", accountId)
     .is("revoked_at", null)
     .order("created_at", { ascending: false });
 
@@ -37,21 +29,21 @@ export async function listSafeConnectionsForUser(
     return [];
   }
 
-  return (data ?? []) as SafeUserConnection[];
+  return (data ?? []) as SafeAccountConnection[];
 }
 
 export async function listMetaConnectionsWithTokens(
-  userId: string,
+  accountId: string,
 ): Promise<MetaConnectionRecord[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
-    .from("user_connections")
-    .select("id, user_id, account_id, access_token, token_payload")
-    .eq("user_id", userId)
+    .from("account_connections")
+    .select("id, account_id, provider_account_id, access_token, token_payload")
+    .eq("account_id", accountId)
     .eq("provider", META_PROVIDER)
     .eq("service", META_SERVICE)
     .is("revoked_at", null)
-    .not("account_id", "is", null);
+    .not("provider_account_id", "is", null);
 
   if (error) {
     console.error("[adpilot] list meta connections with tokens:", error);
@@ -72,7 +64,7 @@ type MetaAdAccount = {
 };
 
 export async function upsertMetaConnections(input: {
-  userId: string;
+  accountId: string;
   accessToken: string;
   tokenExpiry: string | null;
   scopes: string;
@@ -87,12 +79,12 @@ export async function upsertMetaConnections(input: {
   const accountsToStore: MetaAdAccount[] =
     input.adAccounts.length > 0 ? input.adAccounts : [];
 
-  const activeAccountIds: string[] = [];
+  const activeProviderAccountIds: string[] = [];
 
   const upsertRow = async (account: MetaAdAccount | null) => {
-    const accountId = account?.id ?? null;
-    if (accountId) {
-      activeAccountIds.push(accountId);
+    const providerAccountId = account?.id ?? null;
+    if (providerAccountId) {
+      activeProviderAccountIds.push(providerAccountId);
     }
 
     const tokenPayload = {
@@ -106,10 +98,10 @@ export async function upsertMetaConnections(input: {
     };
 
     const row = {
-      user_id: input.userId,
+      account_id: input.accountId,
       provider: META_PROVIDER,
       service: META_SERVICE,
-      account_id: accountId,
+      provider_account_id: providerAccountId,
       access_token: input.accessToken,
       refresh_token: META_EMPTY_REFRESH_TOKEN,
       token_expiry: input.tokenExpiry,
@@ -121,28 +113,28 @@ export async function upsertMetaConnections(input: {
     };
 
     let query = admin
-      .from("user_connections")
+      .from("account_connections")
       .select("id")
-      .eq("user_id", input.userId)
+      .eq("account_id", input.accountId)
       .eq("provider", META_PROVIDER)
       .eq("service", META_SERVICE);
 
-    if (accountId) {
-      query = query.eq("account_id", accountId);
+    if (providerAccountId) {
+      query = query.eq("provider_account_id", providerAccountId);
     } else {
-      query = query.is("account_id", null);
+      query = query.is("provider_account_id", null);
     }
 
     const { data: existing } = await query.maybeSingle();
 
     if (existing?.id) {
       const { error } = await admin
-        .from("user_connections")
+        .from("account_connections")
         .update(row)
         .eq("id", existing.id);
       if (error) throw error;
     } else {
-      const { error } = await admin.from("user_connections").insert(row);
+      const { error } = await admin.from("account_connections").insert(row);
       if (error) throw error;
     }
   };
@@ -156,9 +148,9 @@ export async function upsertMetaConnections(input: {
   }
 
   const { data: staleRows, error: staleError } = await admin
-    .from("user_connections")
-    .select("id, account_id")
-    .eq("user_id", input.userId)
+    .from("account_connections")
+    .select("id, provider_account_id")
+    .eq("account_id", input.accountId)
     .eq("provider", META_PROVIDER)
     .eq("service", META_SERVICE)
     .is("revoked_at", null);
@@ -166,12 +158,16 @@ export async function upsertMetaConnections(input: {
   if (staleError) throw staleError;
 
   const staleIds = (staleRows ?? [])
-    .filter((row) => row.account_id && !activeAccountIds.includes(row.account_id))
+    .filter(
+      (row) =>
+        row.provider_account_id &&
+        !activeProviderAccountIds.includes(row.provider_account_id),
+    )
     .map((row) => row.id);
 
   if (staleIds.length > 0) {
     const { error } = await admin
-      .from("user_connections")
+      .from("account_connections")
       .delete()
       .in("id", staleIds);
 
@@ -179,13 +175,13 @@ export async function upsertMetaConnections(input: {
   }
 }
 
-/** Removes all Meta connections and cascades ad_entities, ad_metrics_daily, etc. */
-export async function revokeMetaConnection(userId: string) {
+/** Removes all Meta connections for an account (cascades ad_entities, ad_metrics_daily, etc.). */
+export async function revokeMetaConnection(accountId: string) {
   const admin = createAdminClient();
   const { error } = await admin
-    .from("user_connections")
+    .from("account_connections")
     .delete()
-    .eq("user_id", userId)
+    .eq("account_id", accountId)
     .eq("provider", META_PROVIDER)
     .eq("service", META_SERVICE);
 

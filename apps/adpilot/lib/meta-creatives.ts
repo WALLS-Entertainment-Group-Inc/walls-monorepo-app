@@ -289,7 +289,7 @@ export async function persistAdCreative(input: PersistCreativeInput): Promise<vo
 
   const creativeRow = {
     ...adScopeFields(input.scope),
-    user_connection_id: input.connectionId,
+    account_connection_id: input.connectionId,
     ad_entity_id: input.adEntityId,
     provider: META_PROVIDER,
     provider_ad_id: input.providerAdId,
@@ -319,7 +319,7 @@ export async function persistAdCreative(input: PersistCreativeInput): Promise<vo
 
   const { data: creativeUpsert, error: creativeError } = await admin
     .from("ad_creatives")
-    .upsert(creativeRow, { onConflict: "user_connection_id,provider_ad_id" })
+    .upsert(creativeRow, { onConflict: "account_connection_id,provider_ad_id" })
     .select("id")
     .single();
 

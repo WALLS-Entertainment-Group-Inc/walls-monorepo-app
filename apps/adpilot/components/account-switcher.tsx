@@ -1,0 +1,266 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Building2, Check, ChevronDown, Plus, User } from "lucide-react";
+
+import { cn } from "@walls/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@walls/ui/dropdown-menu";
+
+type AdpilotAccount = {
+  id: string;
+  name: string;
+  accountType: "personal" | "organization";
+  iconUrl: string | null;
+  role: string;
+  isDefault: boolean;
+};
+
+const SETTINGS_URL =
+  process.env.NEXT_PUBLIC_SETTINGS_URL?.replace(/\/$/, "") ?? "";
+
+/**
+ * Header account switcher — store-style picker for the active WALLS account.
+ * Selection is persisted via `/api/accounts` cookie, then the route tree refreshes.
+ */
+export function AccountSwitcher() {
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+  const [accounts, setAccounts] = React.useState<AdpilotAccount[]>([]);
+  const [activeAccountId, setActiveAccountId] = React.useState<string | null>(
+    null,
+  );
+  const [loading, setLoading] = React.useState(true);
+  const [switching, setSwitching] = React.useState(false);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/accounts");
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          accounts?: AdpilotAccount[];
+          activeAccountId?: string | null;
+        };
+        if (cancelled) return;
+        setAccounts(payload.accounts ?? []);
+        setActiveAccountId(payload.activeAccountId ?? null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeAccount =
+    accounts.find((account) => account.id === activeAccountId) ?? accounts[0];
+
+  const handleSelect = async (accountId: string) => {
+    if (accountId === activeAccountId || switching) return;
+    setSwitching(true);
+    try {
+      const response = await fetch("/api/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+      if (!response.ok) return;
+      setActiveAccountId(accountId);
+      setOpen(false);
+      router.refresh();
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-[52px] w-[220px] animate-pulse rounded-xl bg-neutral-50" />
+    );
+  }
+
+  if (!activeAccount) return null;
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={switching}
+          className={cn(
+            "mt-2 flex min-w-0 max-w-[min(100vw-8rem,280px)] items-center gap-3 rounded-xl bg-walls-white px-3 py-2.5 text-left transition",
+            "hover:bg-neutral-50",
+            "focus:outline-none",
+            "disabled:opacity-60",
+            open && "bg-neutral-50",
+          )}
+        >
+          <AccountAvatar account={activeAccount} size="md" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-foreground">
+              {activeAccount.name}
+            </span>
+            <AccountTypeBadge account={activeAccount} className="mt-0.5" />
+          </span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-neutral-400 transition-transform",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        align="start"
+        sideOffset={8}
+        className="z-[110] w-[min(100vw-2rem,320px)] rounded-2xl border-0 bg-walls-white p-2 shadow-xl"
+      >
+        <p className="px-2 pb-1 pt-1 text-sm font-medium text-neutral-500">
+          Choose an account
+        </p>
+
+        <div className="mt-1 space-y-1">
+          {accounts.map((account) => {
+            const isActive = account.id === activeAccount.id;
+            return (
+              <DropdownMenuItem
+                key={account.id}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  void handleSelect(account.id);
+                }}
+                className={cn(
+                  "cursor-pointer rounded-xl p-2.5 focus:bg-transparent",
+                  isActive
+                    ? "bg-neutral-50"
+                    : "hover:bg-neutral-50/80",
+                )}
+              >
+                <div className="flex w-full items-center gap-3">
+                  <AccountAvatar account={account} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {account.name}
+                    </p>
+                    <AccountTypeBadge
+                      account={account}
+                      variant="subtle"
+                      className="mt-0.5"
+                    />
+                  </div>
+                  {isActive ? (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white">
+                      <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </span>
+                  ) : (
+                    <span className="h-6 w-6 shrink-0" aria-hidden />
+                  )}
+                </div>
+              </DropdownMenuItem>
+            );
+          })}
+        </div>
+
+        {SETTINGS_URL ? (
+          <>
+            <DropdownMenuSeparator className="my-2 bg-neutral-100" />
+            <DropdownMenuItem asChild className="rounded-xl p-0 focus:bg-transparent">
+              <a
+                href={`${SETTINGS_URL}/organization`}
+                className="flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 text-sm text-foreground hover:bg-neutral-50"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-50 text-neutral-500">
+                  <Plus className="h-5 w-5" />
+                </span>
+                <span className="font-medium">Manage accounts</span>
+              </a>
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function accountIconTone(account: AdpilotAccount) {
+  if (account.accountType === "organization") {
+    return {
+      container: "bg-violet-100 text-violet-700",
+      badge: "text-violet-600",
+    };
+  }
+  return {
+    container: "bg-neutral-100 text-neutral-600",
+    badge: "text-neutral-500",
+  };
+}
+
+function AccountAvatar({
+  account,
+  size = "md",
+}: {
+  account: AdpilotAccount;
+  size?: "md" | "sm";
+}) {
+  const tone = accountIconTone(account);
+  const boxClass =
+    size === "md" ? "h-10 w-10 rounded-lg" : "h-8 w-8 rounded-md";
+
+  if (account.iconUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- arbitrary remote account icons
+      <img
+        src={account.iconUrl}
+        alt=""
+        className={cn(boxClass, "shrink-0 object-cover")}
+      />
+    );
+  }
+
+  const Icon = account.accountType === "organization" ? Building2 : User;
+  const initial = account.name.trim().charAt(0).toUpperCase() || "?";
+
+  return (
+    <span
+      className={cn(
+        "flex shrink-0 items-center justify-center font-semibold",
+        boxClass,
+        tone.container,
+      )}
+    >
+      {account.accountType === "organization" ? (
+        <Icon className="h-5 w-5" />
+      ) : (
+        <span className="text-sm">{initial}</span>
+      )}
+    </span>
+  );
+}
+
+function AccountTypeBadge({
+  account,
+  className,
+}: {
+  account: AdpilotAccount;
+  variant?: "default" | "subtle";
+  className?: string;
+}) {
+  const label =
+    account.accountType === "organization" ? "Organization" : "Personal";
+
+  return (
+    <span className={cn("block text-xs text-neutral-500", className)}>
+      {label}
+    </span>
+  );
+}

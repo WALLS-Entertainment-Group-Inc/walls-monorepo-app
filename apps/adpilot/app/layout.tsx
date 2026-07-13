@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { createWallsMetadata } from "@walls/config/metadata";
 import { AppHeaderVisibilityProvider } from "@walls/ui/private-app-chrome";
+import { AccountSwitcher } from "@/components/account-switcher";
 import { AppSidebarLayout } from "@/components/app-sidebar-layout";
 import { AppTopChrome } from "@/components/app-top-chrome";
 import { Providers } from "@/components/providers";
@@ -44,8 +45,8 @@ export default function RootLayout({
             <AppHeaderVisibilityProvider autoHideOnScroll>
               <AppTopChrome
                 dashboardPath="/"
-                settingsPath="/settings"
                 documentationPath="/documentation"
+                leftContent={<AccountSwitcher />}
               />
               <AppSidebarLayout>{children}</AppSidebarLayout>
             </AppHeaderVisibilityProvider>

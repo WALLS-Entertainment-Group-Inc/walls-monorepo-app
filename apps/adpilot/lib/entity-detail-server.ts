@@ -182,7 +182,7 @@ async function buildEntityDetail(input: {
     status: string | null;
     objective: string | null;
     parent_id: string | null;
-    user_connection_id: string;
+    account_connection_id: string;
     daily_budget_micros: number | null;
   };
 }): Promise<EntityDetailResult> {
@@ -196,7 +196,7 @@ async function buildEntityDetail(input: {
       supabase
         .from("ad_entities")
         .select("name")
-        .eq("user_connection_id", entity.user_connection_id)
+        .eq("account_connection_id", entity.account_connection_id)
         .eq("entity_type", "account")
         .maybeSingle(),
       entity.parent_id
@@ -282,7 +282,7 @@ export async function getEntityDetail(input: {
     supabase
       .from("ad_entities")
       .select(
-        "id, entity_type, name, status, objective, parent_id, user_connection_id, daily_budget_micros",
+        "id, entity_type, name, status, objective, parent_id, account_connection_id, daily_budget_micros",
       )
       .eq("id", input.entityId),
     input.scope,
@@ -307,7 +307,7 @@ export async function getCampaignDetail(input: {
     supabase
       .from("ad_entities")
       .select(
-        "id, entity_type, name, status, objective, parent_id, user_connection_id, daily_budget_micros",
+        "id, entity_type, name, status, objective, parent_id, account_connection_id, daily_budget_micros",
       )
       .eq("id", input.campaignId),
     input.scope,
@@ -417,7 +417,7 @@ export async function getAdSetDetail(input: {
     supabase
       .from("ad_entities")
       .select(
-        "id, entity_type, name, status, objective, parent_id, user_connection_id, daily_budget_micros",
+        "id, entity_type, name, status, objective, parent_id, account_connection_id, daily_budget_micros",
       )
       .eq("id", input.adSetId),
     input.scope,

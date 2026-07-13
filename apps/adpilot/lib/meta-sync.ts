@@ -196,11 +196,11 @@ async function upsertSyncState(
   const { data: existing } = await admin
     .from("ad_sync_state")
     .select("id")
-    .eq("user_connection_id", connectionId)
+    .eq("account_connection_id", connectionId)
     .maybeSingle();
 
   const row = {
-    user_connection_id: connectionId,
+    account_connection_id: connectionId,
     ...adScopeFields(scope),
     updated_at: now,
     ...patch,
@@ -234,7 +234,7 @@ async function upsertEntity(input: {
 
   const row = {
     ...adScopeFields(input.scope),
-    user_connection_id: input.connectionId,
+    account_connection_id: input.connectionId,
     provider: META_PROVIDER,
     entity_type: input.entityType,
     provider_entity_id: input.providerEntityId,
@@ -255,7 +255,7 @@ async function upsertEntity(input: {
   const { data: existing } = await admin
     .from("ad_entities")
     .select("id")
-    .eq("user_connection_id", input.connectionId)
+    .eq("account_connection_id", input.connectionId)
     .eq("entity_type", input.entityType)
     .eq("provider_entity_id", input.providerEntityId)
     .maybeSingle();
@@ -306,7 +306,7 @@ async function upsertDailyMetrics(input: {
 
   const row = {
     ...adScopeFields(input.scope),
-    user_connection_id: input.connectionId,
+    account_connection_id: input.connectionId,
     entity_id: input.entityId,
     metric_date: input.metricDate,
     impressions: input.metrics.impressions,
@@ -351,11 +351,11 @@ export async function syncMetaConnection(
   connection: MetaConnectionRecord,
   scope: AdDataScope,
 ): Promise<void> {
-  if (!connection.account_id) {
-    throw new Error("Meta connection is missing account_id.");
+  if (!connection.provider_account_id) {
+    throw new Error("Meta connection is missing provider_account_id.");
   }
 
-  const accountId = connection.account_id;
+  const accountId = connection.provider_account_id;
   const accessToken = connection.access_token;
   const accountName =
     connection.token_payload?.account_name ?? accountId.replace(/^act_/, "Ad account ");
@@ -629,8 +629,8 @@ export async function syncMetaConnection(
   }
 }
 
-export async function syncMetaConnectionsForUser(scope: AdDataScope) {
-  const connections = await listMetaConnectionsWithTokens(scope.userId);
+export async function syncMetaConnectionsForAccount(scope: AdDataScope) {
+  const connections = await listMetaConnectionsWithTokens(scope.accountId);
   const results: Array<{ connectionId: string; ok: boolean; error?: string }> = [];
 
   for (const connection of connections) {

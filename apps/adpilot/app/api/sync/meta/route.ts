@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAdDataScope } from "@/lib/ad-scope";
-import { syncMetaConnectionsForUser } from "@/lib/meta-sync";
+import { syncMetaConnectionsForAccount } from "@/lib/meta-sync";
 
 export async function POST() {
   const scope = await getAdDataScope();
@@ -9,7 +9,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const results = await syncMetaConnectionsForUser(scope);
+  const results = await syncMetaConnectionsForAccount(scope);
   const failed = results.filter((result) => !result.ok);
 
   if (failed.length > 0 && failed.length === results.length) {

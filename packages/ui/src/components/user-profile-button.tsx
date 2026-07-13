@@ -41,6 +41,20 @@ const AVATAR_SIZE_PX = 44;
 /** Image request size — 2× the display size for retina sharpness. */
 const AVATAR_REQUEST_PX = AVATAR_SIZE_PX * 2;
 
+const DEFAULT_SETTINGS_PATH =
+  process.env.NEXT_PUBLIC_SETTINGS_URL?.replace(/\/$/, "") || "/settings";
+
+function navigateToPath(
+  path: string,
+  router: ReturnType<typeof useRouter>,
+) {
+  if (/^https?:\/\//i.test(path)) {
+    window.location.assign(path);
+    return;
+  }
+  router.push(path);
+}
+
 export interface UserProfileButtonProps {
   dashboardPath?: string;
   settingsPath?: string;
@@ -187,7 +201,7 @@ function ProfileButtonLoadingPlaceholder() {
 
 export default function UserProfileButton({
   dashboardPath = "/",
-  settingsPath = "/settings",
+  settingsPath = DEFAULT_SETTINGS_PATH,
   documentationPath = "/documentation",
   adminSettingsPath,
 }: UserProfileButtonProps = {}) {
@@ -256,17 +270,17 @@ export default function UserProfileButton({
       return () => {
         switch (route) {
           case "dashboard":
-            router.push(dashboardPath);
+            navigateToPath(dashboardPath, router);
             break;
           case "settings":
-            router.push(settingsPath);
+            navigateToPath(settingsPath, router);
             break;
           case "documentation":
-            router.push(documentationPath);
+            navigateToPath(documentationPath, router);
             break;
           case "admin-settings":
             if (adminSettingsPath) {
-              router.push(adminSettingsPath);
+              navigateToPath(adminSettingsPath, router);
             }
             break;
         }
@@ -287,7 +301,7 @@ export default function UserProfileButton({
   });
 
   const handleMobileNavigation = (path: string) => {
-    router.push(path);
+    navigateToPath(path, router);
     setIsMobileMenuOpen(false);
   };
 
