@@ -647,28 +647,36 @@ export default function UserProfileButton({
                 <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-neutral-100 pt-3">
                   <DropdownMenuItem
                     onClick={navigate("documentation")}
-                    className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 transition-colors hover:bg-neutral-50 focus:bg-neutral-50"
+                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
                   >
-                    <BookOpen className="h-[18px] w-[18px] text-neutral-600" />
-                    <span className="text-[11px] font-medium text-neutral-600">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-all duration-200 group-hover/qa:bg-neutral-700 group-hover/qa:text-white group-focus/qa:bg-neutral-700 group-focus/qa:text-white">
+                      <BookOpen className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-neutral-500 transition-colors group-hover/qa:text-neutral-700 group-focus/qa:text-neutral-700">
                       Docs
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={navigate("settings")}
-                    className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 transition-colors hover:bg-neutral-50 focus:bg-neutral-50"
+                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
                   >
-                    <Settings className="h-[18px] w-[18px] text-neutral-600" />
-                    <span className="text-[11px] font-medium text-neutral-600">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 transition-all duration-200 group-hover/qa:bg-neutral-700 group-hover/qa:text-white group-focus/qa:bg-neutral-700 group-focus/qa:text-white">
+                      <Settings className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-neutral-500 transition-colors group-hover/qa:text-neutral-700 group-focus/qa:text-neutral-700">
                       Settings
                     </span>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={handleLogout}
-                    className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-red-600 transition-colors hover:bg-red-50 focus:bg-red-50 focus:text-red-600"
+                    className="group/qa flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-2.5 outline-none transition-colors focus:bg-transparent"
                   >
-                    <LogOut className="h-[18px] w-[18px]" />
-                    <span className="text-[11px] font-medium">Log out</span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full text-red-500 transition-all duration-200 group-hover/qa:bg-red-600 group-hover/qa:text-white group-focus/qa:bg-red-600 group-focus/qa:text-white">
+                      <LogOut className="h-[18px] w-[18px]" />
+                    </span>
+                    <span className="text-[11px] font-medium text-red-500 transition-colors group-hover/qa:text-red-600 group-focus/qa:text-red-600">
+                      Log out
+                    </span>
                   </DropdownMenuItem>
                 </div>
               </div>
