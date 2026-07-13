@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-import { getCurrentUserId } from "@/lib/connections-server";
+import { getCurrentUserId } from "@/lib/account-context";
 import { buildMetaAuthorizeUrl } from "@/lib/meta-oauth";
 
 export const META_OAUTH_STATE_COOKIE = "meta_oauth_state";

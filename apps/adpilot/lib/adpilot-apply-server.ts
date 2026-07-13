@@ -86,7 +86,7 @@ export async function applyAdPilotPreview(input: {
     supabase
       .from("ad_entities")
       .select(
-        "id, entity_type, provider_entity_id, user_connection_id, daily_budget_micros",
+        "id, entity_type, provider_entity_id, account_connection_id, daily_budget_micros",
       )
       .eq("id", input.entityId),
     input.scope,
@@ -108,10 +108,10 @@ export async function applyAdPilotPreview(input: {
   }
 
   const { data: connection, error: connectionError } = await admin
-    .from("user_connections")
+    .from("account_connections")
     .select("access_token")
-    .eq("id", entity.user_connection_id)
-    .eq("user_id", input.scope.userId)
+    .eq("id", entity.account_connection_id)
+    .eq("account_id", input.scope.accountId)
     .is("revoked_at", null)
     .maybeSingle();
 
@@ -160,7 +160,8 @@ export async function applyAdPilotPreview(input: {
     .from("ad_budget_adjustments")
     .insert({
       ...adScopeFields(input.scope),
-      user_connection_id: entity.user_connection_id,
+      account_connection_id: entity.account_connection_id,
+      triggered_by_user_id: input.scope.userId,
       entity_id: input.entityId,
       profile_id: automation.profileId,
       previous_daily_budget_micros: previousMicros,

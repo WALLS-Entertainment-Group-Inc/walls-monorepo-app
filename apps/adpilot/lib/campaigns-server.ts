@@ -30,7 +30,7 @@ export type EntityPerformanceRow = {
   parentName: string | null;
   /** Campaign id for an ad's ad-set parent (used for parent detail links). */
   parentCampaignId: string | null;
-  userConnectionId: string;
+  accountConnectionId: string;
   spendMicros: number;
   impressions: number;
   clicks: number;
@@ -51,7 +51,7 @@ export type EntityPerformanceRow = {
 export type CampaignAccountOption = {
   id: string;
   name: string;
-  userConnectionId: string;
+  accountConnectionId: string;
 };
 
 export type CampaignObjectiveOption = {
@@ -76,7 +76,7 @@ type EntityRecord = {
   status: string | null;
   objective: string | null;
   parent_id: string | null;
-  user_connection_id: string;
+  account_connection_id: string;
   last_synced_at: string | null;
   daily_budget_micros: number | null;
   learning_status: string | null;
@@ -264,7 +264,7 @@ export async function listCampaignPerformance(input: {
       withAdScope(
         supabase
           .from("ad_entities")
-          .select("id, name, user_connection_id")
+          .select("id, name, account_connection_id")
           .eq("provider", META_PROVIDER)
           .eq("entity_type", "account"),
         input.scope,
@@ -287,12 +287,12 @@ export async function listCampaignPerformance(input: {
     (account) => ({
       id: account.id as string,
       name: (account.name as string) ?? "Ad account",
-      userConnectionId: account.user_connection_id as string,
+      accountConnectionId: account.account_connection_id as string,
     }),
   );
 
   const accountNameByConnection = new Map(
-    accounts.map((account) => [account.userConnectionId, account.name]),
+    accounts.map((account) => [account.accountConnectionId, account.name]),
   );
 
   const campaignObjectiveById = new Map<string, string | null>();
@@ -317,7 +317,7 @@ export async function listCampaignPerformance(input: {
     supabase
       .from("ad_entities")
       .select(
-        "id, entity_type, name, status, objective, parent_id, user_connection_id, last_synced_at, daily_budget_micros, learning_status",
+        "id, entity_type, name, status, objective, parent_id, account_connection_id, last_synced_at, daily_budget_micros, learning_status",
       )
       .eq("provider", META_PROVIDER)
       .eq("entity_type", input.entityType),
@@ -326,8 +326,8 @@ export async function listCampaignPerformance(input: {
 
   if (selectedAccount) {
     entityQuery = entityQuery.eq(
-      "user_connection_id",
-      selectedAccount.userConnectionId,
+      "account_connection_id",
+      selectedAccount.accountConnectionId,
     );
   }
 
@@ -480,7 +480,7 @@ export async function listCampaignPerformance(input: {
         entity.entity_type === "campaign" ? entity.objective : campaignObjective,
       objectiveBucket,
       accountName:
-        accountNameByConnection.get(entity.user_connection_id) ?? "Ad account",
+        accountNameByConnection.get(entity.account_connection_id) ?? "Ad account",
       parentId: entity.parent_id,
       parentName: entity.parent_id
         ? (parentNameById.get(entity.parent_id) ?? null)
@@ -489,7 +489,7 @@ export async function listCampaignPerformance(input: {
         entity.entity_type === "ad" && entity.parent_id
           ? (adGroupToCampaignId.get(entity.parent_id) ?? null)
           : null,
-      userConnectionId: entity.user_connection_id,
+      accountConnectionId: entity.account_connection_id,
       spendMicros: totals.spend_micros,
       impressions: totals.impressions,
       clicks: totals.clicks,

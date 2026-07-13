@@ -18,21 +18,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@walls/ui/card";
 import {
   META_PROVIDER,
   META_SERVICE,
-  type SafeUserConnection,
+  type SafeAccountConnection,
 } from "@/lib/connections";
 
 import { AdSpendControls } from "./ad-spend-controls";
 
-function formatConnectionLabel(connection: SafeUserConnection) {
-  if (connection.account_id) {
-    return connection.account_id.replace(/^act_/, "Ad account ");
+function formatConnectionLabel(connection: SafeAccountConnection) {
+  if (connection.provider_account_id) {
+    return connection.provider_account_id.replace(/^act_/, "Ad account ");
   }
   return "Meta Ads account";
 }
 
 export function SettingsPage() {
   const searchParams = useSearchParams();
-  const [connections, setConnections] = React.useState<SafeUserConnection[]>([]);
+  const [connections, setConnections] = React.useState<SafeAccountConnection[]>(
+    [],
+  );
   const [loading, setLoading] = React.useState(true);
   const [disconnecting, setDisconnecting] = React.useState(false);
   const [syncing, setSyncing] = React.useState(false);
@@ -50,7 +52,7 @@ export function SettingsPage() {
       const response = await fetch("/api/connections");
       if (!response.ok) return;
       const payload = (await response.json()) as {
-        connections?: SafeUserConnection[];
+        connections?: SafeAccountConnection[];
       };
       setConnections(payload.connections ?? []);
     } finally {

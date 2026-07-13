@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-13T17:33:19.200Z",
+  "generatedAt": "2026-07-13T17:57:48.297Z",
   "source": "packages/supabase/scripts/dump-schema.mjs",
   "schemasIncluded": [
     "public",
@@ -11,7 +11,7 @@
     "views": 1,
     "materializedViews": 6,
     "enums": 26,
-    "columns": 2175
+    "columns": 2176
   },
   "schemas": {
     "public": {
@@ -858,34 +858,34 @@
               "numericScale": null
             },
             {
-              "name": "user_connection_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
               "name": "settings",
               "position": 6,
               "dataType": "jsonb",
               "udtName": "jsonb",
               "nullable": false,
               "default": "'{}'::jsonb",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 8,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 9,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
@@ -896,13 +896,13 @@
           ],
           "foreignKeys": [
             {
-              "name": "ad_account_settings_user_connection_id_fkey",
+              "name": "ad_account_settings_account_connection_id_fkey",
               "columns": [
-                "user_connection_id"
+                "account_connection_id"
               ],
               "references": {
                 "schema": "public",
-                "table": "user_connections",
+                "table": "account_connections",
                 "columns": [
                   "id"
                 ]
@@ -911,13 +911,13 @@
               "onDelete": "CASCADE"
             },
             {
-              "name": "ad_account_settings_user_id_fkey",
+              "name": "ad_account_settings_account_id_fkey",
               "columns": [
-                "user_id"
+                "account_id"
               ],
               "references": {
                 "schema": "public",
-                "table": "users",
+                "table": "accounts",
                 "columns": [
                   "id"
                 ]
@@ -926,26 +926,19 @@
               "onDelete": "CASCADE"
             }
           ],
-          "uniqueConstraints": [
-            {
-              "name": "ad_account_settings_user_connection_id_key",
-              "columns": [
-                "user_connection_id"
-              ]
-            }
-          ],
+          "uniqueConstraints": [],
           "indexes": [
+            {
+              "name": "ad_account_settings_account_connection_id_key",
+              "definition": "CREATE UNIQUE INDEX ad_account_settings_account_connection_id_key ON public.ad_account_settings USING btree (account_connection_id)"
+            },
+            {
+              "name": "ad_account_settings_account_idx",
+              "definition": "CREATE INDEX ad_account_settings_account_idx ON public.ad_account_settings USING btree (account_id)"
+            },
             {
               "name": "ad_account_settings_pkey",
               "definition": "CREATE UNIQUE INDEX ad_account_settings_pkey ON public.ad_account_settings USING btree (id)"
-            },
-            {
-              "name": "ad_account_settings_user_connection_id_key",
-              "definition": "CREATE UNIQUE INDEX ad_account_settings_user_connection_id_key ON public.ad_account_settings USING btree (user_connection_id)"
-            },
-            {
-              "name": "ad_account_settings_user_idx",
-              "definition": "CREATE INDEX ad_account_settings_user_idx ON public.ad_account_settings USING btree (user_id)"
             }
           ],
           "rls": {
@@ -954,36 +947,36 @@
           },
           "policies": [
             {
-              "name": "ad_account_settings_delete_own",
+              "name": "ad_account_settings_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_account_settings_insert_own",
+              "name": "ad_account_settings_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_account_settings_select_own",
+              "name": "ad_account_settings_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_account_settings_update_own",
+              "name": "ad_account_settings_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -1018,17 +1011,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -1088,6 +1070,17 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 11,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
@@ -1095,13 +1088,13 @@
           ],
           "foreignKeys": [
             {
-              "name": "ad_automation_profiles_user_id_fkey",
+              "name": "ad_automation_profiles_account_id_fkey",
               "columns": [
-                "user_id"
+                "account_id"
               ],
               "references": {
                 "schema": "public",
-                "table": "users",
+                "table": "accounts",
                 "columns": [
                   "id"
                 ]
@@ -1113,16 +1106,16 @@
           "uniqueConstraints": [],
           "indexes": [
             {
+              "name": "ad_automation_profiles_account_default_idx",
+              "definition": "CREATE UNIQUE INDEX ad_automation_profiles_account_default_idx ON public.ad_automation_profiles USING btree (account_id) WHERE (is_default = true)"
+            },
+            {
+              "name": "ad_automation_profiles_account_idx",
+              "definition": "CREATE INDEX ad_automation_profiles_account_idx ON public.ad_automation_profiles USING btree (account_id)"
+            },
+            {
               "name": "ad_automation_profiles_pkey",
               "definition": "CREATE UNIQUE INDEX ad_automation_profiles_pkey ON public.ad_automation_profiles USING btree (id)"
-            },
-            {
-              "name": "ad_automation_profiles_user_default_idx",
-              "definition": "CREATE UNIQUE INDEX ad_automation_profiles_user_default_idx ON public.ad_automation_profiles USING btree (user_id) WHERE (is_default = true)"
-            },
-            {
-              "name": "ad_automation_profiles_user_idx",
-              "definition": "CREATE INDEX ad_automation_profiles_user_idx ON public.ad_automation_profiles USING btree (user_id)"
             }
           ],
           "rls": {
@@ -1131,36 +1124,36 @@
           },
           "policies": [
             {
-              "name": "ad_automation_profiles_delete_own",
+              "name": "ad_automation_profiles_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_automation_profiles_insert_own",
+              "name": "ad_automation_profiles_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_automation_profiles_select_own",
+              "name": "ad_automation_profiles_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_automation_profiles_update_own",
+              "name": "ad_automation_profiles_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -1185,28 +1178,6 @@
               "udtName": "timestamptz",
               "nullable": false,
               "default": "now()",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 3,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_connection_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
@@ -1320,12 +1291,75 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 16,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 17,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "triggered_by_user_id",
+              "position": 18,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
             "id"
           ],
           "foreignKeys": [
+            {
+              "name": "ad_budget_adjustments_account_connection_id_fkey",
+              "columns": [
+                "account_connection_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "account_connections",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "ad_budget_adjustments_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
             {
               "name": "ad_budget_adjustments_entity_id_fkey",
               "columns": [
@@ -1357,24 +1391,9 @@
               "onDelete": "SET NULL"
             },
             {
-              "name": "ad_budget_adjustments_user_connection_id_fkey",
+              "name": "ad_budget_adjustments_triggered_by_user_id_fkey",
               "columns": [
-                "user_connection_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "user_connections",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            },
-            {
-              "name": "ad_budget_adjustments_user_id_fkey",
-              "columns": [
-                "user_id"
+                "triggered_by_user_id"
               ],
               "references": {
                 "schema": "public",
@@ -1384,11 +1403,15 @@
                 ]
               },
               "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
+              "onDelete": "SET NULL"
             }
           ],
           "uniqueConstraints": [],
           "indexes": [
+            {
+              "name": "ad_budget_adjustments_account_created_idx",
+              "definition": "CREATE INDEX ad_budget_adjustments_account_created_idx ON public.ad_budget_adjustments USING btree (account_id, created_at DESC)"
+            },
             {
               "name": "ad_budget_adjustments_entity_created_idx",
               "definition": "CREATE INDEX ad_budget_adjustments_entity_created_idx ON public.ad_budget_adjustments USING btree (entity_id, created_at DESC)"
@@ -1396,10 +1419,6 @@
             {
               "name": "ad_budget_adjustments_pkey",
               "definition": "CREATE UNIQUE INDEX ad_budget_adjustments_pkey ON public.ad_budget_adjustments USING btree (id)"
-            },
-            {
-              "name": "ad_budget_adjustments_user_created_idx",
-              "definition": "CREATE INDEX ad_budget_adjustments_user_created_idx ON public.ad_budget_adjustments USING btree (user_id, created_at DESC)"
             }
           ],
           "rls": {
@@ -1408,36 +1427,36 @@
           },
           "policies": [
             {
-              "name": "ad_budget_adjustments_delete_own",
+              "name": "ad_budget_adjustments_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_budget_adjustments_insert_own",
+              "name": "ad_budget_adjustments_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_budget_adjustments_select_own",
+              "name": "ad_budget_adjustments_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_budget_adjustments_update_own",
+              "name": "ad_budget_adjustments_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -1472,17 +1491,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -1784,12 +1792,38 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 33,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
             "id"
           ],
           "foreignKeys": [
+            {
+              "name": "ad_creative_assets_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
             {
               "name": "ad_creative_assets_ad_creative_id_fkey",
               "columns": [
@@ -1816,6 +1850,10 @@
             }
           ],
           "indexes": [
+            {
+              "name": "ad_creative_assets_account_idx",
+              "definition": "CREATE INDEX ad_creative_assets_account_idx ON public.ad_creative_assets USING btree (account_id)"
+            },
             {
               "name": "ad_creative_assets_ad_entity_idx",
               "definition": "CREATE INDEX ad_creative_assets_ad_entity_idx ON public.ad_creative_assets USING btree (ad_entity_id)"
@@ -1847,36 +1885,36 @@
           },
           "policies": [
             {
-              "name": "ad_creative_assets_delete_own",
+              "name": "ad_creative_assets_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_creative_assets_insert_own",
+              "name": "ad_creative_assets_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_creative_assets_select_own",
+              "name": "ad_creative_assets_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_creative_assets_update_own",
+              "name": "ad_creative_assets_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -1911,28 +1949,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_connection_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -2234,12 +2250,64 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 34,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 35,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
             "id"
           ],
           "foreignKeys": [
+            {
+              "name": "ad_creatives_account_connection_id_fkey",
+              "columns": [
+                "account_connection_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "account_connections",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "ad_creatives_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
             {
               "name": "ad_creatives_ad_entity_id_fkey",
               "columns": [
@@ -2256,31 +2324,23 @@
               "onDelete": "CASCADE"
             }
           ],
-          "uniqueConstraints": [
-            {
-              "name": "ad_creatives_connection_ad_key",
-              "columns": [
-                "user_connection_id",
-                "provider_ad_id"
-              ]
-            }
-          ],
+          "uniqueConstraints": [],
           "indexes": [
+            {
+              "name": "ad_creatives_account_id_idx",
+              "definition": "CREATE INDEX ad_creatives_account_id_idx ON public.ad_creatives USING btree (account_id)"
+            },
             {
               "name": "ad_creatives_ad_entity_id_idx",
               "definition": "CREATE INDEX ad_creatives_ad_entity_id_idx ON public.ad_creatives USING btree (ad_entity_id)"
             },
             {
               "name": "ad_creatives_connection_ad_key",
-              "definition": "CREATE UNIQUE INDEX ad_creatives_connection_ad_key ON public.ad_creatives USING btree (user_connection_id, provider_ad_id)"
+              "definition": "CREATE UNIQUE INDEX ad_creatives_connection_ad_key ON public.ad_creatives USING btree (account_connection_id, provider_ad_id)"
             },
             {
               "name": "ad_creatives_pkey",
               "definition": "CREATE UNIQUE INDEX ad_creatives_pkey ON public.ad_creatives USING btree (id)"
-            },
-            {
-              "name": "ad_creatives_user_id_idx",
-              "definition": "CREATE INDEX ad_creatives_user_id_idx ON public.ad_creatives USING btree (user_id)"
             },
             {
               "name": "ad_creatives_video_id_idx",
@@ -2293,36 +2353,36 @@
           },
           "policies": [
             {
-              "name": "ad_creatives_delete_own",
+              "name": "ad_creatives_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_creatives_insert_own",
+              "name": "ad_creatives_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_creatives_select_own",
+              "name": "ad_creatives_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_creatives_update_own",
+              "name": "ad_creatives_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -2357,28 +2417,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_connection_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -2570,12 +2608,64 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 24,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 25,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
             "id"
           ],
           "foreignKeys": [
+            {
+              "name": "ad_entities_account_connection_id_fkey",
+              "columns": [
+                "account_connection_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "account_connections",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "ad_entities_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
             {
               "name": "ad_entities_parent_id_fkey",
               "columns": [
@@ -2590,56 +2680,21 @@
               },
               "onUpdate": "NO ACTION",
               "onDelete": "CASCADE"
-            },
-            {
-              "name": "ad_entities_user_connection_id_fkey",
-              "columns": [
-                "user_connection_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "user_connections",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            },
-            {
-              "name": "ad_entities_user_id_fkey",
-              "columns": [
-                "user_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "users",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
             }
           ],
-          "uniqueConstraints": [
-            {
-              "name": "ad_entities_unique_provider_entity",
-              "columns": [
-                "user_connection_id",
-                "entity_type",
-                "provider_entity_id"
-              ]
-            }
-          ],
+          "uniqueConstraints": [],
           "indexes": [
             {
+              "name": "ad_entities_account_id_idx",
+              "definition": "CREATE INDEX ad_entities_account_id_idx ON public.ad_entities USING btree (account_id)"
+            },
+            {
               "name": "ad_entities_connection_idx",
-              "definition": "CREATE INDEX ad_entities_connection_idx ON public.ad_entities USING btree (user_connection_id)"
+              "definition": "CREATE INDEX ad_entities_connection_idx ON public.ad_entities USING btree (account_connection_id)"
             },
             {
               "name": "ad_entities_learning_status_idx",
-              "definition": "CREATE INDEX ad_entities_learning_status_idx ON public.ad_entities USING btree (user_connection_id, learning_status) WHERE (learning_status IS NOT NULL)"
+              "definition": "CREATE INDEX ad_entities_learning_status_idx ON public.ad_entities USING btree (account_connection_id, learning_status) WHERE (learning_status IS NOT NULL)"
             },
             {
               "name": "ad_entities_parent_idx",
@@ -2659,11 +2714,7 @@
             },
             {
               "name": "ad_entities_unique_provider_entity",
-              "definition": "CREATE UNIQUE INDEX ad_entities_unique_provider_entity ON public.ad_entities USING btree (user_connection_id, entity_type, provider_entity_id)"
-            },
-            {
-              "name": "ad_entities_user_id_idx",
-              "definition": "CREATE INDEX ad_entities_user_id_idx ON public.ad_entities USING btree (user_id)"
+              "definition": "CREATE UNIQUE INDEX ad_entities_unique_provider_entity ON public.ad_entities USING btree (account_connection_id, entity_type, provider_entity_id)"
             }
           ],
           "rls": {
@@ -2672,36 +2723,36 @@
           },
           "policies": [
             {
-              "name": "ad_entities_delete_own",
+              "name": "ad_entities_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_entities_insert_own",
+              "name": "ad_entities_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_entities_select_own",
+              "name": "ad_entities_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_entities_update_own",
+              "name": "ad_entities_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -2736,28 +2787,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_connection_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -2883,12 +2912,64 @@
               "maxLength": null,
               "numericPrecision": 32,
               "numericScale": 0
+            },
+            {
+              "name": "account_id",
+              "position": 18,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 19,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
             "id"
           ],
           "foreignKeys": [
+            {
+              "name": "ad_entity_automation_account_connection_id_fkey",
+              "columns": [
+                "account_connection_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "account_connections",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "ad_entity_automation_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
             {
               "name": "ad_entity_automation_entity_id_fkey",
               "columns": [
@@ -2918,36 +2999,6 @@
               },
               "onUpdate": "NO ACTION",
               "onDelete": "SET NULL"
-            },
-            {
-              "name": "ad_entity_automation_user_connection_id_fkey",
-              "columns": [
-                "user_connection_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "user_connections",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            },
-            {
-              "name": "ad_entity_automation_user_id_fkey",
-              "columns": [
-                "user_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "users",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
             }
           ],
           "uniqueConstraints": [
@@ -2960,8 +3011,12 @@
           ],
           "indexes": [
             {
+              "name": "ad_entity_automation_account_idx",
+              "definition": "CREATE INDEX ad_entity_automation_account_idx ON public.ad_entity_automation USING btree (account_id)"
+            },
+            {
               "name": "ad_entity_automation_connection_idx",
-              "definition": "CREATE INDEX ad_entity_automation_connection_idx ON public.ad_entity_automation USING btree (user_connection_id)"
+              "definition": "CREATE INDEX ad_entity_automation_connection_idx ON public.ad_entity_automation USING btree (account_connection_id)"
             },
             {
               "name": "ad_entity_automation_enabled_idx",
@@ -2974,10 +3029,6 @@
             {
               "name": "ad_entity_automation_pkey",
               "definition": "CREATE UNIQUE INDEX ad_entity_automation_pkey ON public.ad_entity_automation USING btree (id)"
-            },
-            {
-              "name": "ad_entity_automation_user_idx",
-              "definition": "CREATE INDEX ad_entity_automation_user_idx ON public.ad_entity_automation USING btree (user_id)"
             }
           ],
           "rls": {
@@ -2986,36 +3037,36 @@
           },
           "policies": [
             {
-              "name": "ad_entity_automation_delete_own",
+              "name": "ad_entity_automation_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_entity_automation_insert_own",
+              "name": "ad_entity_automation_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_entity_automation_select_own",
+              "name": "ad_entity_automation_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_entity_automation_update_own",
+              "name": "ad_entity_automation_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -3050,28 +3101,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_connection_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -3263,12 +3292,64 @@
               "maxLength": null,
               "numericPrecision": 14,
               "numericScale": 4
+            },
+            {
+              "name": "account_id",
+              "position": 25,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 26,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
             "id"
           ],
           "foreignKeys": [
+            {
+              "name": "ad_metrics_daily_account_connection_id_fkey",
+              "columns": [
+                "account_connection_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "account_connections",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "ad_metrics_daily_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
             {
               "name": "ad_metrics_daily_entity_id_fkey",
               "columns": [
@@ -3277,36 +3358,6 @@
               "references": {
                 "schema": "public",
                 "table": "ad_entities",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            },
-            {
-              "name": "ad_metrics_daily_user_connection_id_fkey",
-              "columns": [
-                "user_connection_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "user_connections",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            },
-            {
-              "name": "ad_metrics_daily_user_id_fkey",
-              "columns": [
-                "user_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "users",
                 "columns": [
                   "id"
                 ]
@@ -3326,8 +3377,12 @@
           ],
           "indexes": [
             {
+              "name": "ad_metrics_daily_account_date_idx",
+              "definition": "CREATE INDEX ad_metrics_daily_account_date_idx ON public.ad_metrics_daily USING btree (account_id, metric_date DESC)"
+            },
+            {
               "name": "ad_metrics_daily_connection_date_idx",
-              "definition": "CREATE INDEX ad_metrics_daily_connection_date_idx ON public.ad_metrics_daily USING btree (user_connection_id, metric_date DESC)"
+              "definition": "CREATE INDEX ad_metrics_daily_connection_date_idx ON public.ad_metrics_daily USING btree (account_connection_id, metric_date DESC)"
             },
             {
               "name": "ad_metrics_daily_entity_date_idx",
@@ -3340,10 +3395,6 @@
             {
               "name": "ad_metrics_daily_unique_entity_date",
               "definition": "CREATE UNIQUE INDEX ad_metrics_daily_unique_entity_date ON public.ad_metrics_daily USING btree (entity_id, metric_date)"
-            },
-            {
-              "name": "ad_metrics_daily_user_date_idx",
-              "definition": "CREATE INDEX ad_metrics_daily_user_date_idx ON public.ad_metrics_daily USING btree (user_id, metric_date DESC)"
             }
           ],
           "rls": {
@@ -3352,36 +3403,36 @@
           },
           "policies": [
             {
-              "name": "ad_metrics_daily_delete_own",
+              "name": "ad_metrics_daily_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_metrics_daily_insert_own",
+              "name": "ad_metrics_daily_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_metrics_daily_select_own",
+              "name": "ad_metrics_daily_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_metrics_daily_update_own",
+              "name": "ad_metrics_daily_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },
@@ -3416,28 +3467,6 @@
               "dataType": "timestamp with time zone",
               "udtName": "timestamptz",
               "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_connection_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
               "default": null,
               "maxLength": null,
               "numericPrecision": null,
@@ -3519,6 +3548,28 @@
               "maxLength": null,
               "numericPrecision": null,
               "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 14,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_connection_id",
+              "position": 15,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
             }
           ],
           "primaryKey": [
@@ -3526,13 +3577,13 @@
           ],
           "foreignKeys": [
             {
-              "name": "ad_sync_state_user_connection_id_fkey",
+              "name": "ad_sync_state_account_connection_id_fkey",
               "columns": [
-                "user_connection_id"
+                "account_connection_id"
               ],
               "references": {
                 "schema": "public",
-                "table": "user_connections",
+                "table": "account_connections",
                 "columns": [
                   "id"
                 ]
@@ -3541,13 +3592,13 @@
               "onDelete": "CASCADE"
             },
             {
-              "name": "ad_sync_state_user_id_fkey",
+              "name": "ad_sync_state_account_id_fkey",
               "columns": [
-                "user_id"
+                "account_id"
               ],
               "references": {
                 "schema": "public",
-                "table": "users",
+                "table": "accounts",
                 "columns": [
                   "id"
                 ]
@@ -3556,26 +3607,19 @@
               "onDelete": "CASCADE"
             }
           ],
-          "uniqueConstraints": [
-            {
-              "name": "ad_sync_state_user_connection_id_key",
-              "columns": [
-                "user_connection_id"
-              ]
-            }
-          ],
+          "uniqueConstraints": [],
           "indexes": [
+            {
+              "name": "ad_sync_state_account_connection_id_key",
+              "definition": "CREATE UNIQUE INDEX ad_sync_state_account_connection_id_key ON public.ad_sync_state USING btree (account_connection_id)"
+            },
+            {
+              "name": "ad_sync_state_account_idx",
+              "definition": "CREATE INDEX ad_sync_state_account_idx ON public.ad_sync_state USING btree (account_id)"
+            },
             {
               "name": "ad_sync_state_pkey",
               "definition": "CREATE UNIQUE INDEX ad_sync_state_pkey ON public.ad_sync_state USING btree (id)"
-            },
-            {
-              "name": "ad_sync_state_user_connection_id_key",
-              "definition": "CREATE UNIQUE INDEX ad_sync_state_user_connection_id_key ON public.ad_sync_state USING btree (user_connection_id)"
-            },
-            {
-              "name": "ad_sync_state_user_idx",
-              "definition": "CREATE INDEX ad_sync_state_user_idx ON public.ad_sync_state USING btree (user_id)"
             }
           ],
           "rls": {
@@ -3584,36 +3628,36 @@
           },
           "policies": [
             {
-              "name": "ad_sync_state_delete_own",
+              "name": "ad_sync_state_delete_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "DELETE",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_sync_state_insert_own",
+              "name": "ad_sync_state_insert_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "INSERT",
               "using": null,
-              "withCheck": "(user_id = auth.uid())"
+              "withCheck": "is_ad_account_member(account_id)"
             },
             {
-              "name": "ad_sync_state_select_own",
+              "name": "ad_sync_state_select_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "SELECT",
-              "using": "(user_id = auth.uid())",
+              "using": "is_ad_account_member(account_id)",
               "withCheck": null
             },
             {
-              "name": "ad_sync_state_update_own",
+              "name": "ad_sync_state_update_member",
               "permissive": "PERMISSIVE",
               "roles": "{authenticated}",
               "command": "UPDATE",
-              "using": "(user_id = auth.uid())",
-              "withCheck": "(user_id = auth.uid())"
+              "using": "is_ad_account_member(account_id)",
+              "withCheck": "is_ad_account_member(account_id)"
             }
           ]
         },

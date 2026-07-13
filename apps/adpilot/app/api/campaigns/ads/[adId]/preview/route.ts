@@ -22,7 +22,9 @@ export async function GET(_request: Request, context: RouteContext) {
 
     const { data: entity, error: entityError } = await admin
       .from("ad_entities")
-      .select("id, user_id, entity_type, provider_entity_id, user_connection_id")
+      .select(
+        "id, account_id, entity_type, provider_entity_id, account_connection_id",
+      )
       .eq("id", adId)
       .maybeSingle();
 
@@ -33,17 +35,17 @@ export async function GET(_request: Request, context: RouteContext) {
 
     if (
       !entity ||
-      !entityBelongsToScope(entity as { user_id: string }, scope) ||
+      !entityBelongsToScope(entity as { account_id: string }, scope) ||
       entity.entity_type !== "ad"
     ) {
       return NextResponse.json({ error: "Ad not found" }, { status: 404 });
     }
 
     const { data: connection, error: connectionError } = await admin
-      .from("user_connections")
+      .from("account_connections")
       .select("access_token")
-      .eq("id", entity.user_connection_id)
-      .eq("user_id", scope.userId)
+      .eq("id", entity.account_connection_id)
+      .eq("account_id", scope.accountId)
       .is("revoked_at", null)
       .maybeSingle();
 
