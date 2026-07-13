@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-12T18:32:37.651Z",
+  "generatedAt": "2026-07-13T17:33:19.200Z",
   "source": "packages/supabase/scripts/dump-schema.mjs",
   "schemasIncluded": [
     "public",
@@ -7,11 +7,11 @@
     "storage"
   ],
   "summary": {
-    "tables": 204,
+    "tables": 205,
     "views": 1,
     "materializedViews": 6,
     "enums": 26,
-    "columns": 2158
+    "columns": 2175
   },
   "schemas": {
     "public": {
@@ -188,6 +188,631 @@
             {
               "name": "access_keys_pkey",
               "definition": "CREATE UNIQUE INDEX access_keys_pkey ON public.access_keys USING btree (id)"
+            }
+          ],
+          "rls": {
+            "enabled": false,
+            "forced": false
+          },
+          "policies": []
+        },
+        "account_connections": {
+          "type": "BASE TABLE",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": "gen_random_uuid()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "created_at",
+              "position": 2,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "updated_at",
+              "position": 3,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 4,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "provider",
+              "position": 5,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "service",
+              "position": 6,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "provider_account_id",
+              "position": 7,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "token_expiry",
+              "position": 8,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "access_token",
+              "position": 9,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "refresh_token",
+              "position": 10,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "token_payload",
+              "position": 11,
+              "dataType": "jsonb",
+              "udtName": "jsonb",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "scope_hash",
+              "position": 12,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "last_token_refresh",
+              "position": 13,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "revoked_at",
+              "position": 14,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "token_version",
+              "position": 15,
+              "dataType": "integer",
+              "udtName": "int4",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": 32,
+              "numericScale": 0
+            }
+          ],
+          "primaryKey": [
+            "id"
+          ],
+          "foreignKeys": [
+            {
+              "name": "account_connections_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            }
+          ],
+          "uniqueConstraints": [],
+          "indexes": [
+            {
+              "name": "account_connections_account_id_idx",
+              "definition": "CREATE INDEX account_connections_account_id_idx ON public.account_connections USING btree (account_id)"
+            },
+            {
+              "name": "account_connections_account_provider_service_idx",
+              "definition": "CREATE INDEX account_connections_account_provider_service_idx ON public.account_connections USING btree (account_id, provider, service)"
+            },
+            {
+              "name": "account_connections_active_idx",
+              "definition": "CREATE INDEX account_connections_active_idx ON public.account_connections USING btree (account_id, provider, service, provider_account_id) WHERE (revoked_at IS NULL)"
+            },
+            {
+              "name": "account_connections_pkey",
+              "definition": "CREATE UNIQUE INDEX account_connections_pkey ON public.account_connections USING btree (id)"
+            }
+          ],
+          "rls": {
+            "enabled": false,
+            "forced": false
+          },
+          "policies": []
+        },
+        "account_users": {
+          "type": "BASE TABLE",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": "gen_random_uuid()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "created_at",
+              "position": 2,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "updated_at",
+              "position": 3,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_id",
+              "position": 4,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "user_id",
+              "position": 5,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "role",
+              "position": 6,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": false,
+              "default": "'member'::text",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "is_default",
+              "position": 7,
+              "dataType": "boolean",
+              "udtName": "bool",
+              "nullable": false,
+              "default": "false",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            }
+          ],
+          "primaryKey": [
+            "id"
+          ],
+          "foreignKeys": [
+            {
+              "name": "account_users_account_id_fkey",
+              "columns": [
+                "account_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "accounts",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            },
+            {
+              "name": "account_users_user_id_fkey",
+              "columns": [
+                "user_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "users",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            }
+          ],
+          "uniqueConstraints": [
+            {
+              "name": "account_users_user_id_account_id_key",
+              "columns": [
+                "user_id",
+                "account_id"
+              ]
+            }
+          ],
+          "indexes": [
+            {
+              "name": "account_users_account_id_idx",
+              "definition": "CREATE INDEX account_users_account_id_idx ON public.account_users USING btree (account_id)"
+            },
+            {
+              "name": "account_users_one_default_per_user_idx",
+              "definition": "CREATE UNIQUE INDEX account_users_one_default_per_user_idx ON public.account_users USING btree (user_id) WHERE (is_default = true)"
+            },
+            {
+              "name": "account_users_pkey",
+              "definition": "CREATE UNIQUE INDEX account_users_pkey ON public.account_users USING btree (id)"
+            },
+            {
+              "name": "account_users_user_id_account_id_key",
+              "definition": "CREATE UNIQUE INDEX account_users_user_id_account_id_key ON public.account_users USING btree (user_id, account_id)"
+            },
+            {
+              "name": "account_users_user_id_idx",
+              "definition": "CREATE INDEX account_users_user_id_idx ON public.account_users USING btree (user_id)"
+            }
+          ],
+          "rls": {
+            "enabled": false,
+            "forced": false
+          },
+          "policies": []
+        },
+        "accounts": {
+          "type": "BASE TABLE",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": false,
+              "default": "gen_random_uuid()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "created_at",
+              "position": 2,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": false,
+              "default": "now()",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "updated_at",
+              "position": 3,
+              "dataType": "timestamp with time zone",
+              "udtName": "timestamptz",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "account_type",
+              "position": 4,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "name",
+              "position": 5,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": false,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "personal_owner_id",
+              "position": 7,
+              "dataType": "uuid",
+              "udtName": "uuid",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "slug",
+              "position": 8,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "icon_url",
+              "position": 9,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "website",
+              "position": 10,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "description",
+              "position": 11,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "email",
+              "position": 12,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "phone",
+              "position": 13,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "address_line_1",
+              "position": 14,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "address_line_2",
+              "position": 15,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "city",
+              "position": 16,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "state_province",
+              "position": 17,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "postal_code",
+              "position": 18,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "country_code",
+              "position": 19,
+              "dataType": "text",
+              "udtName": "text",
+              "nullable": true,
+              "default": null,
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            },
+            {
+              "name": "metadata",
+              "position": 20,
+              "dataType": "jsonb",
+              "udtName": "jsonb",
+              "nullable": false,
+              "default": "'{}'::jsonb",
+              "maxLength": null,
+              "numericPrecision": null,
+              "numericScale": null
+            }
+          ],
+          "primaryKey": [
+            "id"
+          ],
+          "foreignKeys": [
+            {
+              "name": "accounts_personal_owner_id_fkey",
+              "columns": [
+                "personal_owner_id"
+              ],
+              "references": {
+                "schema": "public",
+                "table": "users",
+                "columns": [
+                  "id"
+                ]
+              },
+              "onUpdate": "NO ACTION",
+              "onDelete": "CASCADE"
+            }
+          ],
+          "uniqueConstraints": [],
+          "indexes": [
+            {
+              "name": "accounts_account_type_idx",
+              "definition": "CREATE INDEX accounts_account_type_idx ON public.accounts USING btree (account_type)"
+            },
+            {
+              "name": "accounts_one_personal_per_user_idx",
+              "definition": "CREATE UNIQUE INDEX accounts_one_personal_per_user_idx ON public.accounts USING btree (personal_owner_id) WHERE (account_type = 'personal'::text)"
+            },
+            {
+              "name": "accounts_organization_slug_idx",
+              "definition": "CREATE UNIQUE INDEX accounts_organization_slug_idx ON public.accounts USING btree (slug) WHERE ((account_type = 'organization'::text) AND (slug IS NOT NULL))"
+            },
+            {
+              "name": "accounts_pkey",
+              "definition": "CREATE UNIQUE INDEX accounts_pkey ON public.accounts USING btree (id)"
             }
           ],
           "rls": {
@@ -18407,229 +19032,6 @@
           },
           "policies": []
         },
-        "organizations": {
-          "type": "BASE TABLE",
-          "columns": [
-            {
-              "name": "id",
-              "position": 1,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": "gen_random_uuid()",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "created_at",
-              "position": 2,
-              "dataType": "timestamp with time zone",
-              "udtName": "timestamptz",
-              "nullable": false,
-              "default": "now()",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "updated_at",
-              "position": 3,
-              "dataType": "timestamp with time zone",
-              "udtName": "timestamptz",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "name",
-              "position": 4,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "slug",
-              "position": 5,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "icon_url",
-              "position": 6,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "website",
-              "position": 7,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "description",
-              "position": 8,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "email",
-              "position": 9,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "phone",
-              "position": 10,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "address_line_1",
-              "position": 11,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "address_line_2",
-              "position": 12,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "city",
-              "position": 13,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "state_province",
-              "position": 14,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "postal_code",
-              "position": 15,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "country_code",
-              "position": 16,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "metadata",
-              "position": 17,
-              "dataType": "jsonb",
-              "udtName": "jsonb",
-              "nullable": false,
-              "default": "'{}'::jsonb",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            }
-          ],
-          "primaryKey": [
-            "id"
-          ],
-          "foreignKeys": [],
-          "uniqueConstraints": [
-            {
-              "name": "organizations_slug_key",
-              "columns": [
-                "slug"
-              ]
-            }
-          ],
-          "indexes": [
-            {
-              "name": "organizations_pkey",
-              "definition": "CREATE UNIQUE INDEX organizations_pkey ON public.organizations USING btree (id)"
-            },
-            {
-              "name": "organizations_slug_idx",
-              "definition": "CREATE INDEX organizations_slug_idx ON public.organizations USING btree (slug)"
-            },
-            {
-              "name": "organizations_slug_key",
-              "definition": "CREATE UNIQUE INDEX organizations_slug_key ON public.organizations USING btree (slug)"
-            }
-          ],
-          "rls": {
-            "enabled": false,
-            "forced": false
-          },
-          "policies": []
-        },
         "partnership_content": {
           "type": "BASE TABLE",
           "columns": [
@@ -29504,159 +29906,6 @@
             {
               "name": "user_notifications_pkey",
               "definition": "CREATE UNIQUE INDEX user_notifications_pkey ON public.user_notifications USING btree (id)"
-            }
-          ],
-          "rls": {
-            "enabled": false,
-            "forced": false
-          },
-          "policies": []
-        },
-        "user_organizations": {
-          "type": "BASE TABLE",
-          "columns": [
-            {
-              "name": "id",
-              "position": 1,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": "gen_random_uuid()",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "created_at",
-              "position": 2,
-              "dataType": "timestamp with time zone",
-              "udtName": "timestamptz",
-              "nullable": false,
-              "default": "now()",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "updated_at",
-              "position": 3,
-              "dataType": "timestamp with time zone",
-              "udtName": "timestamptz",
-              "nullable": true,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "user_id",
-              "position": 4,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "organization_id",
-              "position": 5,
-              "dataType": "uuid",
-              "udtName": "uuid",
-              "nullable": false,
-              "default": null,
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "role",
-              "position": 6,
-              "dataType": "text",
-              "udtName": "text",
-              "nullable": false,
-              "default": "'member'::text",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            },
-            {
-              "name": "is_default",
-              "position": 7,
-              "dataType": "boolean",
-              "udtName": "bool",
-              "nullable": false,
-              "default": "false",
-              "maxLength": null,
-              "numericPrecision": null,
-              "numericScale": null
-            }
-          ],
-          "primaryKey": [
-            "id"
-          ],
-          "foreignKeys": [
-            {
-              "name": "user_organizations_organization_id_fkey",
-              "columns": [
-                "organization_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "organizations",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            },
-            {
-              "name": "user_organizations_user_id_fkey",
-              "columns": [
-                "user_id"
-              ],
-              "references": {
-                "schema": "public",
-                "table": "users",
-                "columns": [
-                  "id"
-                ]
-              },
-              "onUpdate": "NO ACTION",
-              "onDelete": "CASCADE"
-            }
-          ],
-          "uniqueConstraints": [
-            {
-              "name": "user_organizations_user_id_organization_id_key",
-              "columns": [
-                "user_id",
-                "organization_id"
-              ]
-            }
-          ],
-          "indexes": [
-            {
-              "name": "user_organizations_one_default_per_user",
-              "definition": "CREATE UNIQUE INDEX user_organizations_one_default_per_user ON public.user_organizations USING btree (user_id) WHERE (is_default = true)"
-            },
-            {
-              "name": "user_organizations_organization_id_idx",
-              "definition": "CREATE INDEX user_organizations_organization_id_idx ON public.user_organizations USING btree (organization_id)"
-            },
-            {
-              "name": "user_organizations_pkey",
-              "definition": "CREATE UNIQUE INDEX user_organizations_pkey ON public.user_organizations USING btree (id)"
-            },
-            {
-              "name": "user_organizations_user_id_idx",
-              "definition": "CREATE INDEX user_organizations_user_id_idx ON public.user_organizations USING btree (user_id)"
-            },
-            {
-              "name": "user_organizations_user_id_organization_id_key",
-              "definition": "CREATE UNIQUE INDEX user_organizations_user_id_organization_id_key ON public.user_organizations USING btree (user_id, organization_id)"
             }
           ],
           "rls": {

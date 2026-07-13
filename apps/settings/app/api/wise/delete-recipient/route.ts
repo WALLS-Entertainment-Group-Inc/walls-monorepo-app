@@ -7,7 +7,7 @@ export async function DELETE(request: NextRequest) {
     console.error('🔵 Starting delete-recipient request');
     
     // Initialize Supabase client
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
