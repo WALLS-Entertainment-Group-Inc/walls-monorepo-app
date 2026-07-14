@@ -17,11 +17,11 @@ import {
   detailSelectableClass,
 } from "@/components/campaigns/entity-detail-shared";
 import type { BudgetAdjustmentRow } from "@/lib/automation-server";
-import type {
-  AgentInstruction,
-  AgentInstructionStatus,
+import {
+  resolveInstructionStatus,
+  type AgentInstruction,
+  type AgentInstructionStatus,
 } from "@/lib/agent-instructions-server";
-import { resolveInstructionStatus } from "@/lib/agent-instructions-server";
 import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import {
