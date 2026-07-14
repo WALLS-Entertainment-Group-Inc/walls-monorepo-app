@@ -14,7 +14,7 @@ import {
 } from "@/lib/connections";
 
 import { AdSpendControls } from "./ad-spend-controls";
-import { dangerButtonClass, primaryButtonClass } from "./button-styles";
+import { dangerButtonClass, primaryButtonClass } from "@/components/ui/button-styles";
 import { MetaIcon } from "./meta-icon";
 import { SectionLabel } from "./section-label";
 

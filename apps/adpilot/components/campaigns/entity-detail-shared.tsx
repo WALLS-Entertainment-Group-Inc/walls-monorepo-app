@@ -17,6 +17,12 @@ import {
 import { Switch } from "@walls/ui/switch";
 import { cn } from "@walls/utils";
 
+import {
+  toggleCardActiveClass,
+  toggleCardBaseClass,
+  toggleCardInactiveClass,
+} from "@/components/ui/button-styles";
+
 import { HeroStat } from "@/components/dashboard/dashboard-metrics";
 import type { EntityDetailMetrics, EntityDetailResult } from "@/lib/entity-detail-server";
 import {
@@ -37,6 +43,7 @@ export function DetailSection({
   className,
   collapsible = true,
   defaultOpen = true,
+  collapsedBadgeCount,
 }: {
   title: string;
   description?: string;
@@ -44,9 +51,16 @@ export function DetailSection({
   className?: string;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  /** Shown beside the title when the section is collapsed (e.g. active instruction count). */
+  collapsedBadgeCount?: number;
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const isOpen = collapsible ? open : true;
+  const showBadge =
+    collapsible &&
+    !isOpen &&
+    collapsedBadgeCount != null &&
+    collapsedBadgeCount > 0;
 
   return (
     <section className={cn("scroll-mt-24", className)}>
@@ -57,8 +71,18 @@ export function DetailSection({
           aria-expanded={isOpen}
           className="mb-4 flex w-full items-center transition-opacity hover:opacity-80"
         >
-          <span className="mr-4 text-2xl font-black tracking-tight text-black sm:text-3xl">
-            {title}
+          <span className="mr-3 flex shrink-0 items-center gap-2.5">
+            <span className="text-2xl font-black tracking-tight text-black sm:text-3xl">
+              {title}
+            </span>
+            {showBadge ? (
+              <span
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gradient-to-b from-[#eafb87] to-[#d2ef3a] px-1.5 text-xs font-semibold tabular-nums text-walls-forest shadow-[0_1px_2px_rgba(0,0,0,0.12)] ring-1 ring-[#bcd63a]"
+                aria-label={`${collapsedBadgeCount} active instruction${collapsedBadgeCount === 1 ? "" : "s"}`}
+              >
+                {collapsedBadgeCount}
+              </span>
+            ) : null}
           </span>
           <div className="h-px flex-1 border-t border-black/80" />
           {isOpen ? (
@@ -122,14 +146,11 @@ export function DetailSubLabel({
   );
 }
 
-/** Selectable card/pill styling matching the agent settings page. */
+/** Selectable card/pill styling matching the settings page. */
 export function detailSelectableClass(isSelected: boolean, extra?: string) {
   return cn(
-    "relative z-10 rounded-2xl border border-transparent transition-all duration-300 ease-in-out",
-    "hover:border-neutral-200 hover:bg-walls-white hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15)] hover:scale-[0.99]",
-    isSelected
-      ? "border-[rgba(110,173,192,0.45)] bg-white/40 shadow-[0_0_0_1px_rgba(110,173,192,0.35),0_0_12px_rgba(110,173,192,0.25)] hover:shadow-[inset_0_4px_8px_rgba(0,0,0,0.15),0_0_0_1px_rgba(110,173,192,0.35),0_0_12px_rgba(110,173,192,0.25)]"
-      : "bg-transparent",
+    toggleCardBaseClass,
+    isSelected ? toggleCardActiveClass : toggleCardInactiveClass,
     extra,
   );
 }

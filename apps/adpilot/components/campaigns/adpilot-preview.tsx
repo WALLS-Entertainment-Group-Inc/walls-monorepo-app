@@ -13,6 +13,8 @@ import {
 import { Button } from "@walls/ui/button";
 import { cn } from "@walls/utils";
 
+import { primaryButtonClass } from "@/components/ui/button-styles";
+
 import { DetailSection } from "@/components/campaigns/entity-detail-shared";
 import type { BudgetAdjustmentRow } from "@/lib/automation-server";
 import {
@@ -149,7 +151,7 @@ function PreviewResult({ entityId, preview, onApplied }: PreviewResultProps) {
             type="button"
             disabled={applying || applied}
             onClick={() => void handleApply()}
-            className="inline-flex items-center gap-2 rounded-none border-0 bg-walls-yellow px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-walls-yellow"
+            className={cn(primaryButtonClass, "inline-flex items-center gap-2")}
           >
             {applying ? (
               <>
@@ -297,7 +299,7 @@ export function AdPilotPreviewCard({
         type="button"
         disabled={loading}
         onClick={() => void run()}
-        className="inline-flex items-center gap-2 rounded-none border-0 bg-walls-yellow px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-walls-yellow"
+        className={cn(primaryButtonClass, "inline-flex items-center gap-2")}
       >
         {loading ? (
           <>

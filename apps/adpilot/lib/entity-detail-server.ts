@@ -9,6 +9,10 @@ import {
   type BudgetAdjustmentRow,
   type EntityAutomationState,
 } from "@/lib/automation-server";
+import {
+  listEntityAgentInstructions,
+  type AgentInstruction,
+} from "@/lib/agent-instructions-server";
 import type { CampaignEntityType } from "@/lib/campaigns-server";
 import {
   buildAdCreativePreview,
@@ -72,6 +76,7 @@ export type EntityDetailResult = {
   automation: EntityAutomationState;
   profiles: AutomationProfile[];
   recentAdjustments: BudgetAdjustmentRow[];
+  agentInstructions: AgentInstruction[];
 };
 
 export type CampaignDetailResult = EntityDetailResult & {
@@ -191,36 +196,48 @@ async function buildEntityDetail(input: {
   const entityType = entity.entity_type;
   const entityId = entity.id;
 
-  const [{ data: connection }, parentResult, metricsResult, automation, profiles, adjustments] =
-    await Promise.all([
-      supabase
-        .from("ad_entities")
-        .select("name")
-        .eq("account_connection_id", entity.account_connection_id)
-        .eq("entity_type", "account")
-        .maybeSingle(),
-      entity.parent_id
-        ? supabase
-            .from("ad_entities")
-            .select("name, objective")
-            .eq("id", entity.parent_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase
-        .from("ad_metrics_daily")
-        .select(
-          "spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
-        )
-        .eq("entity_id", entityId)
-        .gte("metric_date", metricsStartDateIso()),
-      getEntityAutomation({ scope: input.scope, entityId }),
-      listAutomationProfiles(input.scope),
-      listBudgetAdjustments({
-        scope: input.scope,
-        entityId,
-        limit: 8,
-      }),
-    ]);
+  const canAutomate = entityType === "campaign" || entityType === "ad_group";
+
+  const [
+    { data: connection },
+    parentResult,
+    metricsResult,
+    automation,
+    profiles,
+    adjustments,
+    agentInstructions,
+  ] = await Promise.all([
+    supabase
+      .from("ad_entities")
+      .select("name")
+      .eq("account_connection_id", entity.account_connection_id)
+      .eq("entity_type", "account")
+      .maybeSingle(),
+    entity.parent_id
+      ? supabase
+          .from("ad_entities")
+          .select("name, objective")
+          .eq("id", entity.parent_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("ad_metrics_daily")
+      .select(
+        "spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
+      )
+      .eq("entity_id", entityId)
+      .gte("metric_date", metricsStartDateIso()),
+    getEntityAutomation({ scope: input.scope, entityId }),
+    listAutomationProfiles(input.scope),
+    listBudgetAdjustments({
+      scope: input.scope,
+      entityId,
+      limit: 8,
+    }),
+    canAutomate
+      ? listEntityAgentInstructions({ scope: input.scope, entityId })
+      : Promise.resolve([] as AgentInstruction[]),
+  ]);
 
   const aggregated = aggregateMetricRows(metricsResult.data ?? []);
 
@@ -256,7 +273,7 @@ async function buildEntityDetail(input: {
     parentId: entity.parent_id,
     parentName: (parentResult.data?.name as string | null) ?? null,
     dailyBudgetMicros: entity.daily_budget_micros,
-    canAutomate: entityType === "campaign" || entityType === "ad_group",
+    canAutomate,
     metrics: {
       spendMicros: aggregated.spendMicros,
       impressions: aggregated.impressions,
@@ -269,6 +286,7 @@ async function buildEntityDetail(input: {
     automation,
     profiles,
     recentAdjustments: adjustments,
+    agentInstructions,
   };
 }
 
@@ -441,7 +459,7 @@ export async function getAdSetDetail(input: {
     supabase
       .from("ad_metrics_daily")
       .select(
-        "metric_date, spend_micros, impressions, clicks, conversion_value_micros, website_purchases",
+        "metric_date, spend_micros, impressions, clicks, conversion_value_micros, website_purchases, reach, frequency",
       )
       .eq("entity_id", input.adSetId)
       .gte("metric_date", metricsStartDateIso())

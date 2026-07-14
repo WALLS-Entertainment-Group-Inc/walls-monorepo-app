@@ -46,7 +46,7 @@ import {
   toggleChipActiveClass,
   toggleChipBaseClass,
   toggleChipInactiveClass,
-} from "./button-styles";
+} from "@/components/ui/button-styles";
 import { SectionLabel } from "./section-label";
 import { SegmentThumb } from "./segment-thumb";
 
