@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Loader2, Shield } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Shield, Trash2, X } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
 import { Input } from "@walls/ui/input";
 import { LabeledSwitch } from "@walls/ui/switch";
+import { Textarea } from "@walls/ui/textarea";
+import { cn } from "@walls/utils";
 
 import { AdPilotPreviewCard } from "@/components/campaigns/adpilot-preview";
 import {
@@ -15,6 +17,11 @@ import {
   detailSelectableClass,
 } from "@/components/campaigns/entity-detail-shared";
 import type { BudgetAdjustmentRow } from "@/lib/automation-server";
+import {
+  resolveInstructionStatus,
+  type AgentInstruction,
+  type AgentInstructionStatus,
+} from "@/lib/agent-instructions";
 import type { EntityDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
 import {
@@ -27,6 +34,16 @@ import {
 } from "@/lib/spend-automation-settings";
 
 import { SliderField } from "@/components/ui/slider-field";
+import { RoasFloorField } from "@/components/ui/roas-floor-field";
+import {
+  primaryButtonClass,
+  secondaryButtonClass,
+  segmentTrackClass,
+  toggleChipActiveClass,
+  toggleChipBaseClass,
+  toggleChipInactiveClass,
+} from "@/components/ui/button-styles";
+import { SegmentThumb } from "@/components/settings/segment-thumb";
 
 function automationStatusLabel(status: AutomationStatus): string {
   const labels: Record<AutomationStatus, string> = {
@@ -60,6 +77,22 @@ function formatAdjustmentDate(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(iso));
+}
+
+function isoToDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function datetimeLocalValueToIso(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
 }
 
 function AdjustmentsList({ rows }: { rows: BudgetAdjustmentRow[] }) {
@@ -278,7 +311,19 @@ export function EntityAutomationSection({
                       "px-4 py-3 text-left",
                     )}
                   >
-                    <p className="text-sm font-medium text-foreground">
+                    {profileId === profile.id ? (
+                      <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[#3f4a0e] text-walls-yellow ring-1 ring-[#2c3406]/20">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    ) : null}
+                    <p
+                      className={cn(
+                        "text-sm",
+                        profileId === profile.id
+                          ? "pr-6 font-semibold text-walls-forest"
+                          : "font-medium text-foreground",
+                      )}
+                    >
                       {profile.name}
                       {profile.isDefault ? (
                         <span className="ml-2 text-[10px] font-light uppercase tracking-wider text-neutral-400">
@@ -286,7 +331,14 @@ export function EntityAutomationSection({
                         </span>
                       ) : null}
                     </p>
-                    <p className="mt-1 text-xs font-light text-neutral-500">
+                    <p
+                      className={cn(
+                        "mt-1 text-xs font-light",
+                        profileId === profile.id
+                          ? "text-walls-forest/80"
+                          : "text-neutral-500",
+                      )}
+                    >
                       Optimize for {optimizationGoalLabel(profile.optimizationGoal)}
                     </p>
                   </button>
@@ -300,7 +352,7 @@ export function EntityAutomationSection({
             <p className="mt-1 text-xs font-light text-neutral-500">
               Hard min/max daily budget (USD) the algorithm may not exceed.
             </p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block space-y-2">
                 <span className="text-sm font-medium text-foreground">
                   Minimum daily budget
@@ -335,28 +387,19 @@ export function EntityAutomationSection({
                   className="rounded-full border-neutral-200 bg-walls-white font-light"
                 />
               </label>
-              {optimizationGoal === "roas" || optimizationGoal === "conversions" ? (
-                <label className="block space-y-2">
-                  <span className="text-sm font-medium text-foreground">
-                    ROAS floor
-                  </span>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.1}
-                    placeholder="No floor"
-                    value={settings.roasFloor ?? ""}
-                    onChange={(e) =>
-                      updateSetting(
-                        "roasFloor",
-                        e.target.value ? Number(e.target.value) : null,
-                      )
-                    }
-                    className="rounded-full border-neutral-200 bg-walls-white font-light"
-                  />
-                </label>
-              ) : null}
             </div>
+            {optimizationGoal === "roas" || optimizationGoal === "conversions" ? (
+              <div className="mt-5 border-t border-neutral-100 pt-5">
+                <RoasFloorField
+                  variant="detail"
+                  settings={settings}
+                  onChange={(patch) => {
+                    setSettings((prev) => ({ ...prev, ...patch }));
+                    setSaved(false);
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
 
           <div>
@@ -416,18 +459,23 @@ export function EntityAutomationSection({
                   Minimum wait before AdPilot can increase or decrease the daily
                   budget again on this {entityLabel}.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className={cn("mt-3", segmentTrackClass)}>
                   {COOLDOWN_OPTIONS.map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => updateSetting("cooldownHours", option.value)}
-                      className={detailSelectableClass(
-                        settings.cooldownHours === option.value,
-                        "rounded-full px-3.5 py-1.5 text-xs font-light text-neutral-700",
+                      className={cn(
+                        toggleChipBaseClass,
+                        settings.cooldownHours === option.value
+                          ? toggleChipActiveClass
+                          : toggleChipInactiveClass,
                       )}
                     >
-                      {option.label}
+                      {settings.cooldownHours === option.value ? (
+                        <SegmentThumb layoutId="entity-cooldown-thumb" />
+                      ) : null}
+                      <span className="relative z-10">{option.label}</span>
                     </button>
                   ))}
                 </div>
@@ -506,7 +554,7 @@ export function EntityAutomationSection({
               type="button"
               disabled={saving}
               onClick={() => void handleSave()}
-              className="inline-flex items-center gap-2 rounded-none border-0 bg-walls-yellow px-5 py-2.5 text-sm font-medium text-black shadow-none hover:bg-walls-yellow"
+              className={cn(primaryButtonClass, "inline-flex items-center gap-2")}
             >
               {saving ? (
                 <>
@@ -531,12 +579,438 @@ export function EntityAutomationSection({
         }
       />
 
+      <AgentInstructionsSection
+        entityId={entityId}
+        entityLabel={entityLabel}
+        initialInstructions={detail.agentInstructions}
+      />
+
       <DetailSection
         title="Budget history"
         description="Recent daily budget adjustments for this entity."
       >
         <AdjustmentsList rows={adjustments} />
       </DetailSection>
+    </div>
+  );
+}
+
+type InstructionFormState = {
+  instructions: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+const EMPTY_INSTRUCTION_FORM: InstructionFormState = {
+  instructions: "",
+  startsAt: "",
+  endsAt: "",
+};
+
+function instructionStatusMeta(status: AgentInstructionStatus): {
+  label: string;
+  className: string;
+} {
+  switch (status) {
+    case "active":
+      return {
+        label: "Active",
+        className: "bg-emerald-50 text-emerald-700",
+      };
+    case "scheduled":
+      return {
+        label: "Scheduled",
+        className: "bg-sky-50 text-sky-700",
+      };
+    case "expired":
+      return {
+        label: "Expired",
+        className: "bg-neutral-100 text-neutral-500",
+      };
+    case "disabled":
+    default:
+      return {
+        label: "Off",
+        className: "bg-neutral-100 text-neutral-500",
+      };
+  }
+}
+
+function instructionWindowLabel(instruction: AgentInstruction): string {
+  const { startsAt, endsAt } = instruction;
+  if (startsAt && endsAt) {
+    return `${formatAdjustmentDate(startsAt)} → ${formatAdjustmentDate(endsAt)}`;
+  }
+  if (startsAt) return `From ${formatAdjustmentDate(startsAt)}`;
+  if (endsAt) return `Until ${formatAdjustmentDate(endsAt)}`;
+  return "Always on (no schedule)";
+}
+
+function AgentInstructionsSection({
+  entityId,
+  entityLabel,
+  initialInstructions,
+}: {
+  entityId: string;
+  entityLabel: string;
+  initialInstructions: AgentInstruction[];
+}) {
+  const [items, setItems] = React.useState(initialInstructions);
+
+  React.useEffect(() => {
+    setItems(initialInstructions);
+  }, [initialInstructions]);
+
+  const activeCount = items.filter(
+    (item) =>
+      resolveInstructionStatus({
+        startsAt: item.startsAt,
+        endsAt: item.endsAt,
+        isActive: item.isActive,
+      }) === "active",
+  ).length;
+
+  return (
+    <DetailSection
+      title="Agent instructions"
+      description="Natural-language guidance the AdPilot agent reads when deciding how to move spend. Add as many as you like, each with its own schedule."
+      defaultOpen={false}
+      collapsedBadgeCount={activeCount}
+    >
+      <AgentInstructionsManager
+        entityId={entityId}
+        entityLabel={entityLabel}
+        items={items}
+        onItemsChange={setItems}
+      />
+    </DetailSection>
+  );
+}
+
+function AgentInstructionsManager({
+  entityId,
+  entityLabel,
+  items,
+  onItemsChange,
+}: {
+  entityId: string;
+  entityLabel: string;
+  items: AgentInstruction[];
+  onItemsChange: React.Dispatch<React.SetStateAction<AgentInstruction[]>>;
+}) {
+  const [form, setForm] = React.useState<InstructionFormState>(
+    EMPTY_INSTRUCTION_FORM,
+  );
+  const [showForm, setShowForm] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const setItems = onItemsChange;
+
+  const resetForm = () => {
+    setForm(EMPTY_INSTRUCTION_FORM);
+    setEditingId(null);
+    setShowForm(false);
+    setError(null);
+  };
+
+  const startCreate = () => {
+    setForm(EMPTY_INSTRUCTION_FORM);
+    setEditingId(null);
+    setError(null);
+    setShowForm(true);
+  };
+
+  const startEdit = (instruction: AgentInstruction) => {
+    setForm({
+      instructions: instruction.instructions,
+      startsAt: isoToDatetimeLocalValue(instruction.startsAt),
+      endsAt: isoToDatetimeLocalValue(instruction.endsAt),
+    });
+    setEditingId(instruction.id);
+    setError(null);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.instructions.trim()) {
+      setError("Add some instructions first.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+
+    const body = {
+      instructions: form.instructions.trim(),
+      startsAt: datetimeLocalValueToIso(form.startsAt),
+      endsAt: datetimeLocalValueToIso(form.endsAt),
+    };
+    const url = editingId
+      ? `/api/campaigns/${entityId}/instructions/${editingId}`
+      : `/api/campaigns/${entityId}/instructions`;
+
+    const response = await fetch(url, {
+      method: editingId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    setBusy(false);
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setError(payload.error ?? "Failed to save instruction.");
+      return;
+    }
+
+    const payload = (await response.json()) as { instruction: AgentInstruction };
+    setItems((current) =>
+      editingId
+        ? current.map((item) =>
+            item.id === editingId ? payload.instruction : item,
+          )
+        : [payload.instruction, ...current],
+    );
+    resetForm();
+  };
+
+  const handleDelete = async (id: string) => {
+    setBusy(true);
+    setError(null);
+
+    const response = await fetch(
+      `/api/campaigns/${entityId}/instructions/${id}`,
+      { method: "DELETE" },
+    );
+
+    setBusy(false);
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setError(payload.error ?? "Failed to delete instruction.");
+      return;
+    }
+
+    setItems((current) => current.filter((item) => item.id !== id));
+    if (editingId === id) resetForm();
+  };
+
+  const handleToggleActive = async (instruction: AgentInstruction) => {
+    setBusy(true);
+    setError(null);
+
+    const response = await fetch(
+      `/api/campaigns/${entityId}/instructions/${instruction.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !instruction.isActive }),
+      },
+    );
+
+    setBusy(false);
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setError(payload.error ?? "Failed to update instruction.");
+      return;
+    }
+
+    const payload = (await response.json()) as { instruction: AgentInstruction };
+    setItems((current) =>
+      current.map((item) =>
+        item.id === instruction.id ? payload.instruction : item,
+      ),
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {error}
+        </div>
+      ) : null}
+
+      {items.length === 0 && !showForm ? (
+        <p className="text-sm font-light text-neutral-500">
+          No instructions yet. The agent runs on preset guardrails until you add
+          guidance for this {entityLabel}.
+        </p>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="space-y-3">
+          {items.map((instruction) => {
+            const meta = instructionStatusMeta(instruction.status);
+            return (
+              <div
+                key={instruction.id}
+                className={cn(
+                  "rounded-2xl border px-4 py-3.5",
+                  instruction.status === "active"
+                    ? "border-emerald-100 bg-emerald-50/30"
+                    : "border-neutral-200 bg-walls-white",
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                        meta.className,
+                      )}
+                    >
+                      {meta.label}
+                    </span>
+                    <span className="text-xs font-light text-neutral-500">
+                      {instructionWindowLabel(instruction)}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void handleToggleActive(instruction)}
+                      className={cn(
+                        secondaryButtonClass,
+                        "px-3 py-1 text-[11px] disabled:opacity-50",
+                      )}
+                    >
+                      {instruction.isActive ? "Disable" : "Enable"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => startEdit(instruction)}
+                      aria-label="Edit instruction"
+                      className={cn(
+                        secondaryButtonClass,
+                        "p-1.5 disabled:opacity-50",
+                      )}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void handleDelete(instruction.id)}
+                      aria-label="Delete instruction"
+                      className={cn(
+                        secondaryButtonClass,
+                        "p-1.5 text-rose-600 disabled:opacity-50",
+                      )}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2.5 whitespace-pre-wrap text-sm font-light leading-relaxed text-neutral-700">
+                  {instruction.instructions}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {showForm ? (
+        <div className="space-y-4 rounded-2xl border border-neutral-200 bg-walls-white px-4 py-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-neutral-800">
+              {editingId ? "Edit instruction" : "New instruction"}
+            </p>
+            <button
+              type="button"
+              onClick={resetForm}
+              aria-label="Cancel"
+              className={cn(secondaryButtonClass, "p-1.5")}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <Textarea
+            value={form.instructions}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, instructions: e.target.value }))
+            }
+            placeholder="e.g. Scale daily budget as aggressively as allowed until we hit the ROAS floor."
+            rows={3}
+            className="rounded-xl border border-neutral-200 bg-walls-white px-3 py-2.5 font-light text-sm"
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-foreground">
+                Start
+              </span>
+              <p className="text-xs font-light text-neutral-500">
+                Leave blank to start now. Set a future time to schedule ahead.
+              </p>
+              <Input
+                type="datetime-local"
+                value={form.startsAt}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, startsAt: e.target.value }))
+                }
+                className="rounded-full border-neutral-200 bg-walls-white font-light"
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-foreground">End</span>
+              <p className="text-xs font-light text-neutral-500">
+                Leave blank for no expiry.
+              </p>
+              <Input
+                type="datetime-local"
+                value={form.endsAt}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, endsAt: e.target.value }))
+                }
+                className="rounded-full border-neutral-200 bg-walls-white font-light"
+              />
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              onClick={resetForm}
+              className={cn(secondaryButtonClass, "px-4")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleSubmit()}
+              className={cn(primaryButtonClass, "inline-flex items-center gap-2")}
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : editingId ? (
+                "Save changes"
+              ) : (
+                "Add instruction"
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          onClick={startCreate}
+          className={cn(secondaryButtonClass, "inline-flex items-center gap-2")}
+        >
+          <Plus className="h-4 w-4" />
+          Add instruction
+        </Button>
+      )}
     </div>
   );
 }

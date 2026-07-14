@@ -49,6 +49,27 @@ When AdPilot is enabled on a campaign or ad set, a row here stores:
 | `automation_status` | `inactive` / `active` / `paused` / `cooldown` / `learning` / `error` |
 | `last_adjusted_at` | Drives the cooldown check |
 
+### Agent instructions — `ad_agent_instructions`
+
+Operator-authored natural-language guidance for the GPT agent. An entity can have
+**multiple** instructions, each with its own schedule window, so you can queue up
+future changes (e.g. "scale hard until month-end", then a different rule after).
+
+| Column | Meaning |
+| --- | --- |
+| `entity_id` | Campaign / ad set the instruction applies to |
+| `instructions` | The prompt text the agent reads |
+| `starts_at` | When it becomes active (NULL → immediately; future = scheduled) |
+| `ends_at` | When it stops applying (NULL → no expiry) |
+| `is_active` | Manual on/off switch, independent of the schedule window |
+
+An instruction is **in effect** when `is_active = true` **and** now is within
+`[starts_at, ends_at)`. The worker should concatenate all in-effect instructions
+for an entity into the agent prompt. Hard guardrails (§3–§4) always win over
+anything an instruction asks for. The `resolveInstructionStatus()` helper in
+`lib/agent-instructions-server.ts` returns the same `active` / `scheduled` /
+`expired` / `disabled` states the UI shows.
+
 ### Effective settings (`SpendAutomationSettings`)
 
 Resolved as **preset settings + entity overrides**:

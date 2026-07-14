@@ -19,6 +19,8 @@ export type DailyMetricRow = {
   clicks: number | null;
   conversion_value_micros: number | null;
   website_purchases: number | null;
+  reach: number | null;
+  frequency: number | null;
 };
 
 export type EntityDailyProgressPoint = {
@@ -31,6 +33,7 @@ export type EntityDailyProgressPoint = {
   clicks: number;
   conversionValueMicros: number;
   websitePurchases: number;
+  frequency: number | null;
 };
 
 export type EntityDailyProgressSummary = {
@@ -59,6 +62,9 @@ type DayTotals = {
   clicks: number;
   conversionValueMicros: number;
   websitePurchases: number;
+  reach: number;
+  frequencySum: number;
+  frequencyCount: number;
 };
 
 function buildDateRange(rangeDays: number): string[] {
@@ -91,7 +97,12 @@ function aggregateRowsByDate(rows: DailyMetricRow[]): Map<string, DayTotals> {
       clicks: 0,
       conversionValueMicros: 0,
       websitePurchases: 0,
+      reach: 0,
+      frequencySum: 0,
+      frequencyCount: 0,
     };
+
+    const rowFrequency = row.frequency != null ? Number(row.frequency) : null;
 
     byDate.set(row.metric_date, {
       spendMicros: existing.spendMicros + (row.spend_micros ?? 0),
@@ -101,10 +112,34 @@ function aggregateRowsByDate(rows: DailyMetricRow[]): Map<string, DayTotals> {
         existing.conversionValueMicros + (row.conversion_value_micros ?? 0),
       websitePurchases:
         existing.websitePurchases + Number(row.website_purchases ?? 0),
+      reach: existing.reach + (row.reach ?? 0),
+      frequencySum:
+        existing.frequencySum +
+        (rowFrequency != null && Number.isFinite(rowFrequency)
+          ? rowFrequency
+          : 0),
+      frequencyCount:
+        existing.frequencyCount +
+        (rowFrequency != null && Number.isFinite(rowFrequency) ? 1 : 0),
     });
   }
 
   return byDate;
+}
+
+/**
+ * Frequency is impressions per person reached. When aggregating multiple rows
+ * for a day we recompute it from total impressions / total reach; if reach is
+ * missing we fall back to averaging the stored frequency values.
+ */
+function getFrequencyValue(totals: DayTotals): number | null {
+  if (totals.reach > 0) {
+    return totals.impressions / totals.reach;
+  }
+  if (totals.frequencyCount > 0) {
+    return totals.frequencySum / totals.frequencyCount;
+  }
+  return null;
 }
 
 function getMetricValue(totals: DayTotals, key: ObjectiveProgressMetricKey): number {
@@ -166,13 +201,16 @@ function summarizePeriod(
   primary: ObjectiveProgressMetric,
   secondary: ObjectiveProgressMetric | null,
 ): EntityDailyProgressSummary {
-  const totals = days.reduce(
+  const totals: DayTotals = days.reduce<DayTotals>(
     (acc, day) => ({
       spendMicros: acc.spendMicros + day.spendMicros,
       impressions: acc.impressions + day.impressions,
       clicks: acc.clicks + day.clicks,
       conversionValueMicros: acc.conversionValueMicros + day.conversionValueMicros,
       websitePurchases: acc.websitePurchases + day.websitePurchases,
+      reach: acc.reach,
+      frequencySum: acc.frequencySum,
+      frequencyCount: acc.frequencyCount,
     }),
     {
       spendMicros: 0,
@@ -180,6 +218,9 @@ function summarizePeriod(
       clicks: 0,
       conversionValueMicros: 0,
       websitePurchases: 0,
+      reach: 0,
+      frequencySum: 0,
+      frequencyCount: 0,
     },
   );
 
@@ -223,6 +264,9 @@ export function buildEntityDailyProgress(
       clicks: 0,
       conversionValueMicros: 0,
       websitePurchases: 0,
+      reach: 0,
+      frequencySum: 0,
+      frequencyCount: 0,
     };
 
     return {
@@ -235,6 +279,7 @@ export function buildEntityDailyProgress(
       clicks: totals.clicks,
       conversionValueMicros: totals.conversionValueMicros,
       websitePurchases: totals.websitePurchases,
+      frequency: getFrequencyValue(totals),
     };
   });
 

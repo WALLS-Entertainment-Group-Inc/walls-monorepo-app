@@ -17,6 +17,7 @@ import {
   formatProgressAxisValue,
   formatProgressTooltipValue,
 } from "@/lib/entity-daily-progress";
+import { formatFrequency } from "@/lib/format-analytics";
 
 import { DetailSection } from "@/components/campaigns/entity-detail-shared";
 
@@ -66,6 +67,14 @@ function ProgressTooltip({
                 progress.secondaryMetric.key,
                 point.secondary,
               )}
+            </span>
+          </div>
+        ) : null}
+        {point.frequency != null ? (
+          <div className="flex items-center justify-between gap-6 text-xs">
+            <span className="font-light text-neutral-400">Frequency</span>
+            <span className="font-medium text-neutral-100">
+              {formatFrequency(point.frequency)}
             </span>
           </div>
         ) : null}
