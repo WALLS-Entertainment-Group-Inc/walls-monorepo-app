@@ -77,7 +77,7 @@ export function DetailSection({
             </span>
             {showBadge ? (
               <span
-                className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gradient-to-b from-[#eafb87] to-[#d2ef3a] px-1.5 text-xs font-semibold tabular-nums text-walls-forest shadow-[0_1px_2px_rgba(0,0,0,0.12)] ring-1 ring-[#bcd63a]"
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gradient-to-b from-[#eafb87] to-[#d2ef3a] px-1.5 text-xs font-semibold tabular-nums text-walls-forest shadow-[0_1px_2px_rgba(0,0,0,0.12)]"
                 aria-label={`${collapsedBadgeCount} active instruction${collapsedBadgeCount === 1 ? "" : "s"}`}
               >
                 {collapsedBadgeCount}

@@ -36,12 +36,12 @@ import {
 import { SliderField } from "@/components/ui/slider-field";
 import { RoasFloorField } from "@/components/ui/roas-floor-field";
 import {
+  glassSegmentTrackClass,
+  glassToggleChipActiveClass,
+  glassToggleChipBaseClass,
+  glassToggleChipInactiveClass,
   primaryButtonClass,
   secondaryButtonClass,
-  segmentTrackClass,
-  toggleChipActiveClass,
-  toggleChipBaseClass,
-  toggleChipInactiveClass,
 } from "@/components/ui/button-styles";
 import { SegmentThumb } from "@/components/settings/segment-thumb";
 
@@ -459,25 +459,38 @@ export function EntityAutomationSection({
                   Minimum wait before AdPilot can increase or decrease the daily
                   budget again on this {entityLabel}.
                 </p>
-                <div className={cn("mt-3", segmentTrackClass)}>
-                  {COOLDOWN_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => updateSetting("cooldownHours", option.value)}
-                      className={cn(
-                        toggleChipBaseClass,
-                        settings.cooldownHours === option.value
-                          ? toggleChipActiveClass
-                          : toggleChipInactiveClass,
-                      )}
-                    >
-                      {settings.cooldownHours === option.value ? (
-                        <SegmentThumb layoutId="entity-cooldown-thumb" />
-                      ) : null}
-                      <span className="relative z-10">{option.label}</span>
-                    </button>
-                  ))}
+                <div
+                  className={cn("mt-3", glassSegmentTrackClass)}
+                  role="group"
+                  aria-label="Cooldown between budget changes"
+                >
+                  {COOLDOWN_OPTIONS.map((option) => {
+                    const active = settings.cooldownHours === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          updateSetting("cooldownHours", option.value)
+                        }
+                        className={cn(
+                          glassToggleChipBaseClass,
+                          active
+                            ? glassToggleChipActiveClass
+                            : glassToggleChipInactiveClass,
+                        )}
+                      >
+                        {active ? (
+                          <SegmentThumb
+                            layoutId="entity-cooldown-thumb"
+                            variant="glass"
+                          />
+                        ) : null}
+                        <span className="relative z-10">{option.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -609,29 +622,34 @@ const EMPTY_INSTRUCTION_FORM: InstructionFormState = {
 
 function instructionStatusMeta(status: AgentInstructionStatus): {
   label: string;
-  className: string;
+  dotClass: string;
+  textClass: string;
 } {
   switch (status) {
     case "active":
       return {
-        label: "Active",
-        className: "bg-emerald-50 text-emerald-700",
+        label: "Live",
+        dotClass: "bg-walls-yellow",
+        textClass: "text-neutral-700",
       };
     case "scheduled":
       return {
         label: "Scheduled",
-        className: "bg-sky-50 text-sky-700",
+        dotClass: "bg-walls-sky",
+        textClass: "text-neutral-500",
       };
     case "expired":
       return {
-        label: "Expired",
-        className: "bg-neutral-100 text-neutral-500",
+        label: "Ended",
+        dotClass: "bg-neutral-300",
+        textClass: "text-neutral-400",
       };
     case "disabled":
     default:
       return {
         label: "Off",
-        className: "bg-neutral-100 text-neutral-500",
+        dotClass: "bg-neutral-300",
+        textClass: "text-neutral-400",
       };
   }
 }
@@ -844,31 +862,47 @@ function AgentInstructionsManager({
         <div className="space-y-3">
           {items.map((instruction) => {
             const meta = instructionStatusMeta(instruction.status);
+            const isActive = instruction.status === "active";
             return (
               <div
                 key={instruction.id}
                 className={cn(
-                  "rounded-2xl border px-4 py-3.5",
-                  instruction.status === "active"
-                    ? "border-emerald-100 bg-emerald-50/30"
-                    : "border-neutral-200 bg-walls-white",
+                  "group rounded-2xl border border-dotted bg-transparent px-4 py-3.5",
+                  isActive
+                    ? "border-neutral-400/70"
+                    : instruction.status === "scheduled"
+                      ? "border-neutral-300"
+                      : "border-neutral-200",
+                  !isActive &&
+                    instruction.status !== "scheduled" &&
+                    "opacity-70",
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
                     <span
                       className={cn(
-                        "rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                        meta.className,
+                        "inline-flex items-center gap-1.5 text-[11px] font-medium tracking-tight",
+                        meta.textClass,
                       )}
                     >
+                      <span
+                        className={cn(
+                          "h-1.5 w-1.5 shrink-0 rounded-full",
+                          meta.dotClass,
+                        )}
+                        aria-hidden
+                      />
                       {meta.label}
+                    </span>
+                    <span className="text-neutral-300" aria-hidden>
+                      ·
                     </span>
                     <span className="text-xs font-light text-neutral-500">
                       {instructionWindowLabel(instruction)}
                     </span>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
                     <button
                       type="button"
                       disabled={busy}
@@ -916,7 +950,7 @@ function AgentInstructionsManager({
       ) : null}
 
       {showForm ? (
-        <div className="space-y-4 rounded-2xl border border-neutral-200 bg-walls-white px-4 py-4">
+        <div className="space-y-4 rounded-2xl border border-dotted border-neutral-300 bg-transparent px-4 py-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-neutral-800">
               {editingId ? "Edit instruction" : "New instruction"}
