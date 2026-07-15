@@ -216,8 +216,8 @@ export function AdPilotBadge() {
 }
 
 /**
- * Header enable/disable toggle for AdPilot on a campaign or ad set. Persists the
- * change immediately (does not require the Save AdPilot settings button).
+ * Header enable/disable toggle for AdPilot on a campaign or ad set. Persists
+ * immediately; settings below auto-save separately.
  */
 export function AdPilotEnableToggle({
   entityId,
@@ -252,32 +252,45 @@ export function AdPilotEnableToggle({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-4 rounded-2xl border px-4 py-2.5 transition-colors",
-        enabled
-          ? "border-walls-sky/40 bg-walls-sky/5"
-          : "border-neutral-200 bg-walls-white",
+        "relative inline-flex rounded-2xl p-[1.5px]",
+        enabled ? "overflow-hidden" : "border border-neutral-200 bg-walls-white p-0",
       )}
     >
-      <div className="flex flex-col leading-tight">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-          AdPilot
-        </span>
+      {enabled ? (
         <span
-          className={cn(
-            "text-sm font-semibold",
-            enabled ? "text-neutral-900" : "text-neutral-500",
-          )}
-        >
-          {enabled ? "Active" : "Off"}
-        </span>
+          aria-hidden
+          className="adpilot-chrome-orbit pointer-events-none absolute inset-[-60%]"
+        />
+      ) : null}
+      <div
+        className={cn(
+          "relative inline-flex items-center gap-4 rounded-[14.5px] px-4 py-2.5",
+          enabled
+            ? "bg-white/85 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl"
+            : "bg-transparent",
+        )}
+      >
+        <div className="flex flex-col leading-tight">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+            AdPilot
+          </span>
+          <span
+            className={cn(
+              "text-sm font-medium",
+              enabled ? "text-neutral-700" : "text-neutral-500",
+            )}
+          >
+            {enabled ? "Active" : "Off"}
+          </span>
+        </div>
+        <Switch
+          size="lg"
+          checked={enabled}
+          disabled={saving}
+          onCheckedChange={(value) => void toggle(value)}
+          aria-label="Enable AdPilot for this entity"
+        />
       </div>
-      <Switch
-        size="lg"
-        checked={enabled}
-        disabled={saving}
-        onCheckedChange={(value) => void toggle(value)}
-        aria-label="Enable AdPilot for this entity"
-      />
     </div>
   );
 }

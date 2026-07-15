@@ -166,7 +166,6 @@ export function EntityAutomationSection({
   onAutomationUpdated,
 }: EntityAutomationSectionProps) {
   const [adjustments, setAdjustments] = React.useState(detail.recentAdjustments);
-  const [enabled, setEnabled] = React.useState(detail.automation.enabled);
   const [profileId, setProfileId] = React.useState<string | null>(() =>
     resolveInitialProfileId(detail),
   );
@@ -180,12 +179,13 @@ export function EntityAutomationSection({
     detail.automation.effectiveSettings,
   );
   const [saving, setSaving] = React.useState(false);
-  const [saved, setSaved] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const dirtyRef = React.useRef(false);
+  const saveSeqRef = React.useRef(0);
 
   React.useEffect(() => {
     setAdjustments(detail.recentAdjustments);
-    setEnabled(detail.automation.enabled);
+    if (dirtyRef.current) return;
     setProfileId(resolveInitialProfileId(detail));
     setMinBudget(microsToDollars(detail.automation.minDailyBudgetMicros));
     setMaxBudget(microsToDollars(detail.automation.maxDailyBudgetMicros));
@@ -196,60 +196,87 @@ export function EntityAutomationSection({
   const optimizationGoal: OptimizationGoal =
     selectedProfile?.optimizationGoal ?? "roas";
 
+  const markDirty = () => {
+    dirtyRef.current = true;
+  };
+
   const updateSetting = <K extends keyof SpendAutomationSettings>(
     key: K,
     value: SpendAutomationSettings[K],
   ) => {
+    markDirty();
     setSettings((prev) => ({ ...prev, [key]: value }));
-    setSaved(false);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    setSaved(false);
-    setError(null);
+  React.useEffect(() => {
+    if (!dirtyRef.current) return;
 
-    const baseSettings =
-      detail.profiles.find((profile) => profile.id === profileId)?.settings ??
-      detail.automation.effectiveSettings;
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      dirtyRef.current = false;
+      const seq = ++saveSeqRef.current;
+      void (async () => {
+        setSaving(true);
+        setError(null);
 
-    const settingsOverride = Object.fromEntries(
-      (Object.keys(settings) as Array<keyof SpendAutomationSettings>)
-        .filter(
-          (key) =>
-            key !== "cooldownHours" && settings[key] !== baseSettings[key],
-        )
-        .map((key) => [key, settings[key]]),
-    ) as Partial<SpendAutomationSettings>;
+        const baseSettings =
+          detail.profiles.find((profile) => profile.id === profileId)?.settings ??
+          detail.automation.effectiveSettings;
 
-    const response = await fetch(`/api/campaigns/${entityId}/automation`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        enabled,
-        profileId,
-        cooldownHours: settings.cooldownHours,
-        minDailyBudgetMicros: dollarsToMicros(minBudget),
-        maxDailyBudgetMicros: dollarsToMicros(maxBudget),
-        settingsOverride,
-      }),
-    });
+        const settingsOverride = Object.fromEntries(
+          (Object.keys(settings) as Array<keyof SpendAutomationSettings>)
+            .filter(
+              (key) =>
+                key !== "cooldownHours" && settings[key] !== baseSettings[key],
+            )
+            .map((key) => [key, settings[key]]),
+        ) as Partial<SpendAutomationSettings>;
 
-    setSaving(false);
+        const response = await fetch(`/api/campaigns/${entityId}/automation`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            profileId,
+            cooldownHours: settings.cooldownHours,
+            minDailyBudgetMicros: dollarsToMicros(minBudget),
+            maxDailyBudgetMicros: dollarsToMicros(maxBudget),
+            settingsOverride,
+          }),
+        });
 
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? "Failed to save automation settings.");
-      return;
-    }
+        if (cancelled || seq !== saveSeqRef.current) return;
 
-    const payload = (await response.json()) as {
-      automation: EntityDetailResult["automation"];
+        setSaving(false);
+
+        if (!response.ok) {
+          dirtyRef.current = true;
+          const payload = (await response.json()) as { error?: string };
+          setError(payload.error ?? "Failed to save automation settings.");
+          return;
+        }
+
+        const payload = (await response.json()) as {
+          automation: EntityDetailResult["automation"];
+        };
+        onAutomationUpdated(payload.automation);
+      })();
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
     };
-    onAutomationUpdated(payload.automation);
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
-  };
+  }, [
+    detail.automation.effectiveSettings,
+    detail.profiles,
+    entityId,
+    maxBudget,
+    minBudget,
+    onAutomationUpdated,
+    profileId,
+    settings,
+  ]);
+
 
   if (!detail.canAutomate) return null;
 
@@ -293,7 +320,7 @@ export function EntityAutomationSection({
                 <Link href="/settings" className="text-[var(--walls-sky)] hover:underline">
                   Create one in Settings
                 </Link>{" "}
-                — or save here to use built-in defaults for this {entityLabel}.
+                — or tune the defaults below for this {entityLabel}.
               </p>
             ) : (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -302,9 +329,9 @@ export function EntityAutomationSection({
                     key={profile.id}
                     type="button"
                     onClick={() => {
+                      markDirty();
                       setProfileId(profile.id);
                       setSettings(profile.settings);
-                      setSaved(false);
                     }}
                     className={detailSelectableClass(
                       profileId === profile.id,
@@ -364,8 +391,8 @@ export function EntityAutomationSection({
                   placeholder="No minimum"
                   value={minBudget}
                   onChange={(e) => {
+                    markDirty();
                     setMinBudget(e.target.value);
-                    setSaved(false);
                   }}
                   className="rounded-full border-neutral-200 bg-walls-white font-light"
                 />
@@ -381,8 +408,8 @@ export function EntityAutomationSection({
                   placeholder="No maximum"
                   value={maxBudget}
                   onChange={(e) => {
+                    markDirty();
                     setMaxBudget(e.target.value);
-                    setSaved(false);
                   }}
                   className="rounded-full border-neutral-200 bg-walls-white font-light"
                 />
@@ -394,8 +421,8 @@ export function EntityAutomationSection({
                   variant="detail"
                   settings={settings}
                   onChange={(patch) => {
+                    markDirty();
                     setSettings((prev) => ({ ...prev, ...patch }));
-                    setSaved(false);
                   }}
                 />
               </div>
@@ -557,30 +584,20 @@ export function EntityAutomationSection({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-xs font-light text-neutral-500">
-              <Shield className="h-3.5 w-3.5" />
-              Saves to this {entityLabel}&apos;s enrollment record. Budget changes
-              from preview apply directly to Meta.
-            </p>
-            <Button
-              type="button"
-              disabled={saving}
-              onClick={() => void handleSave()}
-              className={cn(primaryButtonClass, "inline-flex items-center gap-2")}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving…
-                </>
-              ) : saved ? (
-                "Settings saved"
-              ) : (
-                "Save AdPilot settings"
-              )}
-            </Button>
-          </div>
+          <p className="flex items-center gap-2 text-xs font-light text-neutral-500">
+            <Shield className="h-3.5 w-3.5" />
+            {saving ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                Changes save automatically. Nothing reaches Meta until AdPilot is
+                turned on for this {entityLabel}.
+              </>
+            )}
+          </p>
         </div>
       </DetailSection>
 

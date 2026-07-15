@@ -126,4 +126,34 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Slow orbiting chrome rim for active AdPilot toggle */
+  @keyframes adpilot-chrome-orbit {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .adpilot-chrome-orbit {
+    animation: adpilot-chrome-orbit 7s linear infinite;
+    background: conic-gradient(
+      from 0deg,
+      #ffffff 0deg,
+      #c5e7ff 40deg,
+      #e8e8ec 80deg,
+      #ffffff 120deg,
+      #ffd2e8 160deg,
+      #bdbdc6 200deg,
+      #ffffff 240deg,
+      #d2ffe9 280deg,
+      #d6e8ff 320deg,
+      #ffffff 360deg
+    );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .adpilot-chrome-orbit {
+      animation: none;
+    }
+  }
 }
