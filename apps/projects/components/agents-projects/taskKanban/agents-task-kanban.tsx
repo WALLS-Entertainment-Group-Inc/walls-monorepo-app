@@ -1139,7 +1139,7 @@ function AgentsProjectsKanbanContent({
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <div className="flex-1 w-full flex flex-col min-h-0">
           {/* Header (no extra top padding; handled in ProjectsHeader).
               Stack above the toolbar so the project filter dropdown is not covered by the refresh control. */}

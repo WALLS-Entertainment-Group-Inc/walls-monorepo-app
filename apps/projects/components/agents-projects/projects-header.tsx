@@ -216,11 +216,11 @@ export function ProjectsHeader({
                 </div>
               )}
             </div>
-          ) : isBoard || isTimeline || isList ? (
+          ) : (
             <span className="text-sm md:text-base font-light uppercase tracking-wider text-neutral-800">
               {isBoard ? BOARD_TASK_SCOPE_CONFIG.mine.menuLabel : pageLabel}
             </span>
-          ) : null}
+          )}
 
           {showProjectFilter && (
             <>
