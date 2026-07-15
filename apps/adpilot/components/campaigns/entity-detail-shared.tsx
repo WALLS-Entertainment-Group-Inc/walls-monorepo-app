@@ -229,6 +229,11 @@ export function AdPilotEnableToggle({
   onAutomationUpdated: (automation: EntityDetailResult["automation"]) => void;
 }) {
   const [saving, setSaving] = React.useState(false);
+  const [chromeMounted, setChromeMounted] = React.useState(enabled);
+
+  React.useEffect(() => {
+    if (enabled) setChromeMounted(true);
+  }, [enabled]);
 
   const toggle = async (value: boolean) => {
     setSaving(true);
@@ -249,34 +254,41 @@ export function AdPilotEnableToggle({
     }
   };
 
+  const showChromeFrame = enabled || chromeMounted;
+
   return (
     <div
       className={cn(
         "relative inline-flex rounded-2xl p-[1.5px]",
-        enabled ? "overflow-hidden" : "border border-neutral-200 bg-walls-white p-0",
+        showChromeFrame ? "overflow-hidden" : "overflow-visible",
       )}
     >
-      {enabled ? (
-        <span
-          aria-hidden
-          className="adpilot-chrome-orbit pointer-events-none absolute inset-[-60%]"
-        />
-      ) : null}
-      <div
-        className={cn(
-          "relative inline-flex items-center gap-4 rounded-[14.5px] px-4 py-2.5",
-          enabled
-            ? "bg-white/85 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-xl"
-            : "bg-transparent",
-        )}
-      >
+      <AnimatePresence onExitComplete={() => setChromeMounted(false)}>
+        {enabled ? (
+          <motion.span
+            key="adpilot-chrome"
+            aria-hidden
+            className="pointer-events-none absolute inset-[-60%]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.12, filter: "blur(8px)" }}
+            transition={{
+              opacity: { duration: 0.15 },
+              exit: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+            }}
+          >
+            <span className="adpilot-chrome-orbit absolute inset-0" />
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
+      <div className="relative inline-flex items-center gap-4 rounded-[14.5px] bg-walls-white px-4 py-2.5">
         <div className="flex flex-col leading-tight">
           <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
             AdPilot
           </span>
           <span
             className={cn(
-              "text-sm font-medium",
+              "text-sm font-medium transition-colors duration-300",
               enabled ? "text-neutral-700" : "text-neutral-500",
             )}
           >
