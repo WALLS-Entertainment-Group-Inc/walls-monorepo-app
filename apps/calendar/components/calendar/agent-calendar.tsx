@@ -613,8 +613,7 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
         />
 
         <div className="flex min-h-0 flex-1 overflow-hidden overscroll-none">
-          <div className="kenoo-glass-panel flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-[1.75rem] p-[1.5px]">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[calc(1.75rem-1.5px)] bg-kenoo-white">
+          <div className="kenoo-glass-chrome-dense flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.75rem] border border-white/40">
               {calendarView === 'monthly' ? (
                 <AgentMonthGrid
                   selectedDate={selectedDate}
@@ -634,7 +633,6 @@ function AgentCalendarContent({ calendarData }: AgentCalendarProps) {
                   viewMode={calendarView === 'daily' ? 'day' : 'week'}
                 />
               )}
-            </div>
           </div>
         </div>
 

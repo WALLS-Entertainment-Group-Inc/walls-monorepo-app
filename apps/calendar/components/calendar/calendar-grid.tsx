@@ -722,8 +722,8 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
 
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-kenoo-white">
-        <div className="flex bg-kenoo-white pb-1 pt-1">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-transparent">
+        <div className="flex bg-transparent pb-1 pt-1">
           <div className="w-12" />
           {weekDates.map((date, index) => {
             const isToday = isSameDay(date, new Date());
@@ -756,7 +756,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
         {allDayLayouts.length > 0 && (
           <div
             className={cn(
-              'flex border-b border-kenoo-border bg-kenoo-white transition-[min-height] duration-150',
+              'flex border-b border-white/40 bg-white/55 transition-[min-height] duration-150',
               isAllDayExpanded && 'relative z-20 shadow-sm'
             )}
             style={{ minHeight: `${allDaySectionHeight}px` }}
@@ -858,7 +858,7 @@ export function CalendarGrid({ selectedDate, onDateSelect, allEvents, onTaskDrop
             onDragLeave={handleDragLeave}
           >
             {/* Time column */}
-            <div className="absolute top-0 left-0 w-12 h-full border-r border-kenoo-border bg-kenoo-white">
+            <div className="absolute top-0 left-0 w-12 h-full border-r border-white/40 bg-transparent">
               {HOURS.map((hour) => (
                 <div key={hour} className="relative border-b border-slate-100" style={{ height: `${pixelsPerHour}px` }}>
                   {hour !== 0 && (

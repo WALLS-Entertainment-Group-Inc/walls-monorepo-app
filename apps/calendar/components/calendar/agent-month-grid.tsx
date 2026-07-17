@@ -136,7 +136,7 @@ export function AgentMonthGrid({
       </div>
 
       <div
-        className="grid min-h-0 flex-1 gap-px overflow-hidden rounded-[1.35rem] border border-kenoo-border/80 bg-kenoo-border/40"
+        className="grid min-h-0 flex-1 gap-px overflow-hidden rounded-[1.35rem] border border-white/50 bg-white/35"
         style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
       >
         {calendarCells.map((day, index) => {
@@ -149,7 +149,7 @@ export function AgentMonthGrid({
               <div
                 key={`empty-${index}`}
                 className={cn(
-                  "h-full min-h-0 bg-kenoo-subtle/50",
+                  "h-full min-h-0 bg-white/40",
                   cornerClass
                 )}
               />
@@ -167,7 +167,7 @@ export function AgentMonthGrid({
               type="button"
               onClick={() => handleDayClick(day)}
               className={cn(
-                "relative flex h-full min-h-0 flex-col items-center overflow-hidden bg-kenoo-white p-2 pt-2 transition-all hover:bg-kenoo-subtle/60",
+                "relative flex h-full min-h-0 flex-col items-center overflow-hidden bg-white/70 p-2 pt-2 transition-all hover:bg-white/85",
                 cornerClass,
                 isSelected && "ring-1 ring-inset ring-kenoo-accent/50"
               )}
