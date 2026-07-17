@@ -329,6 +329,8 @@ export const UserSchedulesSection = forwardRef<
   const [hoursModeByKey, setHoursModeByKey] = useState<Record<string, HoursMode>>(
     {}
   );
+  const [hoverSlotMins, setHoverSlotMins] = useState<number | null>(null);
+  const [hoverDayDow, setHoverDayDow] = useState<number | null>(null);
   const paintDragRef = useRef<{
     dow: number;
     scheduleKey: string;
@@ -916,7 +918,13 @@ export const UserSchedulesSection = forwardRef<
                 </div>
               </div>
 
-              <div className="w-full overflow-x-auto pb-1">
+              <div
+                className="w-full overflow-x-auto pb-1"
+                onPointerLeave={() => {
+                  setHoverSlotMins(null);
+                  setHoverDayDow(null);
+                }}
+              >
                 <div className="w-full space-y-4">
                   <div className="flex w-full items-end">
                     {hoursMode !== "same" && (
@@ -948,46 +956,71 @@ export const UserSchedulesSection = forwardRef<
                               {meta?.short}
                             </span>
                           )}
-                          <div
-                            className="flex min-w-0 flex-1 cursor-pointer touch-none select-none"
-                            onPointerDown={(e) => {
-                              if (e.button !== 0) return;
-                              e.preventDefault();
-                              startPaint(dow, e.currentTarget, e.clientX);
-                              e.currentTarget.setPointerCapture(e.pointerId);
-                            }}
-                            onPointerMove={(e) => {
-                              if (!paintDragRef.current) return;
-                              paintSlotFromEvent(e.currentTarget, e.clientX);
-                            }}
-                            onPointerUp={(e) => {
-                              endPaint();
-                              if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-                                e.currentTarget.releasePointerCapture(e.pointerId);
-                              }
-                            }}
-                          >
-                            {GRID_SLOTS.map((slotMins) => {
-                              const on = slots.has(slotMins);
-                              return (
-                                <div
-                                  key={`${dow}-${slotMins}`}
-                                  role="button"
-                                  tabIndex={-1}
-                                  aria-pressed={on}
-                                  aria-label={`${
-                                    hoursMode === "same"
-                                      ? "All days"
-                                      : meta?.long
-                                  } ${formatSlotLabel(slotMins)}`}
-                                  className={`pointer-events-none h-7 min-w-0 flex-1 border-b transition-colors ${
-                                    on
-                                      ? "border-b-[var(--kenoo-sky)]"
-                                      : "border-b-neutral-200"
-                                  }`}
-                                />
-                              );
-                            })}
+                          <div className="relative min-w-0 flex-1">
+                            {hoverSlotMins != null &&
+                              hoverDayDow === dow && (
+                                <span
+                                  className="pointer-events-none absolute bottom-full z-10 mb-0.5 -translate-x-1/2 whitespace-nowrap text-[9px] font-light leading-none text-[var(--kenoo-sky)]"
+                                  style={{
+                                    left: `${((hoverSlotMins - GRID_START_MINS) / (GRID_END_MINS - GRID_START_MINS) + 0.5 / GRID_SLOTS.length) * 100}%`,
+                                  }}
+                                >
+                                  {formatFriendlyTime(minsToTime(hoverSlotMins))}
+                                </span>
+                              )}
+                            <div
+                              className="flex min-w-0 w-full cursor-pointer touch-none select-none"
+                              onPointerDown={(e) => {
+                                if (e.button !== 0) return;
+                                e.preventDefault();
+                                const slot = slotFromClientX(
+                                  e.currentTarget,
+                                  e.clientX
+                                );
+                                setHoverSlotMins(slot);
+                                setHoverDayDow(dow);
+                                startPaint(dow, e.currentTarget, e.clientX);
+                                e.currentTarget.setPointerCapture(e.pointerId);
+                              }}
+                              onPointerMove={(e) => {
+                                const slot = slotFromClientX(
+                                  e.currentTarget,
+                                  e.clientX
+                                );
+                                setHoverSlotMins(slot);
+                                setHoverDayDow(dow);
+                                if (!paintDragRef.current) return;
+                                paintSlotFromEvent(e.currentTarget, e.clientX);
+                              }}
+                              onPointerUp={(e) => {
+                                endPaint();
+                                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                                  e.currentTarget.releasePointerCapture(e.pointerId);
+                                }
+                              }}
+                            >
+                              {GRID_SLOTS.map((slotMins) => {
+                                const on = slots.has(slotMins);
+                                return (
+                                  <div
+                                    key={`${dow}-${slotMins}`}
+                                    role="button"
+                                    tabIndex={-1}
+                                    aria-pressed={on}
+                                    aria-label={`${
+                                      hoursMode === "same"
+                                        ? "All days"
+                                        : meta?.long
+                                    } ${formatSlotLabel(slotMins)}`}
+                                    className={`pointer-events-none h-7 min-w-0 flex-1 border-b transition-colors ${
+                                      on
+                                        ? "border-b-[var(--kenoo-sky)]"
+                                        : "border-b-neutral-200"
+                                    }`}
+                                  />
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                         {hoursMode === "different" && (

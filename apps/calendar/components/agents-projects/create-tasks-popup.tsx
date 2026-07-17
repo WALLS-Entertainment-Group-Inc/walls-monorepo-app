@@ -54,14 +54,12 @@ import { MiniCalendar } from "@/components/ui/mini-calendar";
 import { SequenceSwitch as Switch } from "@/components/ui/sequence-switch";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  addDays,
   addMinutes,
   format,
   isValid,
   parseISO,
   setHours,
   setMinutes,
-  startOfDay,
 } from "date-fns";
 import { AgentSearch } from "@/components/ui/searches/agent-search";
 import { SimpleMarkdownEditor } from "@/components/agents-projects/simple-markdown-editor";
@@ -78,6 +76,9 @@ interface ScheduleDraft {
   start: string;
   end: string;
   is_blocking: boolean;
+  /** Prefer these when set (from auto-schedule API) so timezone stays correct. */
+  start_iso?: string;
+  end_iso?: string;
 }
 
 type SchedulePanelMode = "choose" | "auto" | "manual";
@@ -199,6 +200,12 @@ function scheduleToDraft(schedule: ProjectTaskSchedule): ScheduleDraft {
 }
 
 function draftToIsoRange(draft: ScheduleDraft): { start_time: string; end_time: string } | null {
+  if (draft.start_iso && draft.end_iso) {
+    const start = parseISO(draft.start_iso);
+    const end = parseISO(draft.end_iso);
+    if (!isValid(start) || !isValid(end) || end <= start) return null;
+    return { start_time: start.toISOString(), end_time: end.toISOString() };
+  }
   if (!draft.date || !draft.start || !draft.end) return null;
   const start = parseISO(`${draft.date}T${draft.start}:00`);
   const end = parseISO(`${draft.date}T${draft.end}:00`);
@@ -206,66 +213,10 @@ function draftToIsoRange(draft: ScheduleDraft): { start_time: string; end_time: 
   return { start_time: start.toISOString(), end_time: end.toISOString() };
 }
 
-function findAutoScheduleDraft(options: {
-  durationMinutes: number;
-  preferredDate?: Date | null;
-  /** Map of day_of_week (0=Sun…6=Sat) → time blocks in HH:mm. Missing day = off. */
-  workDayIntervals?: Record<number, { start: string; end: string }[]>;
-  workHoursStart?: string | null;
-  workHoursEnd?: string | null;
-  isBlocking?: boolean;
-}): ScheduleDraft | null {
-  const duration = Math.max(15, options.durationMinutes);
-  const preferred =
-    options.preferredDate && isValid(options.preferredDate)
-      ? startOfDay(options.preferredDate)
-      : startOfDay(new Date());
-  const now = new Date();
-  const fallbackIntervals = [
-    {
-      start: options.workHoursStart ?? "09:00",
-      end: options.workHoursEnd ?? "17:00",
-    },
-  ];
-
-  for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
-    const day = addDays(preferred, dayOffset);
-    const dow = day.getDay();
-    const intervals = options.workDayIntervals
-      ? options.workDayIntervals[dow]
-      : fallbackIntervals;
-    if (!intervals || intervals.length === 0) continue;
-
-    const dayStart = startOfDay(day);
-
-    for (const interval of intervals) {
-      const workStartMins = parseTimeToMinutes(interval.start) ?? 9 * 60;
-      const workEndMins = parseTimeToMinutes(interval.end) ?? 17 * 60;
-      if (workEndMins - workStartMins < duration) continue;
-
-      const workStart = addMinutes(dayStart, workStartMins);
-      const workEnd = addMinutes(dayStart, workEndMins);
-
-      let candidate =
-        dayOffset === 0 && preferred.getTime() === startOfDay(now).getTime()
-          ? nextHalfHourDate(now > workStart ? now : workStart)
-          : workStart;
-
-      if (candidate < workStart) candidate = workStart;
-      const end = addMinutes(candidate, duration);
-      if (end <= workEnd) {
-        return {
-          key: crypto.randomUUID(),
-          date: format(candidate, "yyyy-MM-dd"),
-          start: format(candidate, "HH:mm"),
-          end: format(end, "HH:mm"),
-          is_blocking: options.isBlocking === true,
-        };
-      }
-    }
-  }
-
-  return null;
+function clearDraftIso(draft: ScheduleDraft): ScheduleDraft {
+  if (!draft.start_iso && !draft.end_iso) return draft;
+  const { start_iso: _s, end_iso: _e, ...rest } = draft;
+  return rest;
 }
 
 /* ─── Form config ────────────────────────────────────────────────────────── */
@@ -869,32 +820,69 @@ export function CreateTasksPopup({
     setSchedules((prev) => prev.map((draft) => ({ ...draft, is_blocking: next })));
   };
 
-  const handleAutoSchedule = () => {
+  const handleAutoSchedule = async () => {
     setAutoScheduling(true);
     setError(null);
     try {
-      const selected = userSchedules.find((s) => s.id === selectedUserScheduleId);
-      const workDayIntervals = selected?.dayIntervals ?? {};
-      const hasDays = Object.keys(workDayIntervals).length > 0;
-
-      const draft = findAutoScheduleDraft({
-        durationMinutes: autoDurationMinutes,
-        preferredDate: preferredScheduleDate,
-        workDayIntervals: hasDays ? workDayIntervals : undefined,
-        workHoursStart: "09:00",
-        workHoursEnd: "17:00",
-        isBlocking: blockCalendar,
-      });
-      if (!draft) {
-        setError(
-          hasDays
-            ? "Couldn’t find a slot in that schedule. Try a shorter duration or different days."
-            : "Couldn’t find a slot. Add active days to this schedule in Settings."
-        );
+      if (!selectedUserScheduleId) {
+        setError("Select a schedule first.");
         return;
       }
-      setSchedules([draft]);
+
+      const preferred =
+        preferredScheduleDate && isValid(preferredScheduleDate)
+          ? format(preferredScheduleDate, "yyyy-MM-dd")
+          : null;
+
+      const res = await fetch("/api/project-tasks/auto-schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userScheduleId: selectedUserScheduleId,
+          durationMinutes: autoDurationMinutes,
+          allowSplitBlocks,
+          minBlockMinutes,
+          preferredDate: preferred,
+          dueDate: form.due_date || null,
+          priority: form.priority ? parseInt(form.priority, 10) : 3,
+          isBlocking: blockCalendar,
+          excludeTaskId: existing?.id ?? null,
+          assigneeId: form.assignee_id || null,
+        }),
+      });
+
+      const data = (await res.json()) as {
+        error?: string;
+        slots?: Array<{
+          start_time: string;
+          end_time: string;
+          date: string;
+          start: string;
+          end: string;
+        }>;
+        isBlocking?: boolean;
+      };
+
+      if (!res.ok || !data.slots?.length) {
+        setError(data.error || "Couldn’t find an open slot.");
+        return;
+      }
+
+      const blocking = data.isBlocking === true || blockCalendar;
+      setSchedules(
+        data.slots.map((slot) => ({
+          key: crypto.randomUUID(),
+          date: slot.date,
+          start: slot.start,
+          end: slot.end,
+          is_blocking: blocking,
+          start_iso: slot.start_time,
+          end_iso: slot.end_time,
+        }))
+      );
       setScheduleMode("manual");
+    } catch {
+      setError("Failed to auto-schedule. Try again.");
     } finally {
       setAutoScheduling(false);
     }
