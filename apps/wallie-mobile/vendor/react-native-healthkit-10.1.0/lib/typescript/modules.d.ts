@@ -1,0 +1,16 @@
+import type { CategoryTypeModuleTyped } from './specs/CategoryTypeModule.nitro';
+import type { CharacteristicTypeModule } from './specs/CharacteristicTypeModule.nitro';
+import type { CoreModule } from './specs/CoreModule.nitro';
+import type { CorrelationTypeModule } from './specs/CorrelationTypeModule.nitro';
+import type { HeartbeatSeriesModule } from './specs/HeartbeatSeriesModule.nitro';
+import type { QuantityTypeModule } from './specs/QuantityTypeModule.nitro';
+import type { StateOfMindModule } from './specs/StateOfMindModule.nitro';
+import type { WorkoutsModule } from './specs/WorkoutsModule.nitro';
+export declare const Core: CoreModule;
+export declare const Workouts: WorkoutsModule;
+export declare const Characteristics: CharacteristicTypeModule;
+export declare const QuantityTypes: QuantityTypeModule;
+export declare const CategoryTypes: CategoryTypeModuleTyped;
+export declare const CorrelationTypes: CorrelationTypeModule;
+export declare const HeartbeatSeries: HeartbeatSeriesModule;
+export declare const StateOfMind: StateOfMindModule;

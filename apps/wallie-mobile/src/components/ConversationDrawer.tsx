@@ -3,6 +3,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { WallieThread } from "@walls/wallie-core";
 
+import { AppleHealthCard } from "@/components/AppleHealthCard";
 import { ThreadList } from "@/components/ThreadList";
 import { getSidebarContentInset } from "@/constants/drawer-layout";
 import { spacing, type AppColors } from "@/constants/theme";
@@ -59,6 +60,9 @@ export function ConversationDrawer({
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <View style={[styles.header, { paddingRight: sidebarRightInset }]}>
         <Text style={styles.title}>Conversations</Text>
+      </View>
+      <View style={{ paddingRight: sidebarRightInset }}>
+        <AppleHealthCard />
       </View>
       <ThreadList
         threads={threads}

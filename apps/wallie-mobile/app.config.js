@@ -40,6 +40,14 @@ module.exports = {
           "Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.",
         NSMicrophoneUsageDescription:
           "Wallie uses the microphone so you can talk to your AI assistant.",
+        NSHealthShareUsageDescription:
+          "Wallie reads your Apple Health data so it can track steps, workouts, sleep, heart rate, and other metrics in your Kenoo health profile.",
+        NSHealthUpdateUsageDescription:
+          "Wallie does not write data to Apple Health.",
+      },
+      entitlements: {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": [],
       },
     },
     android: {
@@ -55,6 +63,16 @@ module.exports = {
       "expo-router",
       "expo-secure-store",
       "expo-dev-client",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          NSHealthShareUsageDescription:
+            "Wallie reads your Apple Health data so it can track steps, workouts, sleep, heart rate, and other metrics in your Kenoo health profile.",
+          NSHealthUpdateUsageDescription:
+            "Wallie does not write data to Apple Health.",
+          background: true,
+        },
+      ],
       "./plugins/withSyncedNativeAssets.js",
       "./plugins/withIosBuildFixes.js",
     ],
