@@ -46,10 +46,20 @@ CANDIDATES=(
   "$APP_ROOT/vendor/react-native-healthkit-10.1.0/ReactNativeHealthkit.podspec"
 )
 
-# pnpm may nest under .pnpm store paths
-while IFS= read -r -d '' podspec; do
-  CANDIDATES+=("$podspec")
-done < <(find "$MONOREPO_ROOT/node_modules" -path '*@kingstinct/react-native-healthkit/ReactNativeHealthkit.podspec' -print0 2>/dev/null || true)
+# pnpm may nest under .pnpm store paths.
+# Use a temp file instead of process substitution (< <(...)) — /dev/fd is
+# unavailable in some CI/Vercel install environments and fails with:
+#   /dev/fd/63: No such file or directory
+if [[ -d "$MONOREPO_ROOT/node_modules" ]]; then
+  _hk_find_out="$(mktemp)"
+  find "$MONOREPO_ROOT/node_modules" \
+    -path '*@kingstinct/react-native-healthkit/ReactNativeHealthkit.podspec' \
+    -print0 2>/dev/null > "$_hk_find_out" || true
+  while IFS= read -r -d '' podspec; do
+    CANDIDATES+=("$podspec")
+  done < "$_hk_find_out"
+  rm -f "$_hk_find_out"
+fi
 
 for podspec in "${CANDIDATES[@]}"; do
   if patch_podspec "$podspec"; then

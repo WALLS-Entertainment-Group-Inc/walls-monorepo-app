@@ -280,6 +280,90 @@ Create **one Vercel project per app** with **Root Directory** set to `apps/<name
 
 Set only the env vars each app needs in that project’s Vercel settings. Legacy walls-app keys (Stripe, Wise, AWS, etc.) are listed in `turbo.json` → `globalPassThroughEnv` so Turborepo won’t warn if they’re still on a project, but **AdPilot does not use them** — you can remove them from the AdPilot Vercel project to keep things clean.
 
+#### Force-deploy the latest GitHub commit
+
+In this monorepo, a push to `main` does **not** always rebuild every Vercel project (Ignored Build Step, canceled deploys, or an app that didn’t change). When one or more apps fall behind, create a **new production deployment from the latest `main` commit** — do **not** use `vercel redeploy`, which rebuilds the *same old commit*.
+
+**Prerequisites:** [Vercel CLI](https://vercel.com/docs/cli) logged in (`vercel login`) and `jq` installed.
+
+**1. Pick the Vercel project name(s)** from this table (this is what you put in the script):
+
+| Vercel project name | App root |
+| ------------------- | -------- |
+| `kenoo` | `apps/public-site` |
+| `kenoo-adpilot` | `apps/adpilot` |
+| `kenoo-portal` | `apps/portal` |
+| `kenoo-wallie` | `apps/wallie` |
+| `kenoo-calendar` | `apps/calendar` |
+| `kenoo-health` | `apps/health` |
+| `kenoo-settings` | `apps/settings` |
+| `kenoo-projects` | `apps/projects` |
+
+Confirm names anytime with:
+
+```bash
+vercel project ls --scope walls-entertainment
+```
+
+**2. Deploy one project** — replace `PROJECT_NAME` with a name from the table (e.g. `kenoo-calendar`):
+
+```bash
+TEAM_ID="team_6bdoPMv1Fh7Y4U8IdhbSEuS2"
+TOKEN="$(jq -r '.token' "$HOME/Library/Application Support/com.vercel.cli/auth.json")"
+PROJECT_NAME="kenoo-calendar"   # ← change this
+REF="main"                      # production branch
+
+curl -sS -X POST "https://api.vercel.com/v13/deployments?teamId=${TEAM_ID}&forceNew=1" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg p "$PROJECT_NAME" --arg ref "$REF" '{
+    name: $p,
+    project: $p,
+    gitSource: {
+      type: "github",
+      org: "Kenoo-io",
+      repo: "kenoo-app",
+      ref: $ref
+    },
+    target: "production"
+  }')" | jq '{project: .name, id, url, status: .readyState}'
+```
+
+**3. Deploy several at once** — list the project names you need in the `for` loop:
+
+```bash
+TEAM_ID="team_6bdoPMv1Fh7Y4U8IdhbSEuS2"
+TOKEN="$(jq -r '.token' "$HOME/Library/Application Support/com.vercel.cli/auth.json")"
+REF="main"
+
+for PROJECT in kenoo kenoo-calendar kenoo-health; do   # ← edit this list
+  echo "Deploying $PROJECT from GitHub@$REF ..."
+  curl -sS -X POST "https://api.vercel.com/v13/deployments?teamId=${TEAM_ID}&forceNew=1" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$(jq -n --arg p "$PROJECT" --arg ref "$REF" '{
+      name: $p,
+      project: $p,
+      gitSource: {
+        type: "github",
+        org: "Kenoo-io",
+        repo: "kenoo-app",
+        ref: $ref
+      },
+      target: "production"
+    }')" | jq '{project: .name, id, url, status: .readyState}'
+  echo
+done
+```
+
+**4. Check status:**
+
+```bash
+vercel ls kenoo-calendar --scope walls-entertainment   # ← use your project name
+```
+
+Team scope is always `walls-entertainment`. Production deploys from GitHub branch `main` (`REF="main"`). The auth token path above is for macOS; on Linux it’s usually `~/.config/vercel/auth.json` or `~/.local/share/com.vercel.cli/auth.json`.
+
 ### Client auth context
 
 ```tsx
