@@ -26,6 +26,10 @@ import { getSupabaseClient } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProfileProgressIndicator } from "@/components/settings/talentSettings/profile-progress-indicator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  UserSchedulesSection,
+  type UserSchedulesHandle,
+} from "@/components/settings/user-schedules-section";
 
 const fieldClass =
   "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] bg-transparent w-full placeholder:text-neutral-300";
@@ -64,6 +68,8 @@ const AgentSettingsPage = () => {
   const [existingPhoneNumber, setExistingPhoneNumber] = useState("");
   const [timezone, setTimezone] = useState("");
   const [existingTimezone, setExistingTimezone] = useState("");
+  const [schedulesDirty, setSchedulesDirty] = useState(false);
+  const schedulesRef = useRef<UserSchedulesHandle>(null);
   const [timezoneOpen, setTimezoneOpen] = useState(false);
   const [timezoneSearchTerm, setTimezoneSearchTerm] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<TimezoneGroup, boolean>>({} as Record<TimezoneGroup, boolean>);
@@ -82,7 +88,7 @@ const AgentSettingsPage = () => {
   const isTimezoneChanged = timezone !== existingTimezone;
   const isPersonalEmailChanged = personalEmail !== "" && personalEmail !== existingPersonalEmail;
   
-  const savable = isProfilePictureChanged || isAddressChanged || isDobChanged || isLinkedInChanged || isPhoneNumberChanged || isFirstNameChanged || isLastNameChanged || isTimezoneChanged || isPersonalEmailChanged;
+  const savable = isProfilePictureChanged || isAddressChanged || isDobChanged || isLinkedInChanged || isPhoneNumberChanged || isFirstNameChanged || isLastNameChanged || isTimezoneChanged || schedulesDirty || isPersonalEmailChanged;
   
   const [showCropDialog, setShowCropDialog] = useState(false);
   const [tempImage, setTempImage] = useState<string | null>(null);
@@ -481,6 +487,11 @@ const AgentSettingsPage = () => {
       const timezoneSuccess = await updateTimezone();
       if (!timezoneSuccess) success = false;
     }
+
+    if (schedulesDirty && userId) {
+      const schedulesSuccess = await schedulesRef.current?.save();
+      if (!schedulesSuccess) success = false;
+    }
     
     if (personalEmail && personalEmail !== existingPersonalEmail && userId) {
       const personalEmailSuccess = await updatePersonalEmail();
@@ -492,7 +503,7 @@ const AgentSettingsPage = () => {
     }
     
     return success;
-  }, [profilePicture, addressNew, existingAddress, dob, existingDob, userId, linkedInUrl, existingLinkedInUrl, phoneNumber, existingPhoneNumber, timezone, existingTimezone, personalEmail, existingPersonalEmail, uploadMutation, isFirstNameChanged, isLastNameChanged, firstName, lastName]);
+  }, [profilePicture, addressNew, existingAddress, dob, existingDob, userId, linkedInUrl, existingLinkedInUrl, phoneNumber, existingPhoneNumber, timezone, existingTimezone, schedulesDirty, personalEmail, existingPersonalEmail, uploadMutation, isFirstNameChanged, isLastNameChanged, firstName, lastName]);
 
   const handleRevert = useCallback(() => {
     setProfilePicture(null);
@@ -505,6 +516,7 @@ const AgentSettingsPage = () => {
     setLinkedInUrl(existingLinkedInUrl);
     setPhoneNumber(existingPhoneNumber);
     setTimezone(existingTimezone);
+    schedulesRef.current?.revert();
     // Reset address field by incrementing key to force remount
     setAddressResetKey(prev => prev + 1);
     
@@ -646,84 +658,77 @@ const AgentSettingsPage = () => {
               </div>
 
               {/* Contact Section */}
-              <div className="flex gap-4">
-                {/* Left Column - Email Fields */}
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <label htmlFor="personal-email" className={labelClass}>
-                      Personal email
-                    </label>
-                    <BorderlessInput
-                      id="personal-email"
-                      type="email"
-                      value={personalEmail}
-                      onChange={(e) => setPersonalEmail(e.target.value)}
-                      className={fieldClass}
-                      placeholder="Personal email address"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="agency-email" className={labelClass}>
-                      Agency email
-                    </label>
-                    <div className="relative">
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  {/* Left Column - Email Fields */}
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <label htmlFor="personal-email" className={labelClass}>
+                        Personal email
+                      </label>
                       <BorderlessInput
-                        id="agency-email"
+                        id="personal-email"
                         type="email"
-                        value={agencyEmail}
-                        readOnly
-                        className={readonlyFieldClass}
-                        placeholder="Agency email address"
+                        value={personalEmail}
+                        onChange={(e) => setPersonalEmail(e.target.value)}
+                        className={fieldClass}
+                        placeholder="Personal email address"
                       />
-                      <Lock className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="agency-email" className={labelClass}>
+                        Agency email
+                      </label>
+                      <div className="relative">
+                        <BorderlessInput
+                          id="agency-email"
+                          type="email"
+                          value={agencyEmail}
+                          readOnly
+                          className={readonlyFieldClass}
+                          placeholder="Agency email address"
+                        />
+                        <Lock className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - LinkedIn and Phone */}
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <label htmlFor="linkedin" className={labelClass}>
+                        LinkedIn URL
+                      </label>
+                      <BorderlessInput
+                        id="linkedin"
+                        type="url"
+                        placeholder="https://linkedin.com/in/your-profile"
+                        value={linkedInUrl}
+                        onChange={(e) => setLinkedInUrl(e.target.value)}
+                        className={fieldClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="phone-number" className={labelClass}>
+                        Phone Number
+                      </label>
+                      <BorderlessInput
+                        id="phone-number"
+                        type="tel"
+                        placeholder="+13103878027"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className={fieldClass}
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Right Column - LinkedIn and Phone */}
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <label htmlFor="linkedin" className={labelClass}>
-                      LinkedIn URL
-                    </label>
-                    <BorderlessInput
-                      id="linkedin"
-                      type="url"
-                      placeholder="https://linkedin.com/in/your-profile"
-                      value={linkedInUrl}
-                      onChange={(e) => setLinkedInUrl(e.target.value)}
-                      className={fieldClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="phone-number" className={labelClass}>
-                      Phone Number
-                    </label>
-                    <BorderlessInput
-                      id="phone-number"
-                      type="tel"
-                      placeholder="+13103878027"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className={fieldClass}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Location & Timezone Divider */}
-              <div className="flex items-center mb-8 mt-8">
-                <span className="text-black font-black text-4xl mr-4">Location & timezone</span>
-                <div className="flex-1 border-t border-black h-[1px]" />
-              </div>
-
-              {/* Location & Timezone Section */}
-              <div className="space-y-4">
                 <div>
                   <label htmlFor="address" className={labelClass}>
-                    Shipping address
+                    Address
                   </label>
                   <AutocompleteComponent
                     key={addressResetKey}
@@ -733,7 +738,16 @@ const AgentSettingsPage = () => {
                     placeholder="Enter address"
                   />
                 </div>
-                
+              </div>
+
+              {/* Timezone & Schedules Divider */}
+              <div className="flex items-center mb-8 mt-8">
+                <span className="text-black font-black text-4xl mr-4">Timezone & schedules</span>
+                <div className="flex-1 border-t border-black h-[1px]" />
+              </div>
+
+              {/* Timezone & Schedules Section */}
+              <div className="space-y-8">
                 <div>
                   <label htmlFor="timezone" className={labelClass}>
                     Timezone
@@ -900,6 +914,14 @@ const AgentSettingsPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <UserSchedulesSection
+                  ref={schedulesRef}
+                  userId={userId}
+                  onDirtyChange={setSchedulesDirty}
+                  labelClass={labelClass}
+                  fieldClass={fieldClass}
+                />
               </div>
 
               {/* Save and Cancel Buttons */}

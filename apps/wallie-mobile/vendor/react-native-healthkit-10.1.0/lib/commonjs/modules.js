@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.StateOfMind = exports.HeartbeatSeries = exports.CorrelationTypes = exports.CategoryTypes = exports.QuantityTypes = exports.Characteristics = exports.Workouts = exports.Core = void 0;
+const react_native_nitro_modules_1 = require("react-native-nitro-modules");
+exports.Core = react_native_nitro_modules_1.NitroModules.createHybridObject('CoreModule');
+exports.Workouts = react_native_nitro_modules_1.NitroModules.createHybridObject('WorkoutsModule');
+exports.Characteristics = react_native_nitro_modules_1.NitroModules.createHybridObject('CharacteristicTypeModule');
+exports.QuantityTypes = react_native_nitro_modules_1.NitroModules.createHybridObject('QuantityTypeModule');
+exports.CategoryTypes = react_native_nitro_modules_1.NitroModules.createHybridObject('CategoryTypeModule');
+exports.CorrelationTypes = react_native_nitro_modules_1.NitroModules.createHybridObject('CorrelationTypeModule');
+exports.HeartbeatSeries = react_native_nitro_modules_1.NitroModules.createHybridObject('HeartbeatSeriesModule');
+exports.StateOfMind = react_native_nitro_modules_1.NitroModules.createHybridObject('StateOfMindModule');

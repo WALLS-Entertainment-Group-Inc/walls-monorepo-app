@@ -1,0 +1,35 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HKWeatherCondition = void 0;
+// documented at https://developer.apple.com/documentation/healthkit/hkweathercondition
+var HKWeatherCondition;
+(function (HKWeatherCondition) {
+    HKWeatherCondition[HKWeatherCondition["none"] = 0] = "none";
+    HKWeatherCondition[HKWeatherCondition["clear"] = 1] = "clear";
+    HKWeatherCondition[HKWeatherCondition["fair"] = 2] = "fair";
+    HKWeatherCondition[HKWeatherCondition["partlyCloudy"] = 3] = "partlyCloudy";
+    HKWeatherCondition[HKWeatherCondition["mostlyCloudy"] = 4] = "mostlyCloudy";
+    HKWeatherCondition[HKWeatherCondition["cloudy"] = 5] = "cloudy";
+    HKWeatherCondition[HKWeatherCondition["foggy"] = 6] = "foggy";
+    HKWeatherCondition[HKWeatherCondition["haze"] = 7] = "haze";
+    HKWeatherCondition[HKWeatherCondition["windy"] = 8] = "windy";
+    HKWeatherCondition[HKWeatherCondition["blustery"] = 9] = "blustery";
+    HKWeatherCondition[HKWeatherCondition["smoky"] = 10] = "smoky";
+    HKWeatherCondition[HKWeatherCondition["dust"] = 11] = "dust";
+    HKWeatherCondition[HKWeatherCondition["snow"] = 12] = "snow";
+    HKWeatherCondition[HKWeatherCondition["hail"] = 13] = "hail";
+    HKWeatherCondition[HKWeatherCondition["sleet"] = 14] = "sleet";
+    HKWeatherCondition[HKWeatherCondition["freezingDrizzle"] = 15] = "freezingDrizzle";
+    HKWeatherCondition[HKWeatherCondition["freezingRain"] = 16] = "freezingRain";
+    HKWeatherCondition[HKWeatherCondition["mixedRainAndHail"] = 17] = "mixedRainAndHail";
+    HKWeatherCondition[HKWeatherCondition["mixedRainAndSnow"] = 18] = "mixedRainAndSnow";
+    HKWeatherCondition[HKWeatherCondition["mixedRainAndSleet"] = 19] = "mixedRainAndSleet";
+    HKWeatherCondition[HKWeatherCondition["mixedSnowAndSleet"] = 20] = "mixedSnowAndSleet";
+    HKWeatherCondition[HKWeatherCondition["drizzle"] = 21] = "drizzle";
+    HKWeatherCondition[HKWeatherCondition["scatteredShowers"] = 22] = "scatteredShowers";
+    HKWeatherCondition[HKWeatherCondition["showers"] = 23] = "showers";
+    HKWeatherCondition[HKWeatherCondition["thunderstorms"] = 24] = "thunderstorms";
+    HKWeatherCondition[HKWeatherCondition["tropicalStorm"] = 25] = "tropicalStorm";
+    HKWeatherCondition[HKWeatherCondition["hurricane"] = 26] = "hurricane";
+    HKWeatherCondition[HKWeatherCondition["tornado"] = 27] = "tornado";
+})(HKWeatherCondition || (exports.HKWeatherCondition = HKWeatherCondition = {}));

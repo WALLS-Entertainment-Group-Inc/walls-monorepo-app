@@ -1,6 +1,6 @@
 export type CalendarEventLike = {
   title: string;
-  type?: 'regular-event' | 'scheduled-task' | 'project-task';
+  type?: 'regular-event' | 'scheduled-task' | 'project-task' | 'project-task-schedule';
   eventType?: string;
   status?: string;
 };
@@ -36,7 +36,10 @@ export function getCalendarEventDisplayLabel(
   event: CalendarEventLike,
   compactStartTime?: string
 ): string {
-  if (event.type === 'regular-event' && compactStartTime) {
+  if (
+    (event.type === 'regular-event' || event.type === 'project-task-schedule') &&
+    compactStartTime
+  ) {
     return `${event.title}, ${formatCompactTimeLabel(compactStartTime)}`;
   }
   return event.title;
@@ -55,7 +58,7 @@ const COMPLETED_LEGACY_STATUSES = new Set(['complete', 'completed', 'done']);
 export function isCalendarTaskCompleted(event: CalendarEventLike): boolean {
   const status = (event.status ?? '').toLowerCase();
 
-  if (event.type === 'project-task') {
+  if (event.type === 'project-task' || event.type === 'project-task-schedule') {
     return COMPLETED_PROJECT_STATUSES.has(status);
   }
 

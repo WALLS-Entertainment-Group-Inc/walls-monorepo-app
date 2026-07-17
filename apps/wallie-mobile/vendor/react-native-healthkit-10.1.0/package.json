@@ -1,0 +1,104 @@
+{
+  "name": "@kingstinct/react-native-healthkit",
+  "version": "10.1.0",
+  "description": "React Native bindings for HealthKit",
+  "main": "lib/commonjs/index.js",
+  "module": "lib/module/index.js",
+  "types": "lib/typescript/index.d.ts",
+  "react-native": "src/index.ts",
+  "source": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/typescript/index.d.ts",
+      "import": "./lib/module/index.js",
+      "require": "./lib/commonjs/index.js",
+      "react-native": "./src/index.ts"
+    },
+    "./types": {
+      "types": "./lib/typescript/types/index.d.ts",
+      "import": "./lib/module/types/index.js",
+      "require": "./lib/commonjs/types/index.js",
+      "react-native": "./src/types/index.ts"
+    },
+    "./modules": {
+      "types": "./lib/typescript/modules.d.ts",
+      "import": "./lib/module/modules.js",
+      "require": "./lib/commonjs/modules.js",
+      "react-native": "./src/modules.ts"
+    },
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "react-native.config.js",
+    "lib/commonjs",
+    "lib/module",
+    "lib/typescript",
+    "nitrogen/**/*",
+    "android/build.gradle",
+    "android/gradle.properties",
+    "android/CMakeLists.txt",
+    "android/src",
+    "ios/**/*.h",
+    "ios/**/*.m",
+    "ios/**/*.mm",
+    "ios/**/*.cpp",
+    "ios/**/*.swift",
+    "app.plugin.ts",
+    "app.plugin.js",
+    "*.podspec",
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf lib",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:types": "tsc -p tsconfig.declarations.json",
+    "build": "bun run clean && bun run build:cjs && bun run build:esm && bun run build:types",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "bunx @biomejs/biome format --write",
+    "codegen": "bun run build && nitro-codegen --logLevel=\"debug\"",
+    "test": "bun test",
+    "prepublishOnly": "bun run build && bun run codegen"
+  },
+  "keywords": [
+    "react-native",
+    "nitro",
+    "healthkit",
+    "ios",
+    "typescript"
+  ],
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/kingstinct"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kingstinct/react-native-healthkit.git"
+  },
+  "author": "Robert Herber <robert@kingstinct.com> (https://github.com/robertherber)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kingstinct/react-native-healthkit/issues"
+  },
+  "homepage": "https://github.com/kingstinct/react-native-healthkit#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^13.2.0",
+    "@types/react": "~19.0.14",
+    "nitro-codegen": "^0.26.4",
+    "react": "19.0.0",
+    "react-native": "*",
+    "react-native-nitro-modules": "^0.26.4",
+    "typescript": "~5.8.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-nitro-modules": "*"
+  }
+}

@@ -168,9 +168,9 @@ export const assets = {
 };
 
 export const urls = {
-  portalResetPassword: "https://portal.walls.agency/reset-password",
-  terms: "https://wallsentertainment.com/terms-and-conditions",
-  privacy: "https://wallsentertainment.com/privacy-policy",
+  portalResetPassword: "https://portal.kenoo.io/reset-password",
+  terms: "https://kenoo.io/terms-and-conditions",
+  privacy: "https://kenoo.io/privacy-policy",
 };
 
 export const spacing = {
