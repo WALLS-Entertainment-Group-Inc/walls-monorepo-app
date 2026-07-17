@@ -937,61 +937,75 @@ export const UserSchedulesSection = forwardRef<
                   {gridDays.map((dow) => {
                     const meta = DAY_LABELS.find((d) => d.dow === dow);
                     const slots = slotSets.get(dow) ?? new Set<number>();
+                    const dayIntervals = selected.intervals.filter(
+                      (i) => i.day_of_week === dow
+                    );
                     return (
-                      <div key={`day-${dow}`} className="flex w-full items-end">
-                        {hoursMode !== "same" && (
-                          <span className="w-[2.75rem] shrink-0 pb-0.5 text-left text-sm font-light text-neutral-600">
-                            {meta?.short}
-                          </span>
-                        )}
-                        <div
-                          className="flex min-w-0 flex-1 cursor-pointer touch-none select-none"
-                          onPointerDown={(e) => {
-                            if (e.button !== 0) return;
-                            e.preventDefault();
-                            startPaint(dow, e.currentTarget, e.clientX);
-                            e.currentTarget.setPointerCapture(e.pointerId);
-                          }}
-                          onPointerMove={(e) => {
-                            if (!paintDragRef.current) return;
-                            paintSlotFromEvent(e.currentTarget, e.clientX);
-                          }}
-                          onPointerUp={(e) => {
-                            endPaint();
-                            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-                              e.currentTarget.releasePointerCapture(e.pointerId);
-                            }
-                          }}
-                        >
-                          {GRID_SLOTS.map((slotMins) => {
-                            const on = slots.has(slotMins);
-                            return (
-                              <div
-                                key={`${dow}-${slotMins}`}
-                                role="button"
-                                tabIndex={-1}
-                                aria-pressed={on}
-                                aria-label={`${
-                                  hoursMode === "same"
-                                    ? "All days"
-                                    : meta?.long
-                                } ${formatSlotLabel(slotMins)}`}
-                                className={`pointer-events-none h-7 min-w-0 flex-1 border-b transition-colors ${
-                                  on
-                                    ? "border-b-[var(--kenoo-sky)]"
-                                    : "border-b-neutral-200"
-                                }`}
-                              />
-                            );
-                          })}
+                      <div key={`day-${dow}`} className="space-y-1">
+                        <div className="flex w-full items-end">
+                          {hoursMode !== "same" && (
+                            <span className="w-[2.75rem] shrink-0 pb-0.5 text-left text-sm font-light text-neutral-600">
+                              {meta?.short}
+                            </span>
+                          )}
+                          <div
+                            className="flex min-w-0 flex-1 cursor-pointer touch-none select-none"
+                            onPointerDown={(e) => {
+                              if (e.button !== 0) return;
+                              e.preventDefault();
+                              startPaint(dow, e.currentTarget, e.clientX);
+                              e.currentTarget.setPointerCapture(e.pointerId);
+                            }}
+                            onPointerMove={(e) => {
+                              if (!paintDragRef.current) return;
+                              paintSlotFromEvent(e.currentTarget, e.clientX);
+                            }}
+                            onPointerUp={(e) => {
+                              endPaint();
+                              if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                                e.currentTarget.releasePointerCapture(e.pointerId);
+                              }
+                            }}
+                          >
+                            {GRID_SLOTS.map((slotMins) => {
+                              const on = slots.has(slotMins);
+                              return (
+                                <div
+                                  key={`${dow}-${slotMins}`}
+                                  role="button"
+                                  tabIndex={-1}
+                                  aria-pressed={on}
+                                  aria-label={`${
+                                    hoursMode === "same"
+                                      ? "All days"
+                                      : meta?.long
+                                  } ${formatSlotLabel(slotMins)}`}
+                                  className={`pointer-events-none h-7 min-w-0 flex-1 border-b transition-colors ${
+                                    on
+                                      ? "border-b-[var(--kenoo-sky)]"
+                                      : "border-b-neutral-200"
+                                  }`}
+                                />
+                              );
+                            })}
+                          </div>
                         </div>
+                        {hoursMode === "different" && (
+                          <p
+                            className={`text-sm font-light text-neutral-500 ${
+                              hoursMode !== "same" ? "pl-[2.75rem]" : ""
+                            }`}
+                          >
+                            {formatHoursDescription(dayIntervals)}
+                          </p>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {hoursMode === "same" ? (
+              {hoursMode === "same" && (
                 <p className="text-sm font-light text-neutral-500">
                   {formatHoursDescription(
                     selected.intervals.filter(
@@ -999,25 +1013,6 @@ export const UserSchedulesSection = forwardRef<
                     )
                   )}
                 </p>
-              ) : (
-                <div className="space-y-1">
-                  {selected.activeDays.slice().sort(sortDayOrder).map((dow) => {
-                    const meta = DAY_LABELS.find((d) => d.dow === dow);
-                    const dayIntervals = selected.intervals.filter(
-                      (i) => i.day_of_week === dow
-                    );
-                    return (
-                      <p
-                        key={`desc-${dow}`}
-                        className="text-sm font-light text-neutral-500"
-                      >
-                        <span className="text-neutral-700">{meta?.short}</span>
-                        {" — "}
-                        {formatHoursDescription(dayIntervals)}
-                      </p>
-                    );
-                  })}
-                </div>
               )}
             </div>
           ) : (
