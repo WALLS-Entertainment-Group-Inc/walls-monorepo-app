@@ -115,6 +115,15 @@ function lookbackWindow(lookbackDays: number): { start: Date; end: Date } {
   return { start, end };
 }
 
+/**
+ * Native HealthKit ISO8601DateFormatter rejects fractional seconds from
+ * Date.toISOString() (e.g. 2026-07-18T04:00:00.000Z), which made every
+ * queryStatisticsCollectionForQuantity call fail silently.
+ */
+function toHealthKitAnchorIso(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 function emptyDayMap(start: Date, end: Date): Map<string, DailySummaryPatch> {
   const map = new Map<string, DailySummaryPatch>();
   const syncedAt = new Date().toISOString();
@@ -138,7 +147,7 @@ async function collectDailyQuantities(
       const stats = await queryStatisticsCollectionForQuantity(
         metric.identifier as QuantityTypeIdentifier,
         [metric.kind === "cumulative" ? "cumulativeSum" : "discreteAverage"],
-        start.toISOString(),
+        toHealthKitAnchorIso(start),
         { day: 1 },
         {
           unit: metric.unit,
@@ -170,7 +179,7 @@ async function collectDailyQuantities(
       const stats = await queryStatisticsCollectionForQuantity(
         metric.identifier,
         ["discreteAverage"],
-        start.toISOString(),
+        toHealthKitAnchorIso(start),
         { day: 1 },
         {
           unit: metric.unit,

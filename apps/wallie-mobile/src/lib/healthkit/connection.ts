@@ -44,16 +44,20 @@ export async function ensureAppleHealthConnection(
 ): Promise<AppleHealthConnection> {
   const supabase = getSupabase();
 
-  const { data: existing, error: selectError } = await supabase
+  // Prefer the oldest active connection. .maybeSingle() throws PGRST116 if
+  // duplicate apple_health rows exist (e.g. double-connect races).
+  const { data: existingRows, error: selectError } = await supabase
     .from("user_connections")
     .select("id, user_id")
     .eq("user_id", userId)
     .eq("provider", APPLE_HEALTH_PROVIDER)
     .eq("service", APPLE_HEALTH_SERVICE)
     .is("revoked_at", null)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
 
   if (selectError) throw selectError;
+  const existing = existingRows?.[0];
   if (existing?.id) {
     return { id: existing.id as string, user_id: existing.user_id as string };
   }
@@ -112,11 +116,15 @@ export async function upsertHealthSyncState(input: {
   const supabase = getSupabase();
   const now = new Date().toISOString();
 
-  const { data: existing } = await supabase
+  // Prefer the oldest row if duplicates exist (.maybeSingle throws PGRST116).
+  const { data: existingRows } = await supabase
     .from("health_sync_state")
     .select("id")
     .eq("user_connection_id", input.connectionId)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  const existing = existingRows?.[0];
 
   const row = {
     user_id: input.userId,

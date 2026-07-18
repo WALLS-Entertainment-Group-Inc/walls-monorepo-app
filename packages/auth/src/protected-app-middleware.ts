@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isMfaSecondFactorPending } from "./mfa-assurance";
 import { createMiddlewareSupabaseClient } from "./middleware-supabase";
-import { buildPortalLoginUrl, normalizePortalOrigin } from "./portal-url";
+import { buildPortalLoginUrl, normalizePortalOrigin, resolvePortalLoginOrigin } from "./portal-url";
 import { safeAuthReturnUrl } from "./post-login-redirect";
 
 export { createMiddlewareSupabaseClient } from "./middleware-supabase";
@@ -58,6 +58,22 @@ function redirectToPortalLogin(
       redirect: returnUrl,
     }),
   );
+}
+
+/** Logged-in but not allowed on this app — do not pass ?redirect= or portal will bounce back. */
+function redirectToPortalHome(
+  request: NextRequest,
+  portalLoginUrl?: string,
+): NextResponse {
+  const configuredOrigin = portalLoginUrl
+    ? normalizePortalOrigin(portalLoginUrl)
+    : null;
+  const portalOrigin =
+    configuredOrigin && configuredOrigin !== request.nextUrl.origin
+      ? configuredOrigin
+      : resolvePortalLoginOrigin(request.nextUrl.origin);
+
+  return NextResponse.redirect(new URL("/login", portalOrigin));
 }
 
 async function isUserAuthenticated(
@@ -123,20 +139,19 @@ async function userHasAppAccess(
     return false;
   }
 
-  const { data: accountAccess, error: accountAccessError } = await supabase
+  const { data: accountAccessRows, error: accountAccessError } = await supabase
     .from("account_app_access")
     .select("id")
     .eq("app_id", appRow.id)
     .in("account_id", accountIds)
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
 
   if (accountAccessError) {
     console.error("[auth] Error checking account_app_access:", accountAccessError);
     return false;
   }
 
-  return !!accountAccess;
+  return (accountAccessRows?.length ?? 0) > 0;
 }
 
 /**
@@ -190,13 +205,16 @@ export async function handleProtectedAppRequest(
     }
 
     if (options.requireAdmin && userRow?.is_admin !== true) {
-      return redirectToPortalLogin(request, options.portalLoginUrl);
+      return redirectToPortalHome(request, options.portalLoginUrl);
     }
 
     if (options.appSlug) {
       const hasAccess = await userHasAppAccess(supabase, user!.id, options.appSlug);
       if (!hasAccess) {
-        return redirectToPortalLogin(request, options.portalLoginUrl);
+        console.warn(
+          `[auth] User ${user!.id} lacks access to app slug "${options.appSlug}"`,
+        );
+        return redirectToPortalHome(request, options.portalLoginUrl);
       }
     }
 
