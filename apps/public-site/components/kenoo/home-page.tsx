@@ -8,9 +8,9 @@ import { SuiteShowcase } from "@/components/kenoo/suite-showcase";
 export default function HomePage() {
   return (
     <SiteShell>
+      <SuiteShowcase />
       <Hero />
       <Philosophy />
-      <SuiteShowcase />
       <Reliability />
       <FinalCta />
     </SiteShell>
