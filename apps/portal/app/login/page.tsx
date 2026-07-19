@@ -657,7 +657,11 @@ function LoginPageContent() {
 
           <div className="flex justify-center">
             <Link
-              href="/reset-password"
+              href={
+                email.trim()
+                  ? `/reset-password?email=${encodeURIComponent(email.trim())}`
+                  : "/reset-password"
+              }
               className="text-xs text-kenoo-muted transition-colors hover:text-kenoo-ink"
             >
               Forgot password?
