@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useLoadingCallback } from "react-loading-hook";
 import { Loader2, ChevronLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { getSupabaseClient } from "@walls/auth";
 import { Button } from "@walls/ui/button";
@@ -17,8 +17,25 @@ import {
 import { AuthHeading, AuthShell } from "@/components/kenoo/auth-shell";
 
 export default function ResetPasswordPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-kenoo-canvas">
+          <Loader2 className="h-8 w-8 animate-spin text-kenoo-muted" />
+        </div>
+      }
+    >
+      <ResetPasswordPageContent />
+    </React.Suspense>
+  );
+}
+
+function ResetPasswordPageContent() {
   const router = useRouter();
-  const [email, setEmail] = React.useState("");
+  const searchParams = useSearchParams();
+  const [email, setEmail] = React.useState(
+    () => searchParams.get("email")?.trim() ?? "",
+  );
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
