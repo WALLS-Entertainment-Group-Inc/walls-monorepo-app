@@ -205,7 +205,7 @@ export function OrganizationMembers({
 
   async function handleInvite() {
     if (!inviteEmail.trim()) {
-      wallsToast.error("Missing email", "Enter an email to create a user");
+      wallsToast.error("Missing email", "Enter an email to add a user");
       return;
     }
 
@@ -247,14 +247,14 @@ export function OrganizationMembers({
 
       if (payload.emailSent) {
         wallsToast.success(
-          "User created",
+          "User added",
           payload.invited
             ? "They will get an email to create their password and join this organization"
             : "They will get an email letting them know they were added to this organization",
         );
       } else if (payload.created) {
         wallsToast.success(
-          "User created",
+          "User added",
           "User was created and added, but the notification email could not be sent",
         );
       } else {
@@ -432,7 +432,7 @@ export function OrganizationMembers({
               className="inline-flex h-10 items-center gap-2 rounded-xl border-0 bg-white px-4 text-sm font-medium text-neutral-800 shadow-none hover:bg-white"
             >
               <Plus className="h-4 w-4" />
-              Create user
+              Add user
             </Button>
           </ChromeFrame>
         ) : null}
@@ -484,7 +484,7 @@ export function OrganizationMembers({
                   className="py-16 text-center text-sm font-light text-neutral-400"
                 >
                   {members.length === 0
-                    ? "No users yet. Create a user to get started."
+                    ? "No users yet. Add a user to get started."
                     : "No users match your search."}
                 </td>
               </tr>
@@ -647,7 +647,7 @@ export function OrganizationMembers({
                 <X className="h-5 w-5" />
               </button>
               <h2 className="text-base font-medium tracking-tight text-neutral-900">
-                Create user
+                Add user
               </h2>
             </header>
 
@@ -759,10 +759,10 @@ export function OrganizationMembers({
                 {inviting ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating…
+                    Adding…
                   </span>
                 ) : (
-                  "Create user"
+                  "Add user"
                 )}
               </Button>
             </div>

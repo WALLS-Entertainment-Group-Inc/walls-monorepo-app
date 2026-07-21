@@ -84,6 +84,11 @@ const nextConfig: NextConfig = {
         hostname: "zenquotes-images.s3.us-east-1.amazonaws.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "zenprospect-production.s3.amazonaws.com",
+        pathname: "/**",
+      },
     ],
   },
   transpilePackages: [

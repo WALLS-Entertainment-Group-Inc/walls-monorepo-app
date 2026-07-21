@@ -58,7 +58,7 @@ function AdminSidebarNav() {
       children: [
         { name: "All users", href: "/users", Icon: Users, match: "exact" },
         {
-          name: "Invite user",
+          name: "Add user",
           href: "/users?invite=1",
           Icon: UserPlus,
           match: "invite",
