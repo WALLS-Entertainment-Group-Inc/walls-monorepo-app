@@ -154,18 +154,28 @@ function getSesClient(): SESClient | null {
   });
 }
 
+const DEFAULT_SES_FROM_EMAIL = "noreply@mail.kenoo.io";
+
+function buildSesSourceAddress(fromEmail: string): string {
+  const trimmed = fromEmail.trim();
+  // Allow either a bare address or an already-formatted "Name <email>" value.
+  if (trimmed.includes("<") && trimmed.includes(">")) {
+    return trimmed;
+  }
+  return `Kenoo <${trimmed}>`;
+}
+
 export async function sendOrganizationInviteEmail(
   input: OrganizationInviteEmailInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const fromEmail = process.env.SES_FROM_EMAIL?.trim();
-  if (!fromEmail) {
-    console.error("[settings] SES_FROM_EMAIL is not configured");
-    return { ok: false, error: "Email service is not configured" };
-  }
+  const fromEmail =
+    process.env.SES_FROM_EMAIL?.trim() || DEFAULT_SES_FROM_EMAIL;
 
   const client = getSesClient();
   if (!client) {
-    console.error("[settings] AWS SES credentials are not configured");
+    console.error(
+      "[admin] AWS SES credentials are not configured (need AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION)",
+    );
     return { ok: false, error: "Email service is not configured" };
   }
 
@@ -175,7 +185,7 @@ export async function sendOrganizationInviteEmail(
   try {
     await client.send(
       new SendEmailCommand({
-        Source: fromEmail,
+        Source: buildSesSourceAddress(fromEmail),
         Destination: {
           ToAddresses: [input.to.trim().toLowerCase()],
         },
@@ -189,7 +199,7 @@ export async function sendOrganizationInviteEmail(
     );
     return { ok: true };
   } catch (error) {
-    console.error("[settings] send organization invite email:", error);
+    console.error("[admin] send organization invite email:", error);
     return {
       ok: false,
       error:

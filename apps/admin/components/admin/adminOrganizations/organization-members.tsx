@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
-  AppWindow,
+  Check,
+  ChevronDown,
   Loader2,
+  MoreVertical,
   Plus,
   Search,
-  Trash2,
   X,
 } from "lucide-react";
 
@@ -16,7 +18,18 @@ import { Button } from "@/components/ui/button";
 import { ChromeFrame } from "@/components/ui/chrome-frame";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Skeleton } from "@walls/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@walls/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -123,6 +136,7 @@ export function OrganizationMembers({
   canEdit,
   initialShowInvite = false,
 }: OrganizationMembersProps) {
+  const router = useRouter();
   const [members, setMembers] = useState<AccountMemberRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -131,28 +145,42 @@ export function OrganizationMembers({
   const [inviteFirstName, setInviteFirstName] = useState("");
   const [inviteLastName, setInviteLastName] = useState("");
   const [inviteRole, setInviteRole] = useState<AccountRole>("member");
+  const [inviteAppIds, setInviteAppIds] = useState<string[]>([]);
   const [inviting, setInviting] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
-
-  const [apps, setApps] = useState<AppAccessRecord[]>([]);
-  const [organizationAppIds, setOrganizationAppIds] = useState<string[]>([]);
-  const [memberAppIds, setMemberAppIds] = useState<Record<string, string[]>>(
-    {},
-  );
-  const [appAccessMember, setAppAccessMember] =
-    useState<AccountMemberRecord | null>(null);
-  const [togglingMemberAppId, setTogglingMemberAppId] = useState<string | null>(
+  const [inviteDialogEl, setInviteDialogEl] = useState<HTMLDivElement | null>(
     null,
   );
 
+  const [apps, setApps] = useState<AppAccessRecord[]>([]);
+  const [organizationAppIds, setOrganizationAppIds] = useState<string[]>([]);
+
   const canManage = canEdit && canManageAccountMembers(actorRole);
+
+  const catalogApps = useMemo(
+    () => apps.filter((app) => organizationAppIds.includes(app.id)),
+    [apps, organizationAppIds],
+  );
+
+  const selectedInviteApps = useMemo(
+    () => catalogApps.filter((app) => inviteAppIds.includes(app.id)),
+    [catalogApps, inviteAppIds],
+  );
+
+  const inviteAppsLabel =
+    selectedInviteApps.length === 0
+      ? "Select apps…"
+      : selectedInviteApps.length <= 2
+        ? selectedInviteApps.map((app) => app.name).join(", ")
+        : `${selectedInviteApps.length} apps selected`;
 
   const resetInviteForm = () => {
     setInviteEmail("");
     setInviteFirstName("");
     setInviteLastName("");
     setInviteRole("member");
+    setInviteAppIds([]);
     setShowInviteForm(false);
   };
 
@@ -166,11 +194,9 @@ export function OrganizationMembers({
     const payload = (await response.json()) as {
       apps?: AppAccessRecord[];
       organizationAppIds?: string[];
-      memberAppIds?: Record<string, string[]>;
     };
     setApps(payload.apps ?? []);
     setOrganizationAppIds(payload.organizationAppIds ?? []);
-    setMemberAppIds(payload.memberAppIds ?? {});
   }, [organizationId]);
 
   const loadMembers = useCallback(async () => {
@@ -203,6 +229,14 @@ export function OrganizationMembers({
     }
   }, [initialShowInvite, canManage]);
 
+  function toggleInviteApp(appId: string) {
+    setInviteAppIds((prev) =>
+      prev.includes(appId)
+        ? prev.filter((id) => id !== appId)
+        : [...prev, appId],
+    );
+  }
+
   async function handleInvite() {
     if (!inviteEmail.trim()) {
       wallsToast.error("Missing email", "Enter an email to add a user");
@@ -219,6 +253,7 @@ export function OrganizationMembers({
           body: JSON.stringify({
             email: inviteEmail.trim(),
             role: inviteRole,
+            appIds: inviteAppIds,
             ...(inviteFirstName.trim()
               ? { firstName: inviteFirstName.trim() }
               : {}),
@@ -240,10 +275,10 @@ export function OrganizationMembers({
         invited?: boolean;
         created?: boolean;
         emailSent?: boolean;
+        emailError?: string;
       };
       setMembers(payload.members ?? []);
       resetInviteForm();
-      void loadAppAccess();
 
       if (payload.emailSent) {
         wallsToast.success(
@@ -252,17 +287,17 @@ export function OrganizationMembers({
             ? "They will get an email to create their password and join this organization"
             : "They will get an email letting them know they were added to this organization",
         );
-      } else if (payload.created) {
+      } else if (payload.emailSent === false) {
         wallsToast.success(
           "User added",
-          "User was created and added, but the notification email could not be sent",
+          payload.emailError
+            ? `Added to the organization, but the email failed: ${payload.emailError}`
+            : "Added to the organization, but the notification email could not be sent",
         );
       } else {
         wallsToast.success(
           "User added",
-          payload.emailSent === false
-            ? "Existing user was added, but the notification email could not be sent"
-            : "Existing user was added to this organization",
+          "Existing user was added to this organization",
         );
       }
     } finally {
@@ -320,11 +355,6 @@ export function OrganizationMembers({
         members?: AccountMemberRecord[];
       };
       setMembers(payload.members ?? []);
-      setMemberAppIds((prev) => {
-        const next = { ...prev };
-        delete next[userId];
-        return next;
-      });
       wallsToast.success(
         "User removed",
         "User was removed from this organization",
@@ -333,51 +363,6 @@ export function OrganizationMembers({
       setRemovingUserId(null);
     }
   }
-
-  async function handleToggleMemberApp(appId: string, enabled: boolean) {
-    if (!appAccessMember) return;
-    setTogglingMemberAppId(appId);
-    try {
-      const response = await fetch(
-        `/api/organizations/${organizationId}/app-access`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            appId,
-            enabled,
-            userId: appAccessMember.userId,
-          }),
-        },
-      );
-      if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        wallsToast.error(
-          "Error",
-          payload.error || "Failed to update app access",
-        );
-        return;
-      }
-      const payload = (await response.json()) as {
-        memberAppIds?: Record<string, string[]>;
-      };
-      if (payload.memberAppIds) {
-        setMemberAppIds(payload.memberAppIds);
-      }
-    } finally {
-      setTogglingMemberAppId(null);
-    }
-  }
-
-  const canEditAppAccessFor = (member: AccountMemberRecord) =>
-    canManage && (actorRole === "owner" || member.role !== "owner");
-
-  const catalogApps = apps.filter((app) =>
-    organizationAppIds.includes(app.id),
-  );
-  const dialogMemberIds = new Set(
-    appAccessMember ? (memberAppIds[appAccessMember.userId] ?? []) : [],
-  );
 
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -438,40 +423,20 @@ export function OrganizationMembers({
         ) : null}
       </div>
 
-      {catalogApps.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-light text-neutral-400">
-            Org apps
-          </span>
-          {catalogApps.map((app) => (
-            <span
-              key={app.id}
-              className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200/80 bg-white px-2 py-0.5 text-[11px] font-medium tracking-tight text-neutral-600"
-            >
-              <AppIcon app={app} size={14} />
-              {app.name}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] table-fixed text-sm">
+        <table className="w-full min-w-[560px] table-fixed text-sm">
           <thead className="border-b border-neutral-100">
             <tr>
-              <th className="w-[28%] py-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <th className="w-[32%] py-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Name
               </th>
-              <th className="w-[26%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <th className="w-[34%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Email
               </th>
-              <th className="w-[14%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <th className="w-[18%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Role
               </th>
-              <th className="w-[20%] py-3 pl-3 pr-4 text-left text-xs font-medium uppercase tracking-wide text-neutral-400">
-                Apps
-              </th>
-              <th className="w-[12%] py-3 pl-3 pr-4 text-right text-xs font-medium uppercase tracking-wide text-neutral-400">
+              <th className="w-[16%] py-3 pl-3 pr-4 text-right text-xs font-medium uppercase tracking-wide text-neutral-400">
                 Actions
               </th>
             </tr>
@@ -480,7 +445,7 @@ export function OrganizationMembers({
             {filteredMembers.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={4}
                   className="py-16 text-center text-sm font-light text-neutral-400"
                 >
                   {members.length === 0
@@ -496,9 +461,6 @@ export function OrganizationMembers({
                 const canEditMember =
                   canManage &&
                   (actorRole === "owner" || member.role !== "owner");
-                const grantedApps = catalogApps.filter((app) =>
-                  (memberAppIds[member.userId] ?? []).includes(app.id),
-                );
 
                 return (
                   <tr
@@ -557,64 +519,47 @@ export function OrganizationMembers({
                         </span>
                       )}
                     </td>
-                    <td className="overflow-hidden py-4 pl-3 pr-4">
-                      {grantedApps.length > 0 ? (
-                        <div className="flex min-w-0 items-center gap-1">
-                          {grantedApps.slice(0, 4).map((app) => (
-                            <span
-                              key={app.id}
-                              title={app.name}
-                              className="inline-flex"
-                            >
-                              <AppIcon app={app} size={18} />
-                            </span>
-                          ))}
-                          {grantedApps.length > 4 ? (
-                            <span className="text-[11px] font-light text-neutral-400">
-                              +{grantedApps.length - 4}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="text-xs font-light text-neutral-400 underline-offset-2 hover:text-neutral-600 hover:underline"
-                          onClick={() => setAppAccessMember(member)}
-                        >
-                          {canEditAppAccessFor(member) ? "Assign" : "None"}
-                        </button>
-                      )}
-                    </td>
                     <td className="py-4 pl-3 pr-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          type="button"
-                          disabled={isRemoving || isUpdating}
-                          aria-label={
-                            canEditAppAccessFor(member)
-                              ? "Manage app access"
-                              : "View app access"
-                          }
-                          className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:opacity-40"
-                          onClick={() => setAppAccessMember(member)}
-                        >
-                          <AppWindow className="h-4 w-4" />
-                        </button>
-                        {canEditMember ? (
-                          <button
-                            type="button"
-                            disabled={isRemoving || isUpdating}
-                            aria-label="Remove user"
-                            className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
-                            onClick={() => void handleRemove(member.userId)}
-                          >
-                            {isRemoving ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </button>
-                        ) : null}
+                      <div className="flex items-center justify-end">
+                        {isRemoving ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                disabled={isUpdating}
+                                aria-label="User actions"
+                                className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus-visible:outline-none data-[state=open]:bg-neutral-100 data-[state=open]:text-neutral-700 disabled:opacity-40"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="min-w-[9rem] rounded-[15px] border-0 bg-white/90 p-1 font-light text-foreground shadow-md backdrop-blur-xl"
+                            >
+                              <DropdownMenuItem
+                                className="cursor-pointer rounded-[10px] px-3 py-1.5 text-sm font-light focus:bg-neutral-100"
+                                onSelect={() =>
+                                  router.push(`/users/${member.userId}`)
+                                }
+                              >
+                                View user
+                              </DropdownMenuItem>
+                              {canEditMember ? (
+                                <DropdownMenuItem
+                                  className="cursor-pointer rounded-[10px] px-3 py-1.5 text-sm font-light text-rose-600 focus:bg-neutral-100 focus:text-rose-600"
+                                  onSelect={() =>
+                                    void handleRemove(member.userId)
+                                  }
+                                >
+                                  Remove
+                                </DropdownMenuItem>
+                              ) : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -630,6 +575,7 @@ export function OrganizationMembers({
         onOpenChange={(open) => !open && resetInviteForm()}
       >
         <DialogContent
+          ref={setInviteDialogEl}
           showCloseButton={false}
           overlayClassName="z-[120] bg-kenoo-white"
           onPointerDownOutside={(event) => event.preventDefault()}
@@ -716,28 +662,108 @@ export function OrganizationMembers({
                     </span>
                   </label>
 
-                  <label className="block max-w-xs">
-                    <span className="mb-1.5 block text-xs font-medium text-neutral-500">
-                      Role
-                    </span>
-                    <Select
-                      value={inviteRole}
-                      onValueChange={(value) =>
-                        setInviteRole(value as AccountRole)
-                      }
-                    >
-                      <SelectTrigger className="h-10 rounded-none border-0 border-b border-neutral-200 bg-transparent px-0 font-light shadow-none focus:ring-0 data-[state=open]:border-b-[var(--kenoo-sky)]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        {actorRole === "owner" ? (
-                          <SelectItem value="owner">Owner</SelectItem>
-                        ) : null}
-                      </SelectContent>
-                    </Select>
-                  </label>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-medium text-neutral-500">
+                        Role
+                      </span>
+                      <Select
+                        value={inviteRole}
+                        onValueChange={(value) =>
+                          setInviteRole(value as AccountRole)
+                        }
+                      >
+                        <SelectTrigger className="h-10 rounded-none border-0 border-b border-neutral-200 bg-transparent px-0 font-light shadow-none focus:ring-0 data-[state=open]:border-b-[var(--kenoo-sky)]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="member">Member</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          {actorRole === "owner" ? (
+                            <SelectItem value="owner">Owner</SelectItem>
+                          ) : null}
+                        </SelectContent>
+                      </Select>
+                    </label>
+
+                    <div className="block">
+                      <span className="mb-1.5 block text-xs font-medium text-neutral-500">
+                        App access
+                      </span>
+                      {catalogApps.length === 0 ? (
+                        <p className="flex h-10 items-center text-sm font-light text-neutral-400">
+                          No apps available
+                        </p>
+                      ) : (
+                        <Popover modal={false}>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex h-10 w-full items-center justify-between border-0 border-b border-neutral-200 bg-transparent px-0 text-left text-sm font-light shadow-none outline-none transition-colors data-[state=open]:border-b-[var(--kenoo-sky)]"
+                            >
+                              <span
+                                className={cn(
+                                  "truncate",
+                                  selectedInviteApps.length === 0
+                                    ? "text-neutral-300"
+                                    : "text-neutral-800",
+                                )}
+                              >
+                                {inviteAppsLabel}
+                              </span>
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            container={inviteDialogEl}
+                            align="start"
+                            className="z-[200] pointer-events-auto w-80 rounded-[15px] border-0 bg-white/90 p-0 font-light text-foreground shadow-md backdrop-blur-xl"
+                            onOpenAutoFocus={(event) => event.preventDefault()}
+                            onCloseAutoFocus={(event) => event.preventDefault()}
+                            onWheel={(event) => event.stopPropagation()}
+                          >
+                            <div className="max-h-64 overflow-y-auto overscroll-contain py-1">
+                              {catalogApps.map((app) => {
+                                const selected = inviteAppIds.includes(app.id);
+
+                                return (
+                                  <button
+                                    key={app.id}
+                                    type="button"
+                                    onClick={() => toggleInviteApp(app.id)}
+                                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-neutral-50"
+                                  >
+                                    <AppIcon app={app} size={20} />
+                                    <span className="min-w-0 flex-1 truncate text-sm font-light text-neutral-800">
+                                      {app.name}
+                                    </span>
+                                    <Check
+                                      className={cn(
+                                        "h-4 w-4 shrink-0 text-[var(--kenoo-sky)]",
+                                        selected ? "opacity-100" : "opacity-0",
+                                      )}
+                                      aria-hidden
+                                    />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {selectedInviteApps.length > 0 ? (
+                              <div className="border-t border-neutral-100 px-3 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setInviteAppIds([])}
+                                  className="text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-800"
+                                >
+                                  Clear selection
+                                </button>
+                              </div>
+                            ) : null}
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -767,98 +793,6 @@ export function OrganizationMembers({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={appAccessMember != null}
-        onOpenChange={(open) => {
-          if (!open) setAppAccessMember(null);
-        }}
-      >
-        <DialogContent
-          className="max-h-[85vh] max-w-md overflow-hidden rounded-2xl border-neutral-200 p-0"
-          showCloseButton
-        >
-          {appAccessMember ? (
-            <div className="flex max-h-[85vh] flex-col">
-              <div className="border-b border-neutral-100 px-6 py-5">
-                <h2 className="text-lg font-medium text-neutral-900">
-                  App access
-                </h2>
-                <p className="mt-1 text-sm font-light text-neutral-500">
-                  Apps {displayName(appAccessMember)} can use in this
-                  organization
-                </p>
-              </div>
-
-              <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
-                {catalogApps.length === 0 ? (
-                  <p className="px-2 py-6 text-center text-sm font-light text-neutral-500">
-                    This organization has no apps yet. Enable apps in Console,
-                    then assign them to members here.
-                  </p>
-                ) : (
-                  catalogApps.map((app) => {
-                    const enabled = dialogMemberIds.has(app.id);
-                    const canToggle = canEditAppAccessFor(appAccessMember);
-                    const isToggling = togglingMemberAppId === app.id;
-
-                    return (
-                      <button
-                        key={app.id}
-                        type="button"
-                        disabled={
-                          !canToggle ||
-                          isToggling ||
-                          togglingMemberAppId !== null
-                        }
-                        onClick={() => {
-                          if (!canToggle) return;
-                          void handleToggleMemberApp(app.id, !enabled);
-                        }}
-                        className={cn(
-                          "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
-                          enabled
-                            ? "border-neutral-300 bg-neutral-50"
-                            : "border-neutral-200/60 bg-transparent",
-                          canToggle
-                            ? "hover:bg-neutral-50"
-                            : "cursor-default",
-                          "disabled:opacity-90",
-                        )}
-                      >
-                        <AppIcon app={app} size={36} />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-800">
-                          {app.name}
-                        </span>
-                        {isToggling ? (
-                          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-neutral-400" />
-                        ) : (
-                          <span
-                            className={cn(
-                              "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px]",
-                              enabled
-                                ? "border-neutral-800 bg-neutral-800 text-white"
-                                : "border-neutral-200 bg-white text-transparent",
-                            )}
-                            aria-hidden
-                          >
-                            {enabled ? "✓" : ""}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-
-              <p className="border-t border-neutral-100 px-6 py-3 text-[11px] font-light text-neutral-400">
-                Members only see these apps when this organization is the active
-                account in the portal.
-              </p>
-            </div>
-          ) : null}
         </DialogContent>
       </Dialog>
     </div>
