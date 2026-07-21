@@ -4,7 +4,6 @@ import { useAppHeaderVisible } from "@walls/ui/private-app-chrome";
 import { cn } from "@walls/utils";
 
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
-import { useAdminSidebar } from "@/components/admin/AdminSidebarContext";
 
 type AppSidebarLayoutProps = {
   children: React.ReactNode;
@@ -12,8 +11,6 @@ type AppSidebarLayoutProps = {
 };
 
 function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
-  const { isCollapsed, isHoverExpanded } = useAdminSidebar();
-  const isExpanded = !isCollapsed || isHoverExpanded;
   const headerVisible = useAppHeaderVisible();
 
   return (
@@ -21,15 +18,15 @@ function AppSidebarContent({ children, className }: AppSidebarLayoutProps) {
       <AdminSidebar headerVisible={headerVisible} />
       <div
         className={cn(
-          "admin-shell flex min-h-screen min-w-0 flex-col transition-[margin-left,padding-top] duration-300",
+          "admin-shell flex h-screen min-w-0 flex-col overflow-hidden transition-[padding-top] duration-300",
           headerVisible ? "pt-16" : "pt-0",
-          isExpanded ? "md:ml-52" : "md:ml-[4.5rem]",
+          "md:ml-60",
           className,
         )}
       >
         <main
           data-app-scroll-container
-          className="min-h-0 flex-1 overflow-y-auto overscroll-none px-4 pb-10 pt-4 sm:px-6 lg:px-8"
+          className="h-0 min-h-0 flex-1 overflow-y-auto overscroll-none bg-kenoo-white px-4 pb-10 pt-4 sm:px-6 lg:px-8"
         >
           {children}
         </main>

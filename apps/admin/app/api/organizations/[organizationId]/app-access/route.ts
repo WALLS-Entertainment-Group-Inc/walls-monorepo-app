@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 
 import {
-  grantAccountAppAccess,
   grantAccountUserAppAccess,
   listAccountAppIds,
   listManagedApps,
   listMemberAppIdsForAccount,
-  revokeAccountAppAccess,
   revokeAccountUserAppAccess,
 } from "@/lib/app-access";
 import { listAccountMembers } from "@/lib/accounts";
@@ -83,30 +81,32 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const targetUserId = body.userId?.trim() || null;
 
-  if (targetUserId) {
-    const result = body.enabled
-      ? await grantAccountUserAppAccess({
-          accountId,
-          userId: targetUserId,
-          appId: body.appId,
-        })
-      : await revokeAccountUserAppAccess({
-          accountId,
-          userId: targetUserId,
-          appId: body.appId,
-        });
+  // Organization catalog (account_app_access) is Console-only.
+  // Admin may only assign apps the org already has to members.
+  if (!targetUserId) {
+    return NextResponse.json(
+      {
+        error:
+          "Organization app catalog is managed in Console. Assign apps to members instead.",
+      },
+      { status: 403 },
+    );
+  }
 
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
-  } else {
-    const result = body.enabled
-      ? await grantAccountAppAccess({ accountId, appId: body.appId })
-      : await revokeAccountAppAccess({ accountId, appId: body.appId });
+  const result = body.enabled
+    ? await grantAccountUserAppAccess({
+        accountId,
+        userId: targetUserId,
+        appId: body.appId,
+      })
+    : await revokeAccountUserAppAccess({
+        accountId,
+        userId: targetUserId,
+        appId: body.appId,
+      });
 
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    }
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
   const members = await listAccountMembers(accountId);

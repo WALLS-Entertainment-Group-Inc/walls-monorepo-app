@@ -43,7 +43,7 @@ export default function RootLayout({
       <body className="h-screen overflow-hidden bg-kenoo-white text-foreground">
         <div className="h-full overscroll-none overflow-hidden">
           <Providers>
-            <AppHeaderVisibilityProvider autoHideOnScroll>
+            <AppHeaderVisibilityProvider>
               <AppTopChrome
                 dashboardPath="/"
                 leftContent={<AccountSwitcher />}

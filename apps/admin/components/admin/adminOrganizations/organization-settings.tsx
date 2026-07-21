@@ -7,40 +7,32 @@ import {
   Building2,
   Loader2,
   Plus,
+  Settings,
   Trash2,
+  Users,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import { wallsToast } from "@/components/ui/walls-toast";
 import { Button } from "@/components/ui/button";
-import { Input as BorderlessInput } from "@/components/ui/borderless-input";
+import { Input } from "@/components/ui/borderless-input";
 import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
-import { Skeleton } from "@walls/ui/skeleton";
 import { SquareImageCrop } from "@/components/ui/square-image-crop";
 import { Toaster } from "@/components/ui/toaster";
 import { useUploadOrganizationIcon } from "@/hooks/useMutations";
 import type { OrganizationRecord } from "@/lib/organizations-shared";
-import { OrganizationMembers } from "@/components/admin/adminOrganizations/organization-members";
+import { canEditOrganization } from "@/lib/organizations-shared";
 import { useActiveAccount } from "@/components/active-account-context";
+import { cn } from "@/lib/utils";
 
-const fieldClass =
-  "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus:ring-0 focus:border-b-[var(--kenoo-sky)] bg-transparent w-full placeholder:text-neutral-300";
 const labelClass =
-  "text-xs font-normal text-neutral-400 tracking-wide block mb-1";
+  "mb-1 block text-xs font-medium tracking-wide text-[#5f6368]";
+const fieldClass =
+  "w-full rounded-lg border border-[#dadce0] bg-white px-3 py-2.5 text-sm text-[#202124] placeholder:text-[#9aa0a6] focus:border-[#1967d2] focus:outline-none focus:ring-2 focus:ring-[#1967d2]/15";
 const readonlyFieldClass =
-  "border-0 border-b border-neutral-200 rounded-none px-0 py-2 font-light bg-transparent w-full text-neutral-400 placeholder:text-neutral-300 cursor-not-allowed";
-
-function SectionDivider({ title }: { title: string }) {
-  return (
-    <div className="mb-8 mt-8 flex items-center first:mt-0">
-      <span className="mr-4 text-4xl font-black text-black">{title}</span>
-      <div className="h-px flex-1 border-t border-black" />
-    </div>
-  );
-}
+  "w-full cursor-not-allowed rounded-lg border border-[#dadce0] bg-[#f8f9fa] px-3 py-2.5 text-sm text-[#5f6368]";
 
 function OrganizationAvatar({
   name,
@@ -54,9 +46,9 @@ function OrganizationAvatar({
       <Image
         src={iconUrl}
         alt={`${name} icon`}
-        width={120}
-        height={120}
-        className="h-[120px] w-[120px] rounded-2xl object-cover"
+        width={88}
+        height={88}
+        className="h-[88px] w-[88px] rounded-2xl object-cover"
       />
     );
   }
@@ -68,8 +60,8 @@ function OrganizationAvatar({
     .join("");
 
   return (
-    <div className="flex h-[120px] w-[120px] items-center justify-center rounded-2xl bg-neutral-100 text-2xl font-semibold text-neutral-700">
-      {initials || <Building2 className="h-8 w-8" />}
+    <div className="flex h-[88px] w-[88px] items-center justify-center rounded-2xl bg-[#f1f3f4] text-xl font-medium text-[#5f6368]">
+      {initials || <Building2 className="h-7 w-7" />}
     </div>
   );
 }
@@ -105,9 +97,7 @@ function OrganizationIconUpload({
     event.target.value = "";
   };
 
-  const avatar = (
-    <OrganizationAvatar name={name} iconUrl={iconUrl} />
-  );
+  const avatar = <OrganizationAvatar name={name} iconUrl={iconUrl} />;
 
   if (!canEdit) {
     return avatar;
@@ -125,14 +115,14 @@ function OrganizationIconUpload({
       />
       <label
         htmlFor="organization-icon-upload"
-        className={`relative block cursor-pointer group ${isUploading ? "pointer-events-none opacity-70" : ""}`}
+        className={`group relative block cursor-pointer ${isUploading ? "pointer-events-none opacity-70" : ""}`}
       >
         {avatar}
-        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/45 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
           {isUploading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-white" />
+            <Loader2 className="h-5 w-5 animate-spin text-white" />
           ) : (
-            <Plus className="h-6 w-6 text-white" />
+            <Plus className="h-5 w-5 text-white" />
           )}
         </div>
       </label>
@@ -149,6 +139,33 @@ function OrganizationIconUpload({
         />
       ) : null}
     </>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+  action,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-[#e8eaed] bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-medium text-[#202124]">{title}</h2>
+          {description ? (
+            <p className="mt-0.5 text-sm text-[#5f6368]">{description}</p>
+          ) : null}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -205,16 +222,21 @@ export default function OrganizationSettingsPage() {
   });
 
   const selectedOrganization = useMemo(
-    () => organizations.find((organization) => organization.id === selectedId) ?? null,
+    () =>
+      organizations.find((organization) => organization.id === selectedId) ??
+      null,
     [organizations, selectedId],
   );
 
-  const canEdit = true;
-  const canDelete = true;
-  const actorRole = "owner" as const;
+  const canEdit = selectedOrganization
+    ? canEditOrganization(selectedOrganization.role)
+    : false;
 
   const displayIconUrl =
-    iconPreviewUrl || form.iconUrl.trim() || selectedOrganization?.iconUrl || null;
+    iconPreviewUrl ||
+    form.iconUrl.trim() ||
+    selectedOrganization?.iconUrl ||
+    null;
 
   const handleIconUpload = useCallback(
     async (file: File) => {
@@ -253,7 +275,9 @@ export default function OrganizationSettingsPage() {
 
       const next = payload.organizations ?? [];
       setOrganizations(next);
-      setSelectedId(payload.activeAccountId ?? activeAccountId ?? next[0]?.id ?? null);
+      setSelectedId(
+        payload.activeAccountId ?? activeAccountId ?? next[0]?.id ?? null,
+      );
     } finally {
       setLoading(false);
     }
@@ -386,7 +410,7 @@ export default function OrganizationSettingsPage() {
   }, [selectedId, canEdit, isFormChanged, form]);
 
   async function handleDelete() {
-    if (!selectedId || !canDelete) return;
+    if (!selectedId || !canEdit) return;
 
     setIsDeleting(true);
     try {
@@ -439,7 +463,10 @@ export default function OrganizationSettingsPage() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        wallsToast.error("Error", payload.error || "Failed to create organization");
+        wallsToast.error(
+          "Error",
+          payload.error || "Failed to create organization",
+        );
         return;
       }
 
@@ -459,159 +486,166 @@ export default function OrganizationSettingsPage() {
     }
   }
 
-  if (loading) {
+  const inputClass = (editable: boolean) =>
+    editable ? fieldClass : readonlyFieldClass;
+
+  if (accountLoading || loading) {
     return (
-      <div className="mx-auto w-full max-w-5xl">
-        <Skeleton className="mb-8 h-10 w-64" />
-        <Skeleton className="mb-4 h-[120px] w-[120px] rounded-2xl" />
-        <Skeleton className="mb-4 h-12 w-full" />
-        <Skeleton className="mb-4 h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
+      <div className="mx-auto max-w-5xl animate-pulse space-y-4 py-2">
+        <div className="h-8 w-48 rounded-lg bg-neutral-200/80" />
+        <div className="h-4 w-72 rounded bg-neutral-100" />
+        <div className="mt-6 h-56 rounded-2xl bg-white" />
+        <div className="h-56 rounded-2xl bg-white" />
       </div>
     );
   }
 
-  const inputClass = (editable: boolean) =>
-    editable ? fieldClass : readonlyFieldClass;
-
   return (
-    <div className="mx-auto w-full max-w-5xl pb-8">
+    <div className="mx-auto max-w-5xl space-y-6 pb-12">
       <Toaster />
 
-      <div className="mb-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-neutral-900">
-              {activeAccount?.accountType === "organization"
-                ? "Organization settings"
-                : "Account settings"}
-            </h1>
-            <p className="text-sm font-light text-neutral-500">
-              Manage profile, members, and settings for{" "}
-              <span className="font-medium text-neutral-700">
-                {activeAccount?.name ?? "the active account"}
-              </span>
-              .
-            </p>
-            </div>
-            {activeAccount?.accountType === "organization" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="rounded-none border border-neutral-200/50 bg-background px-6 py-6 font-normal hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]"
-                onClick={() => setShowCreateForm((value) => !value)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New organization
-              </Button>
-            ) : null}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[#5f6368]">
+            <Settings className="h-4 w-4" />
+            <span className="text-xs font-medium uppercase tracking-wide">
+              Account
+            </span>
           </div>
+          <h1 className="text-2xl font-normal text-[#202124]">
+            {activeAccount?.accountType === "organization"
+              ? "Organization profile"
+              : "Account settings"}
+          </h1>
+          <p className="text-sm text-[#5f6368]">
+            Update the profile and contact details for{" "}
+            {activeAccount?.name ?? "this account"}.
+          </p>
         </div>
 
-        {activeAccount?.accountType === "personal" ? (
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-6 py-8">
-            <h2 className="text-lg font-semibold text-foreground">
-              Personal account selected
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-500">
-              Organization settings apply to organization accounts. Switch to an
-              organization in the header to manage its profile, members, and app
-              access, or open your personal account settings.
-            </p>
-            {activeAccountId ? (
-              <Button
-                asChild
-                variant="ghost"
-                className="mt-4 rounded-none border border-neutral-200/50 bg-background px-6 py-6 font-normal hover:bg-background hover:shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]"
-              >
-                <Link href={`/accounts/${activeAccountId}`}>
-                  Open account settings
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {saving ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-[#5f6368]">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Saving…
+            </span>
+          ) : null}
+          {activeAccount?.accountType === "organization" ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+              onClick={() => setShowCreateForm((value) => !value)}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              {showCreateForm ? "Cancel" : "New organization"}
+            </Button>
+          ) : null}
+        </div>
+      </header>
 
-        {showCreateForm ? (
-          <div className="space-y-8">
-            <SectionDivider title="Create organization" />
-            <div className="space-y-4">
-              <div>
-                <label className={labelClass}>Organization name</label>
-                <BorderlessInput
-                  value={createForm.name}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      name: event.target.value,
-                    }))
-                  }
-                  className={fieldClass}
-                  placeholder="Organization name"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Website</label>
-                <BorderlessInput
-                  value={createForm.website}
-                  onChange={(event) =>
-                    setCreateForm((current) => ({
-                      ...current,
-                      website: event.target.value,
-                    }))
-                  }
-                  className={fieldClass}
-                  placeholder="https://example.com"
-                />
-              </div>
-              <p className="text-xs font-light text-neutral-400">
-                You can upload an organization icon after it is created.
-              </p>
+      {activeAccount?.accountType === "personal" ? (
+        <div className="rounded-2xl border border-[#e8eaed] bg-white px-6 py-12 text-center shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+          <Building2 className="mx-auto h-10 w-10 text-[#dadce0]" />
+          <p className="mt-4 text-sm font-medium text-[#202124]">
+            Personal account selected
+          </p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-[#5f6368]">
+            Switch to an organization in the header to edit its profile, or open
+            account details for this personal account.
+          </p>
+          {activeAccountId ? (
+            <Button
+              asChild
+              variant="outline"
+              className="mt-5 rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+            >
+              <Link href={`/accounts/${activeAccountId}`}>
+                Open account details
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showCreateForm ? (
+        <SectionCard
+          title="Create organization"
+          description="Start a new organization account"
+          action={
+            <Button
+              type="button"
+              disabled={creating}
+              onClick={() => void handleCreate()}
+              className="rounded-full bg-[#1967d2] px-5 text-white hover:bg-[#1557b0] disabled:opacity-50"
+            >
+              {creating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Create
+            </Button>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className={labelClass}>Organization name</label>
+              <Input
+                value={createForm.name}
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    name: event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                placeholder="Organization name"
+              />
             </div>
-            <div className="flex justify-start gap-3 pb-8">
-              <Button
-                type="button"
-                variant="ghost"
-                className="rounded-none border border-neutral-200/50 bg-background px-8 py-6 font-normal"
-                onClick={() => setShowCreateForm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={creating}
-                className="rounded-none border border-neutral-200/50 bg-kenoo-yellow px-8 py-6 font-normal text-black hover:bg-kenoo-yellow"
-                onClick={() => void handleCreate()}
-              >
-                {creating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Create organization
-              </Button>
+            <div className="sm:col-span-2">
+              <label className={labelClass}>Website</label>
+              <Input
+                value={createForm.website}
+                onChange={(event) =>
+                  setCreateForm((current) => ({
+                    ...current,
+                    website: event.target.value,
+                  }))
+                }
+                className={fieldClass}
+                placeholder="https://example.com"
+              />
             </div>
           </div>
-        ) : null}
+          <p className="mt-3 text-xs text-[#5f6368]">
+            You can upload an icon after the organization is created.
+          </p>
+        </SectionCard>
+      ) : null}
 
-        {activeAccount?.accountType === "organization" &&
-        organizations.length === 0 &&
-        !loading &&
-        !showCreateForm ? (
-          <div className="py-16 text-center">
-            <Building2 className="mx-auto mb-4 h-12 w-12 text-neutral-300" />
-            <p className="text-sm font-light text-neutral-500">
-              No organization profile found for the active account.
-            </p>
-          </div>
-        ) : null}
+      {activeAccount?.accountType === "organization" &&
+      organizations.length === 0 &&
+      !showCreateForm ? (
+        <div className="rounded-2xl border border-[#e8eaed] bg-white px-6 py-16 text-center shadow-[0_1px_2px_rgba(60,64,67,0.08)]">
+          <Building2 className="mx-auto h-10 w-10 text-[#dadce0]" />
+          <p className="mt-4 text-sm font-medium text-[#202124]">
+            No organization profile found
+          </p>
+          <p className="mt-1 text-sm text-[#5f6368]">
+            Create an organization to manage its profile here.
+          </p>
+        </div>
+      ) : null}
 
-        {activeAccount?.accountType === "organization" &&
-        selectedOrganization &&
-        !showCreateForm ? (
-          <div className="space-y-8">
-            <SectionDivider title="Organization profile" />
-
-            <div className="flex gap-8">
-              <div className="flex-shrink-0">
+      {activeAccount?.accountType === "organization" &&
+      selectedOrganization &&
+      !showCreateForm ? (
+        <>
+          <SectionCard
+            title="Profile"
+            description="Name, icon, and public details"
+          >
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+              <div className="flex shrink-0 flex-col items-center gap-2">
                 <OrganizationIconUpload
                   name={form.name || selectedOrganization.name}
                   iconUrl={displayIconUrl}
@@ -619,15 +653,17 @@ export default function OrganizationSettingsPage() {
                   isUploading={isUploadingIcon}
                   onSelectFile={(file) => void handleIconUpload(file)}
                 />
-                <p className="mt-3 max-w-[120px] text-center text-[10px] font-light uppercase tracking-wide text-neutral-400">
-                  Organization
-                </p>
+                {canEdit ? (
+                  <p className="text-center text-xs text-[#5f6368]">
+                    Click to change icon
+                  </p>
+                ) : null}
               </div>
 
-              <div className="flex-1 space-y-4">
-                <div>
+              <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
                   <label className={labelClass}>Organization name</label>
-                  <BorderlessInput
+                  <Input
                     value={form.name}
                     readOnly={!canEdit}
                     onChange={(event) =>
@@ -640,9 +676,9 @@ export default function OrganizationSettingsPage() {
                     placeholder="Organization name"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className={labelClass}>Website</label>
-                  <BorderlessInput
+                  <Input
                     value={form.website}
                     readOnly={!canEdit}
                     onChange={(event) =>
@@ -655,31 +691,33 @@ export default function OrganizationSettingsPage() {
                     placeholder="https://example.com"
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Description</label>
+                  <Input
+                    value={form.description}
+                    readOnly={!canEdit}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    className={inputClass(canEdit)}
+                    placeholder="What does your organization do?"
+                  />
+                </div>
               </div>
             </div>
+          </SectionCard>
 
-            <SectionDivider title="About" />
-            <div>
-              <label className={labelClass}>Description</label>
-              <BorderlessInput
-                value={form.description}
-                readOnly={!canEdit}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: event.target.value,
-                  }))
-                }
-                className={inputClass(canEdit)}
-                placeholder="What does your organization do?"
-              />
-            </div>
-
-            <SectionDivider title="Contact information" />
-            <div className="flex gap-4">
-              <div className="flex-1">
+          <SectionCard
+            title="Contact"
+            description="How people reach this organization"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
                 <label className={labelClass}>Email</label>
-                <BorderlessInput
+                <Input
                   value={form.email}
                   readOnly={!canEdit}
                   onChange={(event) =>
@@ -692,9 +730,9 @@ export default function OrganizationSettingsPage() {
                   placeholder="contact@organization.com"
                 />
               </div>
-              <div className="flex-1">
+              <div>
                 <label className={labelClass}>Phone</label>
-                <BorderlessInput
+                <Input
                   value={form.phone}
                   readOnly={!canEdit}
                   onChange={(event) =>
@@ -704,16 +742,20 @@ export default function OrganizationSettingsPage() {
                     }))
                   }
                   className={inputClass(canEdit)}
-                  placeholder="+13103878027"
+                  placeholder="+1 310 387 8027"
                 />
               </div>
             </div>
+          </SectionCard>
 
-            <SectionDivider title="Location" />
-            <div className="space-y-4">
-              <div>
+          <SectionCard
+            title="Location"
+            description="Mailing and invoice address"
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
                 <label className={labelClass}>Address line 1</label>
-                <BorderlessInput
+                <Input
                   value={form.addressLine1}
                   readOnly={!canEdit}
                   onChange={(event) =>
@@ -726,9 +768,9 @@ export default function OrganizationSettingsPage() {
                   placeholder="Street address"
                 />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className={labelClass}>Address line 2</label>
-                <BorderlessInput
+                <Input
                   value={form.addressLine2}
                   readOnly={!canEdit}
                   onChange={(event) =>
@@ -741,166 +783,179 @@ export default function OrganizationSettingsPage() {
                   placeholder="Suite, unit, etc."
                 />
               </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className={labelClass}>City</label>
-                  <BorderlessInput
-                    value={form.city}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        city: event.target.value,
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="City"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className={labelClass}>State / Province</label>
-                  <BorderlessInput
-                    value={form.stateProvince}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        stateProvince: event.target.value,
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="State or province"
-                  />
-                </div>
+              <div>
+                <label className={labelClass}>City</label>
+                <Input
+                  value={form.city}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      city: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="City"
+                />
               </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className={labelClass}>Postal code</label>
-                  <BorderlessInput
-                    value={form.postalCode}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        postalCode: event.target.value,
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="Postal code"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className={labelClass}>Country code</label>
-                  <BorderlessInput
-                    value={form.countryCode}
-                    readOnly={!canEdit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        countryCode: event.target.value.toUpperCase(),
-                      }))
-                    }
-                    className={inputClass(canEdit)}
-                    placeholder="US"
-                  />
-                </div>
+              <div>
+                <label className={labelClass}>State / Province</label>
+                <Input
+                  value={form.stateProvince}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      stateProvince: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="State or province"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Postal code</label>
+                <Input
+                  value={form.postalCode}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      postalCode: event.target.value,
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="Postal code"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Country code</label>
+                <Input
+                  value={form.countryCode}
+                  readOnly={!canEdit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      countryCode: event.target.value.toUpperCase(),
+                    }))
+                  }
+                  className={inputClass(canEdit)}
+                  placeholder="US"
+                />
               </div>
             </div>
+          </SectionCard>
 
-            <SectionDivider title="Members & apps" />
-            <OrganizationMembers
-              organizationId={selectedOrganization.id}
-              actorRole={actorRole}
-              canEdit={canEdit}
-            />
-
-            {saving ? (
-              <p className="flex items-center gap-2 pb-4 pt-2 text-xs font-light text-neutral-400">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Saving…
-              </p>
-            ) : (
-              <div className="pb-4" />
-            )}
-
-            {selectedOrganization ? (
-              <>
-                <SectionDivider title="Danger zone" />
-                <div className="pb-8">
-                  <p className="mb-4 max-w-2xl text-sm font-light text-neutral-500">
-                    Permanently delete this organization and remove all members.
-                    This action cannot be undone.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={isDeleting || saving}
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="rounded-none border border-red-200 bg-background px-8 py-6 font-normal text-red-600 transition-all hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isDeleting ? (
-                      <span className="flex items-center">
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Deleting...
-                      </span>
-                    ) : (
-                      <span className="flex items-center">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete organization
-                      </span>
-                    )}
-                  </Button>
+          <section className="rounded-2xl border border-[#e8eaed] bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e8f0fe]">
+                  <Users className="h-5 w-5 text-[#1967d2]" />
                 </div>
+                <div>
+                  <h2 className="text-base font-medium text-[#202124]">
+                    Users &amp; app access
+                  </h2>
+                  <p className="mt-0.5 text-sm text-[#5f6368]">
+                    Invite members and manage app permissions on the Users page.
+                  </p>
+                </div>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-full border-[#dadce0] text-[#1967d2] hover:bg-[#e8f0fe]"
+              >
+                <Link href="/users">Manage users</Link>
+              </Button>
+            </div>
+          </section>
 
-                <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                  <DialogContent showCloseButton={!isDeleting}>
-                    <div className="space-y-4">
-                      <div>
-                        <h2 className="text-lg font-semibold text-foreground">
-                          Delete organization?
-                        </h2>
-                        <p className="mt-2 text-sm font-light text-neutral-500">
-                          Are you sure you want to delete{" "}
-                          <span className="font-normal text-foreground">
-                            {selectedOrganization.name}
-                          </span>
-                          ? This cannot be undone.
-                        </p>
-                      </div>
-                      <div className="flex justify-end gap-3">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          disabled={isDeleting}
-                          onClick={() => setShowDeleteDialog(false)}
-                          className="rounded-none border border-neutral-200/50 px-6 py-2 font-normal"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          disabled={isDeleting}
-                          onClick={() => void handleDelete()}
-                          className="rounded-none border border-red-200 bg-red-50 px-6 py-2 font-normal text-red-600 hover:bg-red-100 hover:text-red-700"
-                        >
-                          {isDeleting ? (
-                            <span className="flex items-center">
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Deleting...
-                            </span>
-                          ) : (
-                            "Delete organization"
-                          )}
-                        </Button>
-                      </div>
+          {canEdit ? (
+            <section
+              className={cn(
+                "rounded-2xl border bg-white p-6 shadow-[0_1px_2px_rgba(60,64,67,0.08)] sm:p-8",
+                "border-[#fce8e6]",
+              )}
+            >
+              <h2 className="text-base font-medium text-[#202124]">
+                Delete organization
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-[#5f6368]">
+                Permanently delete this organization and remove all members.
+                This cannot be undone.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isDeleting || saving}
+                onClick={() => setShowDeleteDialog(true)}
+                className="mt-5 rounded-full border-[#f6aea9] text-[#d93025] hover:bg-[#fce8e6]"
+              >
+                {isDeleting ? (
+                  <span className="flex items-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting…
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete organization
+                  </span>
+                )}
+              </Button>
+
+              <Dialog
+                open={showDeleteDialog}
+                onOpenChange={setShowDeleteDialog}
+              >
+                <DialogContent showCloseButton={!isDeleting}>
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-lg font-medium text-[#202124]">
+                        Delete organization?
+                      </h2>
+                      <p className="mt-2 text-sm text-[#5f6368]">
+                        Are you sure you want to delete{" "}
+                        <span className="font-medium text-[#202124]">
+                          {selectedOrganization.name}
+                        </span>
+                        ? This cannot be undone.
+                      </p>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </>
-            ) : null}
-          </div>
-        ) : null}
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isDeleting}
+                        onClick={() => setShowDeleteDialog(false)}
+                        className="rounded-full border-[#dadce0]"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        disabled={isDeleting}
+                        onClick={() => void handleDelete()}
+                        className="rounded-full bg-[#d93025] text-white hover:bg-[#b3261e]"
+                      >
+                        {isDeleting ? (
+                          <span className="flex items-center">
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Deleting…
+                          </span>
+                        ) : (
+                          "Delete organization"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </section>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }

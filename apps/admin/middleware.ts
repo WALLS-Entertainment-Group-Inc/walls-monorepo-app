@@ -5,6 +5,7 @@ import { handleProtectedAppRequest } from "@walls/auth/middleware";
 export async function middleware(request: NextRequest) {
   return handleProtectedAppRequest(request, {
     appSlug: process.env.NEXT_PUBLIC_ADMIN_APP_SLUG || "admin",
+    publicPaths: ["/api/billing/webhook"],
   });
 }
 
