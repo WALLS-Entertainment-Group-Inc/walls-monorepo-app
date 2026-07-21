@@ -1,6 +1,21 @@
+import { cookies } from "next/headers";
+
+import {
+  ACTIVE_ACCOUNT_COOKIE,
+  userHasAppAccessForActiveAccount,
+} from "@walls/auth/active-account";
 import { createClient } from "@walls/supabase/server";
 import { createAdminClient } from "@walls/supabase/admin";
 
+import {
+  ADMIN_ACCOUNT_COOKIE,
+  ADMIN_APP_SLUG,
+} from "@/lib/account-context";
+
+/**
+ * Admin app APIs require an active user with Admin app access grants
+ * (account_app_user_access / legacy user_app_access). Not users.is_admin.
+ */
 export async function requireAdminCaller() {
   const supabase = await createClient();
   const {
@@ -14,7 +29,7 @@ export async function requireAdminCaller() {
 
   const { data: profile, error: profileError } = await supabase
     .from("users")
-    .select("id, is_admin, status")
+    .select("id, status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -23,7 +38,24 @@ export async function requireAdminCaller() {
     return { error: "Failed to verify admin" as const, status: 500 as const };
   }
 
-  if (!profile || profile.status !== "active" || profile.is_admin !== true) {
+  if (!profile || profile.status !== "active") {
+    return { error: "Forbidden" as const, status: 403 as const };
+  }
+
+  const cookieStore = await cookies();
+  const preferredAccountId =
+    cookieStore.get(ACTIVE_ACCOUNT_COOKIE)?.value ??
+    cookieStore.get(ADMIN_ACCOUNT_COOKIE)?.value ??
+    null;
+
+  const hasAdminAppAccess = await userHasAppAccessForActiveAccount(
+    supabase,
+    user.id,
+    ADMIN_APP_SLUG,
+    preferredAccountId,
+  );
+
+  if (!hasAdminAppAccess) {
     return { error: "Forbidden" as const, status: 403 as const };
   }
 

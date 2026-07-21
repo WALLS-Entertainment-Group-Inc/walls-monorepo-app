@@ -8,6 +8,7 @@ import {
   updateAccountMemberRole,
   type AccountRole,
 } from "@/lib/accounts";
+import { grantAccountUserAppAccess } from "@/lib/app-access";
 import { getOrganizationById } from "@/lib/organizations";
 import { requireAdminCaller } from "@/lib/require-admin";
 
@@ -51,9 +52,33 @@ export async function POST(request: Request, context: RouteContext) {
     role?: AccountRole;
     firstName?: string;
     lastName?: string;
+    appIds?: string[];
   };
 
   const role = body.role ?? "member";
+  const appIds = Array.isArray(body.appIds)
+    ? [
+        ...new Set(
+          body.appIds.filter(
+            (id): id is string => typeof id === "string" && id.trim().length > 0,
+          ),
+        ),
+      ]
+    : [];
+
+  async function grantSelectedApps(userId: string) {
+    for (const appId of appIds) {
+      const grant = await grantAccountUserAppAccess({
+        accountId,
+        userId,
+        appId,
+      });
+      if (!grant.ok) {
+        return grant;
+      }
+    }
+    return { ok: true as const };
+  }
 
   if (body.userId) {
     const result = await addAccountMember({
@@ -65,6 +90,11 @@ export async function POST(request: Request, context: RouteContext) {
     if (!result.ok) {
       const status = result.error.includes("already") ? 409 : 400;
       return NextResponse.json({ error: result.error }, { status });
+    }
+
+    const granted = await grantSelectedApps(body.userId);
+    if (!granted.ok) {
+      return NextResponse.json({ error: granted.error }, { status: 400 });
     }
 
     const members = await listAccountMembers(accountId);
@@ -92,12 +122,18 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: result.error }, { status });
   }
 
+  const granted = await grantSelectedApps(result.userId);
+  if (!granted.ok) {
+    return NextResponse.json({ error: granted.error }, { status: 400 });
+  }
+
   const members = await listAccountMembers(accountId);
   return NextResponse.json({
     members,
     invited: result.invited,
     created: result.created,
     emailSent: result.emailSent,
+    ...(result.emailError ? { emailError: result.emailError } : {}),
   });
 }
 

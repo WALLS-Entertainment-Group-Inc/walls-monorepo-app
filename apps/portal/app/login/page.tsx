@@ -141,6 +141,33 @@ function LoginPageContent() {
   const mfaFlowActiveRef = React.useRef(false);
   const autoRedirectStartedRef = React.useRef(false);
 
+  // Invite / recovery emails sometimes land on /login when Supabase Site URL
+  // or redirect allow-list doesn't match our redirectTo. Forward token hashes
+  // to the pages that actually consume them.
+  React.useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const queryParams = new URLSearchParams(window.location.search);
+    const type = hashParams.get("type") ?? queryParams.get("type");
+    const hasToken =
+      Boolean(hashParams.get("access_token")) ||
+      Boolean(queryParams.get("token_hash") ?? hashParams.get("token_hash"));
+
+    if (!type || !hasToken) return;
+
+    if (type === "invite" || type === "signup" || type === "magiclink") {
+      window.location.replace(
+        `/create-password${window.location.search}${window.location.hash}`,
+      );
+      return;
+    }
+
+    if (type === "recovery") {
+      window.location.replace(
+        `/reset-password${window.location.search}${window.location.hash}`,
+      );
+    }
+  }, []);
+
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const raw = params.get("redirect");
@@ -183,6 +210,24 @@ function LoginPageContent() {
 
   React.useEffect(() => {
     const checkAuth = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const queryParams = new URLSearchParams(window.location.search);
+      const authLinkType = hashParams.get("type") ?? queryParams.get("type");
+      const hasAuthLinkToken =
+        Boolean(hashParams.get("access_token")) ||
+        Boolean(queryParams.get("token_hash") ?? hashParams.get("token_hash"));
+
+      // Don't consume invite/recovery sessions on the login page.
+      if (
+        hasAuthLinkToken &&
+        (authLinkType === "invite" ||
+          authLinkType === "signup" ||
+          authLinkType === "magiclink" ||
+          authLinkType === "recovery")
+      ) {
+        return;
+      }
+
       const supabase = getSupabaseClient();
 
       if (window.location.search.includes("logout")) {

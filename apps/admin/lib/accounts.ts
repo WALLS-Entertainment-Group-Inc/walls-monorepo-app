@@ -197,7 +197,7 @@ async function sendExistingMemberInviteEmail(input: {
   organizationName: string;
   inviterName: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  return sendOrganizationInviteEmail({
+  const result = await sendOrganizationInviteEmail({
     to: input.email,
     firstName: input.firstName,
     organizationName: input.organizationName,
@@ -206,6 +206,12 @@ async function sendExistingMemberInviteEmail(input: {
     ctaLabel: "Open Kenoo",
     bodyText: `You now have access to the apps available to ${input.organizationName}. Sign in to get started.`,
   });
+
+  if (!result.ok) {
+    console.error("[admin] existing-member SES invite failed:", result.error);
+  }
+
+  return result;
 }
 
 function emailLocalPart(email: string): string {
@@ -344,7 +350,14 @@ export async function inviteOrAddAccountMember(input: {
   lastName?: string | null;
   inviterUserId: string;
 }): Promise<
-  | { ok: true; invited: boolean; created: boolean; emailSent: boolean }
+  | {
+      ok: true;
+      userId: string;
+      invited: boolean;
+      created: boolean;
+      emailSent: boolean;
+      emailError?: string;
+    }
   | { ok: false; error: string }
 > {
   const email = input.email.trim().toLowerCase();
@@ -380,9 +393,11 @@ export async function inviteOrAddAccountMember(input: {
 
     return {
       ok: true,
+      userId: existing.id,
       invited: false,
       created: false,
       emailSent: emailResult.ok,
+      ...(!emailResult.ok ? { emailError: emailResult.error } : {}),
     };
   }
 
@@ -421,6 +436,7 @@ export async function inviteOrAddAccountMember(input: {
   if (invited.invited) {
     return {
       ok: true,
+      userId: invited.userId,
       invited: true,
       created: true,
       emailSent: true,
@@ -436,9 +452,11 @@ export async function inviteOrAddAccountMember(input: {
 
   return {
     ok: true,
+    userId: invited.userId,
     invited: false,
     created: true,
     emailSent: emailResult.ok,
+    ...(!emailResult.ok ? { emailError: emailResult.error } : {}),
   };
 }
 

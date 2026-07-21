@@ -857,7 +857,7 @@ export default function OrganizationSettingsPage() {
                     Users &amp; app access
                   </h2>
                   <p className="mt-0.5 text-sm text-[#5f6368]">
-                    Invite members and manage app permissions on the Users page.
+                    Invite members and assign app access when adding users.
                   </p>
                 </div>
               </div>
