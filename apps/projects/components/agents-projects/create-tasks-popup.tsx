@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { getSupabaseClient } from "@walls/auth";
 import { useAuth } from "@walls/auth";
-import { Save, Trash2 } from "lucide-react";
+import { Save, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Project,
@@ -40,7 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MiniCalendar } from "@/components/ui/mini-calendar";
+import { MiniDatePicker } from "@/components/ui/mini-date-picker";
 import { SequenceSwitch as Switch } from "@/components/ui/sequence-switch";
 import { motion } from "framer-motion";
 import { format, isValid, parseISO } from "date-fns";
@@ -75,7 +75,7 @@ interface TaskFormState {
   priority: string;
   project_id: string;
   assignee_ids: string[];
-  /** When false (default), task is private (is_private = true). */
+  /** When true (default), task is public (is_private = false). */
   is_public: boolean;
 }
 
@@ -87,7 +87,7 @@ const EMPTY_TASK_FORM: TaskFormState = {
   priority: "3",
   project_id: "",
   assignee_ids: [],
-  is_public: false,
+  is_public: true,
 };
 
 function projectSwatchColor(project: Project): string {
@@ -188,6 +188,25 @@ export function CreateTasksPopup({
       blockDialogDismissTimerRef.current = null;
     }, 250);
   }, []);
+
+  const clearDialogDismissBlock = useCallback(() => {
+    if (blockDialogDismissTimerRef.current) {
+      clearTimeout(blockDialogDismissTimerRef.current);
+      blockDialogDismissTimerRef.current = null;
+    }
+    blockDialogDismissRef.current = false;
+    setBlockDialogDismiss(false);
+  }, []);
+
+  const forceCloseDialog = useCallback(() => {
+    clearDialogDismissBlock();
+    setAssigneePopoverOpen(false);
+    setDuePopoverOpen(false);
+    setProjectSelectOpen(false);
+    setStatusSelectOpen(false);
+    setPrioritySelectOpen(false);
+    onClose();
+  }, [clearDialogDismissBlock, onClose]);
 
   const setNestedDropdownOpen = useCallback(
     (setter: React.Dispatch<React.SetStateAction<boolean>>) => (next: boolean) => {
@@ -667,6 +686,7 @@ export function CreateTasksPopup({
       }}
     >
       <DialogContent
+        showCloseButton={false}
         className="sm:max-w-[900px] [&>button]:focus:outline-none [&>button]:focus:ring-0 [&>button]:focus-visible:ring-0 [&>button]:ring-0"
         overlayClassName={blockDialogDismiss ? "pointer-events-none" : undefined}
         onOpenAutoFocus={(e) => e.preventDefault()}
@@ -679,7 +699,20 @@ export function CreateTasksPopup({
         onFocusOutside={(e) => {
           e.preventDefault();
         }}
+        onEscapeKeyDown={(e) => {
+          // Always allow Escape to close the task popup.
+          e.preventDefault();
+          forceCloseDialog();
+        }}
       >
+        <button
+          type="button"
+          onClick={forceCloseDialog}
+          className="absolute right-6 top-4 z-20 cursor-pointer rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-0 focus-visible:ring-0"
+          aria-label="Close"
+        >
+          <X className="h-6 w-6 text-foreground" strokeWidth={1.5} />
+        </button>
         <DialogHeader />
 
         <div className="grid grid-cols-[2fr_1fr] divide-x divide-gray-200 gap-6 py-4">
@@ -712,7 +745,6 @@ export function CreateTasksPopup({
           <div className="space-y-2 pl-6 min-w-0">
             {/* Project */}
             <Select
-              modal={false}
               value={form.project_id}
               onValueChange={(v) => setForm((f) => ({ ...f, project_id: v }))}
               open={projectSelectOpen}
@@ -855,7 +887,6 @@ export function CreateTasksPopup({
 
             {/* Status */}
             <Select
-              modal={false}
               value={form.status}
               onValueChange={(v) => setForm((f) => ({ ...f, status: v as TaskStatus }))}
               open={statusSelectOpen}
@@ -881,7 +912,6 @@ export function CreateTasksPopup({
 
             {/* Priority */}
             <Select
-              modal={false}
               value={form.priority}
               onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}
               open={prioritySelectOpen}
@@ -906,43 +936,23 @@ export function CreateTasksPopup({
             </Select>
 
             {/* Due date */}
-            <Popover
-              modal={false}
+            <MiniDatePicker
+              label="Due:"
+              value={dueDate}
+              onChange={(date) => {
+                setForm((f) => ({
+                  ...f,
+                  due_date: date ? format(date, "yyyy-MM-dd") : "",
+                }));
+              }}
+              showClearButton
+              disabled={saving}
               open={duePopoverOpen}
               onOpenChange={setNestedDropdownOpen(setDuePopoverOpen)}
-            >
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  disabled={saving}
-                  className="w-full h-10 flex cursor-pointer items-center gap-2 rounded-full px-4 hover:bg-gray-100 focus:outline-none text-left disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span className={cn("shrink-0", fieldLabelClass)}>Due:</span>
-                  <span
-                    className={cn(
-                      fieldValueClass,
-                      !dueDate && fieldPlaceholderClass
-                    )}
-                  >
-                    {dueDate ? format(dueDate, "MMM d, yyyy") : "Select date"}
-                  </span>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 border-0 rounded-3xl shadow-[0_14px_32px_rgba(0,0,0,0.18)]" align="start">
-                <MiniCalendar
-                  showClearButton
-                  selected={dueDate ?? undefined}
-                  onSelect={(date) => {
-                    setForm((f) => ({
-                      ...f,
-                      due_date: date ? format(date, "yyyy-MM-dd") : "",
-                    }));
-                    setDuePopoverOpen(false);
-                  }}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+              labelClassName={fieldLabelClass}
+              valueClassName={fieldValueClass}
+              placeholderClassName={fieldPlaceholderClass}
+            />
 
             {/* Visibility */}
             <div

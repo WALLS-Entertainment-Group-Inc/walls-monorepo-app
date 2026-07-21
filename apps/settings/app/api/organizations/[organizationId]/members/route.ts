@@ -99,6 +99,7 @@ export async function POST(request: Request, context: RouteContext) {
     role,
     firstName: body.firstName,
     lastName: body.lastName,
+    inviterUserId: userId,
   });
 
   if (!result.ok) {
@@ -111,6 +112,7 @@ export async function POST(request: Request, context: RouteContext) {
     members,
     invited: result.invited,
     created: result.created,
+    emailSent: result.emailSent,
   });
 }
 

@@ -228,25 +228,30 @@ export function OrganizationMembers({
         members?: AccountMemberRecord[];
         invited?: boolean;
         created?: boolean;
+        emailSent?: boolean;
       };
       setMembers(payload.members ?? []);
       resetInviteForm();
       void loadAppAccess();
 
-      if (payload.invited) {
+      if (payload.emailSent) {
         wallsToast.success(
           "Invite sent",
-          "They will get an email to create their password and join this organization",
+          payload.invited
+            ? "They will get an email to create their password and join this organization"
+            : "They will get an email letting them know they were added to this organization",
         );
       } else if (payload.created) {
         wallsToast.success(
           "Member added",
-          "User was created and added to this organization",
+          "User was created and added to this organization, but the notification email could not be sent",
         );
       } else {
         wallsToast.success(
           "Member added",
-          "Existing user was added to this organization",
+          payload.emailSent === false
+            ? "Existing user was added to this organization, but the notification email could not be sent"
+            : "Existing user was added to this organization",
         );
       }
     } finally {

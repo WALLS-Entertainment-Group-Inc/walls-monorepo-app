@@ -1,4 +1,7 @@
-import { buildPortalCreatePasswordUrl } from "@walls/auth/portal-url";
+import {
+  buildPortalCreatePasswordUrl,
+  buildPortalLoginUrl,
+} from "@walls/auth/portal-url";
 import { createAdminClient } from "@walls/supabase/admin";
 import { createClient } from "@walls/supabase/server";
 
@@ -7,6 +10,7 @@ import {
   type AccountRecord,
   type AccountRole,
 } from "./accounts-shared";
+import { sendOrganizationInviteEmail } from "./email/org-invite-email";
 
 export type {
   AccountMemberRecord,
@@ -141,12 +145,17 @@ export async function listAccountMembers(
 
 export async function findUserByEmail(
   email: string,
-): Promise<{ id: string; email: string } | null> {
+): Promise<{
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+} | null> {
   const admin = createAdminClient();
   const normalized = email.trim().toLowerCase();
   const { data, error } = await admin
     .from("users")
-    .select("id, email")
+    .select("id, email, first_name, last_name")
     .ilike("email", normalized)
     .maybeSingle();
 
@@ -154,7 +163,50 @@ export async function findUserByEmail(
     return null;
   }
 
-  return data;
+  return {
+    id: data.id,
+    email: data.email,
+    firstName: data.first_name,
+    lastName: data.last_name,
+  };
+}
+
+async function getUserDisplayName(userId: string): Promise<string> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("users")
+    .select("first_name, last_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return "Someone at Kenoo";
+  }
+
+  const fullName = `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim();
+  return fullName || data.email || "Someone at Kenoo";
+}
+
+type OrganizationInviteContext = {
+  organizationName: string;
+  inviterName: string;
+};
+
+async function sendExistingMemberInviteEmail(input: {
+  email: string;
+  firstName?: string | null;
+  organizationName: string;
+  inviterName: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  return sendOrganizationInviteEmail({
+    to: input.email,
+    firstName: input.firstName,
+    organizationName: input.organizationName,
+    inviterName: input.inviterName,
+    ctaUrl: buildPortalLoginUrl(process.env.NEXT_PUBLIC_SETTINGS_URL),
+    ctaLabel: "Open Kenoo",
+    bodyText: `You now have access to the apps available to ${input.organizationName}. Sign in to get started.`,
+  });
 }
 
 function emailLocalPart(email: string): string {
@@ -199,6 +251,8 @@ async function inviteAuthUserByEmail(input: {
   email: string;
   firstName?: string | null;
   lastName?: string | null;
+  organizationName: string;
+  inviterName: string;
 }): Promise<
   | { ok: true; userId: string; invited: boolean }
   | { ok: false; error: string }
@@ -209,6 +263,8 @@ async function inviteAuthUserByEmail(input: {
   const metadata = {
     first_name: input.firstName?.trim() || emailLocalPart(email),
     last_name: input.lastName?.trim() || null,
+    organization_name: input.organizationName,
+    inviter_name: input.inviterName,
   };
 
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
@@ -274,8 +330,12 @@ async function inviteAuthUserByEmail(input: {
 }
 
 /**
- * Adds an existing WALLS user to an organization, or creates + invites them
+ * Adds an existing Kenoo user to an organization, or creates + invites them
  * via Supabase Auth email (create-password portal link) when they do not exist.
+ *
+ * Email is mutually exclusive:
+ * - New / unconfirmed users → Supabase invite template (auth email)
+ * - Existing confirmed users → SES organization notification
  */
 export async function inviteOrAddAccountMember(input: {
   accountId: string;
@@ -283,14 +343,25 @@ export async function inviteOrAddAccountMember(input: {
   role?: AccountRole;
   firstName?: string | null;
   lastName?: string | null;
+  inviterUserId: string;
 }): Promise<
-  | { ok: true; invited: boolean; created: boolean }
+  | { ok: true; invited: boolean; created: boolean; emailSent: boolean }
   | { ok: false; error: string }
 > {
   const email = input.email.trim().toLowerCase();
   if (!email || !email.includes("@")) {
     return { ok: false, error: "A valid email is required" };
   }
+
+  const account = await getOrganizationAccount(input.accountId);
+  if (!account) {
+    return { ok: false, error: "Organization not found" };
+  }
+
+  const inviteContext: OrganizationInviteContext = {
+    organizationName: account.name,
+    inviterName: await getUserDisplayName(input.inviterUserId),
+  };
 
   const existing = await findUserByEmail(email);
   if (existing) {
@@ -300,13 +371,28 @@ export async function inviteOrAddAccountMember(input: {
       role: input.role,
     });
     if (!added.ok) return added;
-    return { ok: true, invited: false, created: false };
+
+    const emailResult = await sendExistingMemberInviteEmail({
+      email,
+      firstName: existing.firstName ?? input.firstName,
+      organizationName: inviteContext.organizationName,
+      inviterName: inviteContext.inviterName,
+    });
+
+    return {
+      ok: true,
+      invited: false,
+      created: false,
+      emailSent: emailResult.ok,
+    };
   }
 
   const invited = await inviteAuthUserByEmail({
     email,
     firstName: input.firstName,
     lastName: input.lastName,
+    organizationName: inviteContext.organizationName,
+    inviterName: inviteContext.inviterName,
   });
   if (!invited.ok) return invited;
 
@@ -333,10 +419,27 @@ export async function inviteOrAddAccountMember(input: {
     return added;
   }
 
+  if (invited.invited) {
+    return {
+      ok: true,
+      invited: true,
+      created: true,
+      emailSent: true,
+    };
+  }
+
+  const emailResult = await sendExistingMemberInviteEmail({
+    email,
+    firstName: input.firstName,
+    organizationName: inviteContext.organizationName,
+    inviterName: inviteContext.inviterName,
+  });
+
   return {
     ok: true,
-    invited: invited.invited,
+    invited: false,
     created: true,
+    emailSent: emailResult.ok,
   };
 }
 
