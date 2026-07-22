@@ -1,0 +1,78 @@
+import { useMemo, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+import { Redirect, useRouter } from "expo-router";
+
+import {
+  SettingsRadioOption,
+  SettingsScreenShell,
+  chatAccentBlue,
+  createSettingsStyles,
+} from "@/components/settings/SettingsUI";
+import { type ThemePreference } from "@/constants/theme";
+import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+export default function ThemeSettingsScreen() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const { colors, isDark, themePreference, setThemePreference } = useTheme();
+  const styles = useMemo(
+    () => createSettingsStyles(colors, isDark),
+    [colors, isDark],
+  );
+  const accent = chatAccentBlue(isDark);
+  const [draft, setDraft] = useState<ThemePreference>(themePreference);
+
+  if (!loading && !user) {
+    return <Redirect href="/login" />;
+  }
+
+  const handleConfirm = () => {
+    void (async () => {
+      if (draft !== themePreference) {
+        await setThemePreference(draft);
+      }
+      router.back();
+    })();
+  };
+
+  return (
+    <SettingsScreenShell
+      colors={colors}
+      styles={styles}
+      title="Theme"
+      showBack
+      onConfirm={handleConfirm}
+    >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.screenHint}>
+          Choose how Wallie looks on this device.
+        </Text>
+
+        <View style={styles.optionList}>
+          {THEME_OPTIONS.map((option) => (
+            <SettingsRadioOption
+              key={option.value}
+              label={option.label}
+              selected={draft === option.value}
+              onPress={() => setDraft(option.value)}
+              accent={accent}
+              colors={colors}
+              styles={styles}
+            />
+          ))}
+        </View>
+      </ScrollView>
+    </SettingsScreenShell>
+  );
+}
