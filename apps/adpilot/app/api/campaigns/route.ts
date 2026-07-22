@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 
 import {
+  CAMPAIGN_SORT_COLUMNS,
   listCampaignPerformance,
   type CampaignEntityType,
+  type CampaignSortColumn,
+  type CampaignSortDirection,
 } from "@/lib/campaigns-server";
 import { getAdDataScope } from "@/lib/ad-scope";
 import {
@@ -44,6 +47,14 @@ export async function GET(request: Request) {
   const page = Number(searchParams.get("page") ?? "0");
   const rangeParam = searchParams.get("range") ?? "30d";
   const rangeDays = RANGE_DAYS[rangeParam] ?? 30;
+  const sortParam = searchParams.get("sort") ?? undefined;
+  const sortBy =
+    sortParam && CAMPAIGN_SORT_COLUMNS.has(sortParam as CampaignSortColumn)
+      ? (sortParam as CampaignSortColumn)
+      : undefined;
+  const dirParam = searchParams.get("dir") ?? undefined;
+  const sortDirection: CampaignSortDirection | undefined =
+    dirParam === "asc" || dirParam === "desc" ? dirParam : undefined;
 
   try {
     const result = await listCampaignPerformance({
@@ -54,6 +65,8 @@ export async function GET(request: Request) {
       objective,
       page: Number.isFinite(page) ? page : 0,
       rangeDays,
+      sortBy,
+      sortDirection,
     });
 
     return NextResponse.json(result);
