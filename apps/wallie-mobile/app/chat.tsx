@@ -515,6 +515,7 @@ export default function ChatScreen() {
               loading={threadsLoading}
               onSelect={handleSelectThread}
               onNewChat={handleNewChat}
+              onClose={closeThreads}
               onRenameThread={updateThreadTitle}
               onPinThread={(threadId) => void togglePinThread(threadId)}
               onArchiveThread={handleArchiveThread}
