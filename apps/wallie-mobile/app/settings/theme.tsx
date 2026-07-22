@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 
@@ -27,19 +27,15 @@ export default function ThemeSettingsScreen() {
     [colors, isDark],
   );
   const accent = chatAccentBlue(isDark);
-  const [draft, setDraft] = useState<ThemePreference>(themePreference);
 
   if (!loading && !user) {
     return <Redirect href="/login" />;
   }
 
-  const handleConfirm = () => {
-    void (async () => {
-      if (draft !== themePreference) {
-        await setThemePreference(draft);
-      }
-      router.back();
-    })();
+  const handleSelect = (preference: ThemePreference) => {
+    if (preference === themePreference) return;
+    // Apply immediately through ThemeContext — no chat wipe animation.
+    void setThemePreference(preference);
   };
 
   return (
@@ -48,7 +44,7 @@ export default function ThemeSettingsScreen() {
       styles={styles}
       title="Theme"
       showBack
-      onConfirm={handleConfirm}
+      onConfirm={() => router.back()}
     >
       <ScrollView
         contentContainerStyle={styles.content}
@@ -64,8 +60,8 @@ export default function ThemeSettingsScreen() {
             <SettingsRadioOption
               key={option.value}
               label={option.label}
-              selected={draft === option.value}
-              onPress={() => setDraft(option.value)}
+              selected={themePreference === option.value}
+              onPress={() => handleSelect(option.value)}
               accent={accent}
               colors={colors}
               styles={styles}
