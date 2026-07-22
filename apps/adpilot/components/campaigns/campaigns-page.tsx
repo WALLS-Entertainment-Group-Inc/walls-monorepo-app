@@ -8,6 +8,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
+  ChevronUp,
   Layers,
   Megaphone,
   Search,
@@ -21,6 +23,8 @@ import type {
   CampaignAccountOption,
   CampaignEntityType,
   CampaignObjectiveOption,
+  CampaignSortColumn,
+  CampaignSortDirection,
   EntityPerformanceRow,
 } from "@/lib/campaigns-server";
 import type { AdCreativePreview } from "@/lib/meta-creatives";
@@ -65,7 +69,7 @@ const CAMPAIGN_COLUMN_IDS = [
   "clicks",
   "ctr",
   "roas",
-] as const;
+] as const satisfies readonly CampaignSortColumn[];
 
 type CampaignColumnId = (typeof CAMPAIGN_COLUMN_IDS)[number];
 
@@ -85,6 +89,14 @@ const DEFAULT_CAMPAIGN_COLUMN_WIDTHS: Record<CampaignColumnId, number> = {
   ctr: 72,
   roas: 72,
 };
+
+const TEXT_SORT_COLUMNS = new Set<CampaignColumnId>([
+  "name",
+  "platform",
+  "context",
+  "account",
+  "status",
+]);
 
 const ENTITY_TABS: Array<{
   value: CampaignEntityType;
@@ -147,14 +159,27 @@ function ResizableHeader({
   label,
   width,
   indented,
+  sortColumn,
+  sortDirection,
+  onSort,
   onResizeStart,
 }: {
   columnId: CampaignColumnId;
   label: string;
   width: number;
   indented?: boolean;
+  sortColumn: CampaignColumnId;
+  sortDirection: CampaignSortDirection;
+  onSort: (columnId: CampaignColumnId) => void;
   onResizeStart: (columnId: CampaignColumnId, startX: number) => void;
 }) {
+  const active = sortColumn === columnId;
+  const SortIcon = !active
+    ? ChevronsUpDown
+    : sortDirection === "asc"
+      ? ChevronUp
+      : ChevronDown;
+
   return (
     <th
       className={cn(
@@ -162,14 +187,39 @@ function ResizableHeader({
         indented && "pl-3",
       )}
       style={{ width }}
+      aria-sort={
+        active
+          ? sortDirection === "asc"
+            ? "ascending"
+            : "descending"
+          : "none"
+      }
     >
-      <span className="block truncate pr-3">{label}</span>
+      <button
+        type="button"
+        onClick={() => onSort(columnId)}
+        className={cn(
+          "inline-flex max-w-full items-center gap-1 border-0 bg-transparent p-0 pr-3 font-medium tracking-wide uppercase transition-colors hover:text-neutral-700",
+          active ? "text-neutral-700" : "text-neutral-400",
+        )}
+      >
+        <span className="truncate">{label}</span>
+        <SortIcon
+          className={cn(
+            "h-3 w-3 shrink-0",
+            active ? "opacity-100" : "opacity-40",
+          )}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+      </button>
       <button
         type="button"
         aria-label={`Resize ${label} column`}
         className="absolute top-1/2 right-0 z-20 h-4 w-3 -translate-y-1/2 cursor-col-resize touch-none border-none bg-transparent p-0 after:absolute after:top-1/2 after:right-1 after:h-3.5 after:w-px after:-translate-y-1/2 after:bg-neutral-200 hover:after:bg-neutral-400"
         onMouseDown={(event) => {
           event.preventDefault();
+          event.stopPropagation();
           onResizeStart(columnId, event.clientX);
         }}
       />
@@ -246,12 +296,25 @@ export function CampaignsPage() {
     adId: string;
     preview: AdCreativePreview;
   } | null>(null);
+  const [sortColumn, setSortColumn] =
+    React.useState<CampaignColumnId>("spend");
+  const [sortDirection, setSortDirection] =
+    React.useState<CampaignSortDirection>("desc");
   const { widths, startResize, tableMinWidth } = useResizableColumns(
     DEFAULT_CAMPAIGN_COLUMN_WIDTHS,
     COLUMN_WIDTHS_STORAGE_KEY,
   );
 
   const colCount = CAMPAIGN_COLUMN_IDS.length;
+
+  const handleSort = (columnId: CampaignColumnId) => {
+    if (sortColumn === columnId) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortColumn(columnId);
+    setSortDirection(TEXT_SORT_COLUMNS.has(columnId) ? "asc" : "desc");
+  };
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -260,6 +323,8 @@ export function CampaignsPage() {
         type: entityType,
         page: String(page),
         range: timeRange,
+        sort: sortColumn,
+        dir: sortDirection,
       });
       if (search.trim()) params.set("search", search.trim());
       if (accountFilter) params.set("accountId", accountFilter);
@@ -282,7 +347,16 @@ export function CampaignsPage() {
     } finally {
       setLoading(false);
     }
-  }, [accountFilter, entityType, objectiveFilter, page, search, timeRange]);
+  }, [
+    accountFilter,
+    entityType,
+    objectiveFilter,
+    page,
+    search,
+    sortColumn,
+    sortDirection,
+    timeRange,
+  ]);
 
   React.useEffect(() => {
     void load();
@@ -290,7 +364,15 @@ export function CampaignsPage() {
 
   React.useEffect(() => {
     setPage(0);
-  }, [search, accountFilter, objectiveFilter, entityType, timeRange]);
+  }, [
+    search,
+    accountFilter,
+    objectiveFilter,
+    entityType,
+    timeRange,
+    sortColumn,
+    sortDirection,
+  ]);
 
   React.useEffect(() => {
     if (
@@ -671,6 +753,9 @@ export function CampaignsPage() {
                     label={columnLabel(columnId, entityType)}
                     width={widths[columnId]}
                     indented={index > 0}
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                    onSort={handleSort}
                     onResizeStart={startResize}
                   />
                 ))}

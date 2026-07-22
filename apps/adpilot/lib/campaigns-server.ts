@@ -69,6 +69,41 @@ export type CampaignsListResult = {
   syncing: boolean;
 };
 
+export type CampaignSortColumn =
+  | "name"
+  | "platform"
+  | "context"
+  | "account"
+  | "status"
+  | "dailyBudget"
+  | "spend"
+  | "websitePurchases"
+  | "cpa"
+  | "purchaseValue"
+  | "impressions"
+  | "clicks"
+  | "ctr"
+  | "roas";
+
+export type CampaignSortDirection = "asc" | "desc";
+
+export const CAMPAIGN_SORT_COLUMNS = new Set<CampaignSortColumn>([
+  "name",
+  "platform",
+  "context",
+  "account",
+  "status",
+  "dailyBudget",
+  "spend",
+  "websitePurchases",
+  "cpa",
+  "purchaseValue",
+  "impressions",
+  "clicks",
+  "ctr",
+  "roas",
+]);
+
 const PAGE_SIZE_DEFAULT = 25;
 
 type EntityRecord = {
@@ -242,6 +277,82 @@ function sortEntityRows(
   return right.spendMicros - left.spendMicros;
 }
 
+function campaignSortValue(
+  row: EntityPerformanceRow,
+  column: CampaignSortColumn,
+  entityType: CampaignEntityType,
+): string | number | null {
+  switch (column) {
+    case "name":
+      return row.name.toLowerCase();
+    case "platform":
+      return row.provider.toLowerCase();
+    case "context":
+      if (entityType === "campaign") {
+        return (formatObjectiveLabel(row.objective) || row.objective || "")
+          .toLowerCase() || null;
+      }
+      return row.parentName?.toLowerCase() ?? null;
+    case "account":
+      return row.accountName.toLowerCase();
+    case "status":
+      return row.status?.toLowerCase() ?? null;
+    case "dailyBudget":
+      return row.dailyBudgetMicros != null && row.dailyBudgetMicros > 0
+        ? row.dailyBudgetMicros
+        : null;
+    case "spend":
+      return row.spendMicros;
+    case "websitePurchases":
+      return row.websitePurchases;
+    case "cpa":
+      return row.websitePurchases != null && row.websitePurchases > 0
+        ? row.spendMicros / row.websitePurchases
+        : null;
+    case "purchaseValue":
+      return row.conversionValueMicros > 0 ? row.conversionValueMicros : null;
+    case "impressions":
+      return row.impressions;
+    case "clicks":
+      return row.clicks;
+    case "ctr":
+      return row.ctr;
+    case "roas":
+      return row.roas;
+    default:
+      return null;
+  }
+}
+
+function compareCampaignRows(
+  left: EntityPerformanceRow,
+  right: EntityPerformanceRow,
+  column: CampaignSortColumn,
+  direction: CampaignSortDirection,
+  entityType: CampaignEntityType,
+): number {
+  const leftValue = campaignSortValue(left, column, entityType);
+  const rightValue = campaignSortValue(right, column, entityType);
+
+  // Always keep empty / missing values at the bottom.
+  if (leftValue === null && rightValue === null) return 0;
+  if (leftValue === null) return 1;
+  if (rightValue === null) return -1;
+
+  let result = 0;
+  if (typeof leftValue === "string" && typeof rightValue === "string") {
+    result = leftValue.localeCompare(rightValue);
+  } else {
+    result = Number(leftValue) - Number(rightValue);
+  }
+
+  if (result !== 0) {
+    return direction === "asc" ? result : -result;
+  }
+
+  return left.name.localeCompare(right.name);
+}
+
 export async function listCampaignPerformance(input: {
   scope: AdDataScope;
   entityType: CampaignEntityType;
@@ -251,6 +362,8 @@ export async function listCampaignPerformance(input: {
   page?: number;
   pageSize?: number;
   rangeDays?: number;
+  sortBy?: CampaignSortColumn;
+  sortDirection?: CampaignSortDirection;
 }): Promise<CampaignsListResult> {
   const supabase = await createClient();
   const page = input.page ?? 0;
@@ -537,7 +650,20 @@ export async function listCampaignPerformance(input: {
     });
   }
 
-  rows.sort((left, right) => sortEntityRows(left, right, input.entityType));
+  if (input.sortBy) {
+    const direction = input.sortDirection ?? "desc";
+    rows.sort((left, right) =>
+      compareCampaignRows(
+        left,
+        right,
+        input.sortBy!,
+        direction,
+        input.entityType,
+      ),
+    );
+  } else {
+    rows.sort((left, right) => sortEntityRows(left, right, input.entityType));
+  }
 
   const totalCount = rows.length;
   const pagedRows = rows.slice(page * pageSize, page * pageSize + pageSize);

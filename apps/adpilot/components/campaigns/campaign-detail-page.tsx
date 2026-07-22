@@ -4,7 +4,15 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronsUpDown,
+  ChevronUp,
+  Loader2,
+} from "lucide-react";
+
+import { cn } from "@walls/utils";
 
 import { EntityAutomationSection } from "@/components/campaigns/automation-panel";
 import {
@@ -18,13 +26,81 @@ import {
   isActiveStatus,
 } from "@/components/campaigns/entity-detail-shared";
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
-import type { CampaignDetailResult } from "@/lib/entity-detail-server";
+import type {
+  CampaignAdSetSummary,
+  CampaignDetailResult,
+} from "@/lib/entity-detail-server";
 import {
   formatCurrencyFromMicros,
   formatPercent,
   formatRoas,
 } from "@/lib/format-analytics";
 import { formatObjectiveLabel } from "@/lib/meta-objectives";
+
+const AD_SET_COLUMNS = [
+  { id: "name", label: "Name" },
+  { id: "status", label: "Status" },
+  { id: "dailyBudget", label: "Daily budget" },
+  { id: "spend", label: "Spend" },
+  { id: "ctr", label: "CTR" },
+  { id: "roas", label: "ROAS" },
+] as const;
+
+type AdSetSortColumn = (typeof AD_SET_COLUMNS)[number]["id"];
+type SortDirection = "asc" | "desc";
+
+const TEXT_SORT_COLUMNS = new Set<AdSetSortColumn>(["name", "status"]);
+
+function adSetSortValue(
+  row: CampaignAdSetSummary,
+  column: AdSetSortColumn,
+): string | number | null {
+  switch (column) {
+    case "name":
+      return row.name.toLowerCase();
+    case "status":
+      return row.status?.toLowerCase() ?? null;
+    case "dailyBudget":
+      return row.dailyBudgetMicros != null && row.dailyBudgetMicros > 0
+        ? row.dailyBudgetMicros
+        : null;
+    case "spend":
+      return row.spendMicros;
+    case "ctr":
+      return row.ctr;
+    case "roas":
+      return row.roas;
+    default:
+      return null;
+  }
+}
+
+function compareAdSets(
+  left: CampaignAdSetSummary,
+  right: CampaignAdSetSummary,
+  column: AdSetSortColumn,
+  direction: SortDirection,
+): number {
+  const leftValue = adSetSortValue(left, column);
+  const rightValue = adSetSortValue(right, column);
+
+  if (leftValue === null && rightValue === null) return 0;
+  if (leftValue === null) return 1;
+  if (rightValue === null) return -1;
+
+  let result = 0;
+  if (typeof leftValue === "string" && typeof rightValue === "string") {
+    result = leftValue.localeCompare(rightValue);
+  } else {
+    result = Number(leftValue) - Number(rightValue);
+  }
+
+  if (result !== 0) {
+    return direction === "asc" ? result : -result;
+  }
+
+  return left.name.localeCompare(right.name);
+}
 
 export function CampaignDetailPage() {
   const params = useParams<{ campaignId: string }>();
@@ -34,6 +110,8 @@ export function CampaignDetailPage() {
   const [detail, setDetail] = React.useState<CampaignDetailResult | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [sortColumn, setSortColumn] = React.useState<AdSetSortColumn>("spend");
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>("desc");
 
   const loadDetail = React.useCallback(async () => {
     setLoading(true);
@@ -55,6 +133,22 @@ export function CampaignDetailPage() {
   React.useEffect(() => {
     void loadDetail();
   }, [loadDetail]);
+
+  const sortedAdSets = React.useMemo(() => {
+    if (!detail) return [];
+    return [...detail.adSets].sort((left, right) =>
+      compareAdSets(left, right, sortColumn, sortDirection),
+    );
+  }, [detail, sortColumn, sortDirection]);
+
+  const handleSort = (column: AdSetSortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortColumn(column);
+    setSortDirection(TEXT_SORT_COLUMNS.has(column) ? "asc" : "desc");
+  };
 
   if (loading) {
     return (
@@ -146,16 +240,52 @@ export function CampaignDetailPage() {
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b border-neutral-200/70 text-left text-xs font-medium tracking-wide text-neutral-400 uppercase">
-                    <th className="py-3 pr-4">Name</th>
-                    <th className="py-3 pr-4">Status</th>
-                    <th className="py-3 pr-4">Daily budget</th>
-                    <th className="py-3 pr-4">Spend</th>
-                    <th className="py-3 pr-4">CTR</th>
-                    <th className="py-3 pr-4">ROAS</th>
+                    {AD_SET_COLUMNS.map((column) => {
+                      const active = sortColumn === column.id;
+                      const SortIcon = !active
+                        ? ChevronsUpDown
+                        : sortDirection === "asc"
+                          ? ChevronUp
+                          : ChevronDown;
+
+                      return (
+                        <th
+                          key={column.id}
+                          scope="col"
+                          className="py-3 pr-4"
+                          aria-sort={
+                            active
+                              ? sortDirection === "asc"
+                                ? "ascending"
+                                : "descending"
+                              : "none"
+                          }
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSort(column.id)}
+                            className={cn(
+                              "inline-flex items-center gap-1 border-0 bg-transparent p-0 font-medium tracking-wide uppercase transition-colors hover:text-neutral-700",
+                              active ? "text-neutral-700" : "text-neutral-400",
+                            )}
+                          >
+                            <span>{column.label}</span>
+                            <SortIcon
+                              className={cn(
+                                "h-3 w-3 shrink-0",
+                                active ? "opacity-100" : "opacity-40",
+                              )}
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                          </button>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.adSets.map((adSet) => (
+                  {sortedAdSets.map((adSet) => (
                     <tr
                       key={adSet.id}
                       className="border-b border-neutral-100 transition-colors hover:bg-kenoo-white"
