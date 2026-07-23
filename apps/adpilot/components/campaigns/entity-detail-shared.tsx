@@ -389,6 +389,168 @@ export function isActiveStatus(status: string | null) {
   return normalized === "active" || normalized === "learning";
 }
 
+const DELIVERY_STATUS_OPTIONS = [
+  { value: "ACTIVE" as const, label: "Active", localStatus: "active" },
+  { value: "PAUSED" as const, label: "Paused", localStatus: "paused" },
+];
+
+function StatusDot({ active }: { active: boolean }) {
+  return (
+    <span
+      className={cn(
+        "h-2 w-2 flex-shrink-0 rounded-full",
+        active ? "bg-[var(--kenoo-sky)]" : "bg-neutral-300",
+      )}
+      aria-hidden
+    />
+  );
+}
+
+/** Meta-style delivery status: green when delivering, muted when not. */
+export function EntityStatusBadge({
+  status,
+  className,
+  entityId,
+  onStatusChange,
+}: {
+  status: string | null;
+  className?: string;
+  /** When set, renders as a button with Active / Paused dropdown. */
+  entityId?: string;
+  onStatusChange?: (status: string) => void;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const requestIdRef = React.useRef(0);
+
+  const active = isActiveStatus(status);
+  const label = formatStatus(status);
+  const textClass = active ? "text-neutral-700" : "text-neutral-500";
+
+  const selectStatus = (next: (typeof DELIVERY_STATUS_OPTIONS)[number]) => {
+    if (!entityId) return;
+
+    const nextIsActive = next.value === "ACTIVE";
+    if (nextIsActive === active && (status === "active" || status === "paused")) {
+      setOpen(false);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+    const previous = status;
+    onStatusChange?.(next.localStatus);
+    setSaving(true);
+    setOpen(false);
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/campaigns/${entityId}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: next.value }),
+        });
+
+        if (requestId !== requestIdRef.current) return;
+
+        if (!response.ok) {
+          onStatusChange?.(previous ?? "paused");
+          return;
+        }
+
+        const payload = (await response.json()) as { status: string };
+        onStatusChange?.(payload.status);
+      } catch {
+        if (requestId !== requestIdRef.current) return;
+        onStatusChange?.(previous ?? "paused");
+      } finally {
+        if (requestId === requestIdRef.current) setSaving(false);
+      }
+    })();
+  };
+
+  if (!entityId) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 text-xs font-light whitespace-nowrap",
+          textClass,
+          className,
+        )}
+      >
+        <StatusDot active={active} />
+        <span>{label}</span>
+      </span>
+    );
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={(event) => event.stopPropagation()}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 -mx-1.5 text-xs font-light whitespace-nowrap transition",
+            "hover:bg-black/[0.04] disabled:opacity-60",
+            "outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
+            open && "bg-black/[0.04]",
+            textClass,
+            className,
+          )}
+          aria-label={`Status: ${label}. Change delivery status.`}
+        >
+          <StatusDot active={active} />
+          <span>{saving ? "Saving…" : label}</span>
+          <ChevronDown
+            className={cn(
+              "h-3 w-3 shrink-0 text-neutral-400 transition-transform",
+              open && "rotate-180",
+            )}
+            strokeWidth={2}
+            aria-hidden
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        sideOffset={6}
+        className={cn(
+          "z-[200] min-w-[9rem] overflow-hidden rounded-[15px] border-0",
+          "bg-white/90 p-1 font-light text-foreground shadow-md backdrop-blur-xl",
+        )}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {DELIVERY_STATUS_OPTIONS.map((option) => {
+          const selected =
+            option.value === "ACTIVE" ? active : !active && status != null;
+          return (
+            <DropdownMenuItem
+              key={option.value}
+              disabled={saving}
+              onSelect={() => selectStatus(option)}
+              className={cn(
+                "relative flex w-full cursor-pointer items-center gap-2 rounded-[10px]",
+                "py-1.5 pl-3 pr-9 text-sm font-light outline-none",
+                "hover:bg-neutral-100 focus:bg-neutral-100 focus:text-foreground",
+                selected && "bg-neutral-100",
+              )}
+            >
+              <StatusDot active={option.value === "ACTIVE"} />
+              <span>{option.label}</span>
+              {selected ? (
+                <span className="absolute right-3 flex h-3.5 w-3.5 items-center justify-center">
+                  <Check className="h-4 w-4 text-[var(--kenoo-sky)]" />
+                </span>
+              ) : null}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 const ENTITY_METRIC_ACCENTS = [
   "var(--kenoo-sky)",
   "var(--kenoo-blue)",

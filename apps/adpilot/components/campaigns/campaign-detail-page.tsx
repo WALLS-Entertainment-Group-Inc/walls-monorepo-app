@@ -22,9 +22,8 @@ import {
   DetailSection,
   EntityDetailTabs,
   EntityMetricsGrid,
+  EntityStatusBadge,
   LearningBadge,
-  formatStatus,
-  isActiveStatus,
 } from "@/components/campaigns/entity-detail-shared";
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import type {
@@ -224,7 +223,14 @@ export function CampaignDetailPage() {
               {detail.objective ? (
                 <span>Objective: {formatObjectiveLabel(detail.objective)}</span>
               ) : null}
-              {detail.status ? <span>Status: {detail.status}</span> : null}
+              <EntityStatusBadge
+                status={detail.status}
+                entityId={detail.id}
+                className="text-sm"
+                onStatusChange={(status) =>
+                  setDetail((prev) => (prev ? { ...prev, status } : prev))
+                }
+              />
               {detail.dailyBudgetMicros != null && detail.dailyBudgetMicros > 0 ? (
                 <span>
                   Daily budget: {formatCurrencyFromMicros(detail.dailyBudgetMicros)}
@@ -344,16 +350,25 @@ export function CampaignDetailPage() {
                           <LearningBadge status={adSet.learningStatus} />
                         </div>
                       </td>
-                      <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          {isActiveStatus(adSet.status) ? (
-                            <span
-                              className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--kenoo-sky)]"
-                              aria-hidden
-                            />
-                          ) : null}
-                          {formatStatus(adSet.status)}
-                        </span>
+                      <td className="py-4 pr-4">
+                        <EntityStatusBadge
+                          status={adSet.status}
+                          entityId={adSet.id}
+                          onStatusChange={(status) =>
+                            setDetail((prev) =>
+                              prev
+                                ? {
+                                    ...prev,
+                                    adSets: prev.adSets.map((row) =>
+                                      row.id === adSet.id
+                                        ? { ...row, status }
+                                        : row,
+                                    ),
+                                  }
+                                : prev,
+                            )
+                          }
+                        />
                       </td>
                       <td className="py-4 pr-4 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                         <AnimatedMetricValue

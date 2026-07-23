@@ -103,7 +103,7 @@ export type ParsedCreative = {
 
 /** Ad fields (including creative expansion) to request from the Graph API. */
 export const AD_CREATIVE_FIELDS =
-  "id,name,status,adset_id,campaign_id,creative{id,name,title,body,object_type,call_to_action_type,link_url,thumbnail_url,image_hash,image_url,video_id,effective_object_story_id,object_story_spec,asset_feed_spec}";
+  "id,name,status,effective_status,adset_id,campaign_id,creative{id,name,title,body,object_type,call_to_action_type,link_url,thumbnail_url,image_hash,image_url,video_id,effective_object_story_id,object_story_spec,asset_feed_spec}";
 
 function firstText(items: Array<{ text?: string }> | undefined): string | null {
   if (!items?.length) return null;

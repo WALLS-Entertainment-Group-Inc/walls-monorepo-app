@@ -44,6 +44,7 @@ import { AdCreativeLightbox } from "@/components/campaigns/ad-creative-lightbox"
 import {
   AdPilotRowBadge,
   AdThumbnail,
+  EntityStatusBadge,
   LearningBadge,
 } from "@/components/campaigns/entity-detail-shared";
 import { useResizableColumns } from "@/components/campaigns/use-resizable-columns";
@@ -225,19 +226,6 @@ function ResizableHeader({
       />
     </th>
   );
-}
-
-function formatStatus(status: string | null) {
-  if (!status) return "-";
-  return status
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function isActiveStatus(status: string | null) {
-  const normalized = (status ?? "").toLowerCase();
-  return normalized === "active" || normalized === "learning";
 }
 
 function entityDetailHref(row: EntityPerformanceRow): string | null {
@@ -856,16 +844,23 @@ export function CampaignsPage() {
                     <td className="overflow-hidden py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500">
                       <span className="block truncate">{row.accountName}</span>
                     </td>
-                    <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500">
-                      <span className="inline-flex items-center gap-1.5">
-                        {isActiveStatus(row.status) ? (
-                          <span
-                            className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--kenoo-sky)]"
-                            aria-hidden
-                          />
-                        ) : null}
-                        {formatStatus(row.status)}
-                      </span>
+                    <td className="py-4 pr-4 pl-3">
+                      {row.entityType === "campaign" ||
+                      row.entityType === "ad_group" ? (
+                        <EntityStatusBadge
+                          status={row.status}
+                          entityId={row.id}
+                          onStatusChange={(status) =>
+                            setRows((prev) =>
+                              prev.map((item) =>
+                                item.id === row.id ? { ...item, status } : item,
+                              ),
+                            )
+                          }
+                        />
+                      ) : (
+                        <EntityStatusBadge status={row.status} />
+                      )}
                     </td>
                     <td className="py-4 pr-4 pl-3 text-xs font-light whitespace-nowrap text-neutral-500 tabular-nums">
                       <AnimatedMetricValue
