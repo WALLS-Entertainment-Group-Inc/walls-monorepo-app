@@ -276,10 +276,10 @@ function HeatCell({
       onFocus={() => onHover(intensity, value)}
       onBlur={onLeave}
       className={cn(
-        "relative h-4 w-full rounded-full transition-[transform,filter,opacity] duration-150 ease-out",
+        "relative h-4 w-full rounded-full transition-[transform,filter,box-shadow,opacity] duration-150 ease-out",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/45 focus-visible:ring-offset-1",
         hasData ? "cursor-pointer" : "cursor-default opacity-70",
-        isHovered && hasData && "z-10 scale-y-[1.45]",
+        isHovered && hasData && "z-10 scale-110 shadow-[0_0_0_2px_rgba(255,255,255,0.85),0_2px_8px_rgba(240,78,35,0.35)]",
       )}
       style={{
         background: heatBackground(intensity),
