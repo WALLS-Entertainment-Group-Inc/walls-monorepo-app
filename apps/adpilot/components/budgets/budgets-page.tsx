@@ -535,10 +535,9 @@ export function BudgetsPage() {
                     aria-pressed={isActive}
                     className={cn(
                       "w-full rounded-[22px] px-4 py-4 text-left transition-all duration-200 ease-out",
-                      panelGlassClass,
                       isActive
-                        ? "bg-white ring-1 ring-inset ring-[var(--kenoo-sky)]/45"
-                        : "hover:bg-white/90",
+                        ? panelGlassClass
+                        : "bg-neutral-100/45 shadow-none hover:bg-neutral-100/70",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -840,63 +839,60 @@ function PeriodDetail({
 
   return (
     <div className="space-y-8">
-      <section className={cn("rounded-[28px] px-5 py-6 md:px-7 md:py-7", panelGlassClass)}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
+      <HeroStatsBar
+        header={
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                 {period.name}
               </h2>
-            </div>
-            <p className="mt-1.5 text-sm font-light text-neutral-500">
-              {formatPeriodRange(period.startDate, period.endDate)}
-              {" · "}
-              {periodTypeLabel(period.periodType)}
-            </p>
-            {period.description ? (
-              <p className="mt-2 text-sm font-light leading-6 text-neutral-500">
-                {period.description}
+              <p className="mt-1.5 text-sm font-light text-neutral-500">
+                {formatPeriodRange(period.startDate, period.endDate)}
+                {" · "}
+                {periodTypeLabel(period.periodType)}
               </p>
-            ) : null}
+              {period.description ? (
+                <p className="mt-2 text-sm font-light leading-6 text-neutral-500">
+                  {period.description}
+                </p>
+              ) : null}
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={busy}
+                  aria-label="Period actions"
+                  className="rounded-full p-2 text-neutral-400 outline-none transition hover:text-neutral-600 focus:outline-none focus-visible:outline-none focus-visible:ring-0 disabled:opacity-50"
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="z-50 min-w-[8rem] overflow-hidden rounded-[15px] border-0 bg-white/90 p-1 font-light text-foreground shadow-md backdrop-blur-xl"
+              >
+                <DropdownMenuItem
+                  disabled={busy}
+                  onSelect={onEdit}
+                  className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light outline-none hover:bg-neutral-100 focus:bg-neutral-100"
+                >
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={busy}
+                  onSelect={onDelete}
+                  className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light text-rose-600 outline-none hover:bg-neutral-100 focus:bg-neutral-100 focus:text-rose-600"
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                disabled={busy}
-                aria-label="Period actions"
-                className="rounded-full p-2 text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus-visible:outline-none focus-visible:ring-0 disabled:opacity-50"
-              >
-                <MoreHorizontal className="h-5 w-5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="z-50 min-w-[8rem] overflow-hidden rounded-[15px] border-0 bg-white/90 p-1 font-light text-foreground shadow-md backdrop-blur-xl"
-            >
-              <DropdownMenuItem
-                disabled={busy}
-                onSelect={onEdit}
-                className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light outline-none hover:bg-neutral-100 focus:bg-neutral-100"
-              >
-                <Pencil className="mr-2 h-3.5 w-3.5" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={busy}
-                onSelect={onDelete}
-                className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light text-rose-600 outline-none hover:bg-neutral-100 focus:bg-neutral-100 focus:text-rose-600"
-              >
-                <Trash2 className="mr-2 h-3.5 w-3.5" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </section>
-
-      <HeroStatsBar
+        }
         footer={
           <BudgetUsageBar
             budgetMicros={budgetMicros}
@@ -949,7 +945,7 @@ function PeriodDetail({
         <div className="mb-4 flex items-center justify-between gap-3">
           <SectionLabel
             title="Objectives"
-            description="Primary and supporting KPIs for this period — ROAS, CTR, recognition, and more."
+            description="Primary and supporting KPIs for this period: ROAS, CTR, recognition, and more."
           />
           {!addingObjective ? (
             <Button

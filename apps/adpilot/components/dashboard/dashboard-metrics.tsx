@@ -33,6 +33,8 @@ function HeroStatSkeleton() {
 
 type HeroStatsBarProps = {
   children: React.ReactNode;
+  /** Optional section above the stats grid (e.g. period title). */
+  header?: React.ReactNode;
   /** Optional section below the stats grid (e.g. reach saturation). */
   footer?: React.ReactNode;
   /** Optional section below the footer (e.g. daily progress chart). */
@@ -43,6 +45,7 @@ type HeroStatsBarProps = {
 /** One connected glass pill; children form a 3×2 grid (stacked on mobile). */
 function HeroStatsBar({
   children,
+  header,
   footer,
   afterFooter,
   className,
@@ -57,6 +60,11 @@ function HeroStatsBar({
         className,
       )}
     >
+      {header ? (
+        <div className="border-b border-neutral-200/80 px-4 py-5 md:px-6 md:py-6">
+          {header}
+        </div>
+      ) : null}
       <div
         className={cn(
           "grid grid-cols-1",
