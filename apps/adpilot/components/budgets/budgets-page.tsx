@@ -1,19 +1,21 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
 import {
-  Check,
+  CalendarDays,
   ChevronDown,
+  CircleDollarSign,
+  Gauge,
   Landmark,
   Loader2,
   Pencil,
   Plus,
   Star,
-  Target,
   Trash2,
+  MoreHorizontal,
   Wallet,
   X,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
@@ -27,24 +29,21 @@ import { Textarea } from "@walls/ui/textarea";
 import { cn } from "@walls/utils";
 
 import {
-  ALLOCATION_CATEGORY_OPTIONS,
-  CHANNEL_OPTIONS,
   OBJECTIVE_METRIC_OPTIONS,
-  PERIOD_STATUS_OPTIONS,
   PERIOD_TYPE_OPTIONS,
   TARGET_OPERATOR_OPTIONS,
+  budgetUsedRatio,
+  computePeriodEndDate,
   formatBudgetCurrency,
+  formatBudgetUsedPercent,
   formatObjectiveTarget,
   formatPeriodRange,
   metricLabel,
   microsToDollars,
-  type BudgetAllocation,
-  type BudgetAllocationCategory,
-  type BudgetChannel,
+  periodTypeLabel,
   type BudgetObjective,
   type BudgetObjectiveMetric,
   type BudgetPeriod,
-  type BudgetPeriodStatus,
   type BudgetPeriodType,
   type BudgetTargetOperator,
 } from "@/lib/budgets-shared";
@@ -53,7 +52,6 @@ import {
   panelGlassClass,
   primaryButtonClass,
   secondaryButtonClass,
-  dangerButtonClass,
   glassToggleCardBaseClass,
   glassToggleCardActiveClass,
   glassToggleCardInactiveClass,
@@ -61,6 +59,7 @@ import {
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { FloatingLabelDatePicker } from "@/components/ui/floating-label-date-picker";
 import { SectionLabel } from "@/components/settings/section-label";
+import { HeroStat, HeroStatsBar } from "@/components/dashboard/dashboard-metrics";
 
 function parseIsoDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
@@ -77,25 +76,30 @@ function toIsoDate(date: Date | null): string | null {
   return `${y}-${m}-${d}`;
 }
 
-function statusBadgeClass(status: BudgetPeriodStatus, effective: boolean) {
-  if (effective) {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-200/80";
+function formatDaysLeft(period: BudgetPeriod): string {
+  if (period.periodType === "ongoing" || !period.endDate) {
+    return "Ongoing";
   }
-  switch (status) {
-    case "active":
-      return "bg-sky-50 text-sky-700 ring-sky-200/80";
-    case "planned":
-      return "bg-amber-50 text-amber-800 ring-amber-200/80";
-    case "completed":
-      return "bg-neutral-100 text-neutral-600 ring-neutral-200/80";
-    case "archived":
-      return "bg-neutral-50 text-neutral-400 ring-neutral-200/60";
-  }
+  const end = parseIsoDate(period.endDate);
+  if (!end) return "Ongoing";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  if (end < today) return "Ended";
+
+  const days = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 1) return days === 1 ? "1 day left" : "Ends today";
+  return `${days} days left`;
 }
 
-function statusLabel(period: BudgetPeriod) {
-  if (period.isCurrentlyEffective) return "In effect";
-  return PERIOD_STATUS_OPTIONS.find((s) => s.value === period.status)?.label ?? period.status;
+function periodSpendStats(period: BudgetPeriod) {
+  const budgetMicros = period.budgetAmountMicros;
+  const spentMicros = period.spentMicros ?? 0;
+  const remainingMicros = Math.max(0, budgetMicros - spentMicros);
+  const usedRatio = budgetUsedRatio(budgetMicros, spentMicros);
+  return { budgetMicros, spentMicros, remainingMicros, usedRatio };
 }
 
 function SelectField<T extends string>({
@@ -163,62 +167,40 @@ type PeriodFormState = {
   name: string;
   description: string;
   periodType: BudgetPeriodType;
-  fiscalYear: string;
-  fiscalQuarter: string;
   startDate: Date | null;
   endDate: Date | null;
-  status: BudgetPeriodStatus;
+  amountDollars: string;
   primaryFocus: string;
 };
 
 function emptyPeriodForm(): PeriodFormState {
-  const now = new Date();
-  const quarter = Math.floor(now.getMonth() / 3) + 1;
-  const start = new Date(now.getFullYear(), (quarter - 1) * 3, 1);
-  const end = new Date(now.getFullYear(), quarter * 3, 0);
   return {
-    name: `Q${quarter} ${now.getFullYear()}`,
+    name: "",
     description: "",
     periodType: "quarter",
-    fiscalYear: String(now.getFullYear()),
-    fiscalQuarter: String(quarter),
-    startDate: start,
-    endDate: end,
-    status: "planned",
+    startDate: null,
+    endDate: null,
+    amountDollars: "",
     primaryFocus: "",
   };
 }
 
 function periodToForm(period: BudgetPeriod): PeriodFormState {
+  const periodType =
+    period.periodType === "custom" ? "quarter" : period.periodType;
+  const startDate = parseIsoDate(period.startDate);
   return {
     name: period.name,
     description: period.description ?? "",
-    periodType: period.periodType,
-    fiscalYear: period.fiscalYear != null ? String(period.fiscalYear) : "",
-    fiscalQuarter:
-      period.fiscalQuarter != null ? String(period.fiscalQuarter) : "",
-    startDate: parseIsoDate(period.startDate),
-    endDate: parseIsoDate(period.endDate),
-    status: period.status,
+    periodType,
+    startDate,
+    endDate:
+      periodType === "ongoing"
+        ? null
+        : computePeriodEndDate(startDate, periodType) ??
+          parseIsoDate(period.endDate),
+    amountDollars: String(microsToDollars(period.budgetAmountMicros)),
     primaryFocus: period.primaryFocus ?? "",
-  };
-}
-
-type AllocationFormState = {
-  name: string;
-  category: BudgetAllocationCategory;
-  channel: BudgetChannel | "";
-  amountDollars: string;
-  notes: string;
-};
-
-function emptyAllocationForm(): AllocationFormState {
-  return {
-    name: "Ad spend",
-    category: "media_spend",
-    channel: "all",
-    amountDollars: "100000",
-    notes: "",
   };
 }
 
@@ -258,14 +240,6 @@ export function BudgetsPage() {
   const [periodForm, setPeriodForm] = React.useState<PeriodFormState>(
     emptyPeriodForm,
   );
-
-  const [addingAllocation, setAddingAllocation] = React.useState(false);
-  const [allocationForm, setAllocationForm] = React.useState<AllocationFormState>(
-    emptyAllocationForm,
-  );
-  const [editingAllocationId, setEditingAllocationId] = React.useState<
-    string | null
-  >(null);
 
   const [addingObjective, setAddingObjective] = React.useState(false);
   const [objectiveForm, setObjectiveForm] = React.useState<ObjectiveFormState>(
@@ -338,6 +312,11 @@ export function BudgetsPage() {
       setError("End date is required unless the period is ongoing.");
       return;
     }
+    const amountDollars = Number(periodForm.amountDollars);
+    if (!Number.isFinite(amountDollars) || amountDollars < 0) {
+      setError("Budget amount must be a valid non-negative number.");
+      return;
+    }
 
     setBusy(true);
     setError(null);
@@ -346,18 +325,12 @@ export function BudgetsPage() {
       name: periodForm.name.trim(),
       description: periodForm.description.trim() || null,
       periodType: periodForm.periodType,
-      fiscalYear: periodForm.fiscalYear
-        ? Number(periodForm.fiscalYear)
-        : null,
-      fiscalQuarter: periodForm.fiscalQuarter
-        ? Number(periodForm.fiscalQuarter)
-        : null,
       startDate: toIsoDate(periodForm.startDate),
       endDate:
         periodForm.periodType === "ongoing"
           ? null
           : toIsoDate(periodForm.endDate),
-      status: periodForm.status,
+      budgetAmountDollars: amountDollars,
       primaryFocus: periodForm.primaryFocus.trim() || null,
     };
 
@@ -387,7 +360,7 @@ export function BudgetsPage() {
   const deletePeriod = async (period: BudgetPeriod) => {
     if (
       !window.confirm(
-        `Delete “${period.name}” and all of its budgets and objectives?`,
+        `Delete “${period.name}” and all of its objectives?`,
       )
     ) {
       return;
@@ -404,68 +377,6 @@ export function BudgetsPage() {
       return;
     }
     await loadPeriods(null);
-  };
-
-  const saveAllocation = async () => {
-    if (!selected) return;
-    const amount = Number(allocationForm.amountDollars);
-    if (!allocationForm.name.trim() || !Number.isFinite(amount) || amount < 0) {
-      setError("Allocation name and a valid amount are required.");
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-
-    const body = {
-      name: allocationForm.name.trim(),
-      category: allocationForm.category,
-      channel: allocationForm.channel || null,
-      amountDollars: amount,
-      notes: allocationForm.notes.trim() || null,
-    };
-
-    const isEdit = Boolean(editingAllocationId);
-    const response = await fetch(
-      isEdit
-        ? `/api/budgets/${selected.id}/allocations/${editingAllocationId}`
-        : `/api/budgets/${selected.id}/allocations`,
-      {
-        method: isEdit ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
-
-    setBusy(false);
-
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? "Failed to save allocation");
-      return;
-    }
-
-    setAddingAllocation(false);
-    setEditingAllocationId(null);
-    setAllocationForm(emptyAllocationForm());
-    await loadPeriods(selected.id);
-  };
-
-  const deleteAllocation = async (allocation: BudgetAllocation) => {
-    if (!selected) return;
-    if (!window.confirm(`Delete allocation “${allocation.name}”?`)) return;
-    setBusy(true);
-    const response = await fetch(
-      `/api/budgets/${selected.id}/allocations/${allocation.id}`,
-      { method: "DELETE" },
-    );
-    setBusy(false);
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? "Failed to delete allocation");
-      return;
-    }
-    await loadPeriods(selected.id);
   };
 
   const saveObjective = async () => {
@@ -540,28 +451,11 @@ export function BudgetsPage() {
     await loadPeriods(selected.id);
   };
 
-  const activatePeriod = async (period: BudgetPeriod) => {
-    setBusy(true);
-    setError(null);
-    const response = await fetch(`/api/budgets/${period.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "active" }),
-    });
-    setBusy(false);
-    if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setError(payload.error ?? "Failed to activate period");
-      return;
-    }
-    await loadPeriods(period.id);
-  };
-
   const showPeriodForm = creatingPeriod || editingPeriod;
 
   return (
     <main className="min-h-full w-full bg-kenoo-white px-6 py-8 md:px-10 md:py-12">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-widest text-neutral-500">
@@ -571,9 +465,9 @@ export function BudgetsPage() {
               Budgets
             </h1>
             <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">
-              Plan organization media budgets and period objectives — quarters,
-              fiscal years, or ongoing targets that stay in effect until you
-              archive them.
+              Plan period budgets and objectives — quarters, fiscal years, or
+              ongoing targets. Actual spend is tracked from your connected ad
+              accounts.
             </p>
           </div>
           {!showPeriodForm ? (
@@ -622,19 +516,21 @@ export function BudgetsPage() {
             <aside className="space-y-2">
               <SectionLabel
                 title="Periods"
-                description="Active windows surface first."
+                description="Date windows that include today surface first."
               />
               {periods.map((period) => {
                 const isActive = selectedId === period.id;
+                const { budgetMicros, spentMicros, usedRatio } =
+                  periodSpendStats(period);
+                const usageFillPct = Math.min(100, usedRatio * 100);
+                const isOverBudget = usedRatio > 1;
                 return (
                   <button
                     key={period.id}
                     type="button"
                     onClick={() => {
                       setSelectedId(period.id);
-                      setAddingAllocation(false);
                       setAddingObjective(false);
-                      setEditingAllocationId(null);
                       setEditingObjectiveId(null);
                     }}
                     className={cn(
@@ -656,28 +552,43 @@ export function BudgetsPage() {
                       >
                         {period.name}
                       </p>
-                      <span
-                        className={cn(
-                          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ring-inset",
-                          statusBadgeClass(
-                            period.status,
-                            period.isCurrentlyEffective,
-                          ),
-                        )}
-                      >
-                        {statusLabel(period)}
-                      </span>
+                      {period.isCurrentlyEffective ? (
+                        <span className="shrink-0 text-[9px] font-medium uppercase tracking-wider text-emerald-500">
+                          Current
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-1.5 text-xs font-light text-neutral-500">
                       {formatPeriodRange(period.startDate, period.endDate)}
                     </p>
-                    <p className="mt-2 text-sm font-medium tabular-nums text-foreground">
-                      {formatBudgetCurrency(
-                        period.totalBudgetMicros,
-                        period.currency,
-                        { compact: true },
-                      )}
-                    </p>
+                    <div className="mt-2 flex items-baseline justify-between gap-2">
+                      <p className="text-sm font-medium tabular-nums text-foreground">
+                        {formatBudgetCurrency(budgetMicros, period.currency, {
+                          compact: true,
+                        })}
+                      </p>
+                      {spentMicros > 0 ? (
+                        <p className="text-[11px] font-light tabular-nums text-neutral-500">
+                          {formatBudgetCurrency(spentMicros, period.currency, {
+                            compact: true,
+                          })}{" "}
+                          spent
+                        </p>
+                      ) : null}
+                    </div>
+                    {budgetMicros > 0 ? (
+                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-black/[0.05]">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-500 ease-out"
+                          style={{
+                            width: `${usageFillPct}%`,
+                            background: isOverBudget
+                              ? "linear-gradient(90deg, #fb7185 0%, #f59e0b 100%)"
+                              : "linear-gradient(90deg, #c4b5fd 0%, #93c5fd 55%, #38bdf8 100%)",
+                          }}
+                        />
+                      </div>
+                    ) : null}
                   </button>
                 );
               })}
@@ -690,28 +601,6 @@ export function BudgetsPage() {
                   busy={busy}
                   onEdit={() => startEditPeriod(selected)}
                   onDelete={() => void deletePeriod(selected)}
-                  onActivate={() => void activatePeriod(selected)}
-                  addingAllocation={addingAllocation}
-                  setAddingAllocation={setAddingAllocation}
-                  allocationForm={allocationForm}
-                  setAllocationForm={setAllocationForm}
-                  editingAllocationId={editingAllocationId}
-                  setEditingAllocationId={setEditingAllocationId}
-                  onSaveAllocation={() => void saveAllocation()}
-                  onDeleteAllocation={(a) => void deleteAllocation(a)}
-                  onStartEditAllocation={(allocation) => {
-                    setEditingAllocationId(allocation.id);
-                    setAddingAllocation(true);
-                    setAllocationForm({
-                      name: allocation.name,
-                      category: allocation.category,
-                      channel: allocation.channel ?? "",
-                      amountDollars: String(
-                        microsToDollars(allocation.amountMicros),
-                      ),
-                      notes: allocation.notes ?? "",
-                    });
-                  }}
                   addingObjective={addingObjective}
                   setAddingObjective={setAddingObjective}
                   objectiveForm={objectiveForm}
@@ -742,7 +631,7 @@ export function BudgetsPage() {
                     panelGlassClass,
                   )}
                 >
-                  Select a period to manage budgets and objectives.
+                  Select a period to manage objectives.
                 </div>
               )}
             </div>
@@ -769,8 +658,8 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
           No budget periods yet
         </p>
         <p className="mt-1.5 max-w-sm text-sm font-light text-neutral-500">
-          Create a quarter or ongoing period, allocate spend (e.g. $100K ad
-          budget), and set primary objectives like ROAS or brand recognition.
+          Create a quarter or ongoing period, set a planned budget amount, and
+          define primary objectives like ROAS or brand recognition.
         </p>
       </div>
       <Button type="button" onClick={onCreate} className={primaryButtonClass}>
@@ -823,6 +712,14 @@ function PeriodEditor({
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
         />
+        <FloatingLabelInput
+          label="Budget amount (USD)"
+          inputMode="decimal"
+          value={form.amountDollars}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, amountDollars: e.target.value }))
+          }
+        />
         <SelectField
           label="Type"
           value={form.periodType}
@@ -834,52 +731,36 @@ function PeriodEditor({
             setForm((f) => ({
               ...f,
               periodType,
-              endDate: periodType === "ongoing" ? null : f.endDate,
+              endDate: computePeriodEndDate(f.startDate, periodType),
             }))
           }
         />
         <FloatingLabelDatePicker
           label="Start date"
           value={form.startDate}
-          onChange={(startDate) => setForm((f) => ({ ...f, startDate }))}
+          onChange={(startDate) =>
+            setForm((f) => ({
+              ...f,
+              startDate,
+              endDate: computePeriodEndDate(startDate, f.periodType),
+            }))
+          }
         />
         {form.periodType !== "ongoing" ? (
           <FloatingLabelDatePicker
             label="End date"
             value={form.endDate}
-            onChange={(endDate) => setForm((f) => ({ ...f, endDate }))}
+            onChange={() => undefined}
+            disabled
+            showClearButton={false}
           />
         ) : (
           <div className="flex items-end">
             <p className="rounded-2xl border border-dashed border-neutral-200 px-4 py-3 text-sm font-light text-neutral-500">
-              Ongoing — remains in effect until archived
+              Ongoing — remains in effect until deleted
             </p>
           </div>
         )}
-        <SelectField
-          label="Status"
-          value={form.status}
-          options={PERIOD_STATUS_OPTIONS}
-          onChange={(status) => setForm((f) => ({ ...f, status }))}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <FloatingLabelInput
-            label="Fiscal year"
-            inputMode="numeric"
-            value={form.fiscalYear}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, fiscalYear: e.target.value }))
-            }
-          />
-          <FloatingLabelInput
-            label="Fiscal Q"
-            inputMode="numeric"
-            value={form.fiscalQuarter}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, fiscalQuarter: e.target.value }))
-            }
-          />
-        </div>
       </div>
 
       <div className="mt-4">
@@ -934,16 +815,6 @@ function PeriodDetail({
   busy,
   onEdit,
   onDelete,
-  onActivate,
-  addingAllocation,
-  setAddingAllocation,
-  allocationForm,
-  setAllocationForm,
-  editingAllocationId,
-  setEditingAllocationId,
-  onSaveAllocation,
-  onDeleteAllocation,
-  onStartEditAllocation,
   addingObjective,
   setAddingObjective,
   objectiveForm,
@@ -958,16 +829,6 @@ function PeriodDetail({
   busy: boolean;
   onEdit: () => void;
   onDelete: () => void;
-  onActivate: () => void;
-  addingAllocation: boolean;
-  setAddingAllocation: (v: boolean) => void;
-  allocationForm: AllocationFormState;
-  setAllocationForm: React.Dispatch<React.SetStateAction<AllocationFormState>>;
-  editingAllocationId: string | null;
-  setEditingAllocationId: (id: string | null) => void;
-  onSaveAllocation: () => void;
-  onDeleteAllocation: (a: BudgetAllocation) => void;
-  onStartEditAllocation: (a: BudgetAllocation) => void;
   addingObjective: boolean;
   setAddingObjective: (v: boolean) => void;
   objectiveForm: ObjectiveFormState;
@@ -978,7 +839,8 @@ function PeriodDetail({
   onDeleteObjective: (o: BudgetObjective) => void;
   onStartEditObjective: (o: BudgetObjective) => void;
 }) {
-  const primaryObjective = period.objectives.find((o) => o.isPrimary);
+  const { budgetMicros, spentMicros, remainingMicros, usedRatio } =
+    periodSpendStats(period);
 
   return (
     <div className="space-y-8">
@@ -989,31 +851,12 @@ function PeriodDetail({
               <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                 {period.name}
               </h2>
-              <span
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ring-1 ring-inset",
-                  statusBadgeClass(period.status, period.isCurrentlyEffective),
-                )}
-              >
-                {statusLabel(period)}
-              </span>
             </div>
             <p className="mt-1.5 text-sm font-light text-neutral-500">
               {formatPeriodRange(period.startDate, period.endDate)}
               {" · "}
-              {PERIOD_TYPE_OPTIONS.find((t) => t.value === period.periodType)
-                ?.label ?? period.periodType}
-              {period.fiscalYear
-                ? ` · FY${period.fiscalYear}${
-                    period.fiscalQuarter ? ` Q${period.fiscalQuarter}` : ""
-                  }`
-                : ""}
+              {periodTypeLabel(period.periodType)}
             </p>
-            {period.primaryFocus ? (
-              <p className="mt-3 text-sm font-medium leading-6 text-foreground">
-                {period.primaryFocus}
-              </p>
-            ) : null}
             {period.description ? (
               <p className="mt-2 text-sm font-light leading-6 text-neutral-500">
                 {period.description}
@@ -1021,239 +864,90 @@ function PeriodDetail({
             ) : null}
           </div>
 
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {period.status !== "active" ? (
-              <Button
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
                 type="button"
                 disabled={busy}
-                onClick={onActivate}
-                className={primaryButtonClass}
+                aria-label="Period actions"
+                className="rounded-full p-2 text-neutral-400 outline-none transition hover:bg-neutral-100 hover:text-neutral-700 focus:outline-none focus-visible:outline-none focus-visible:ring-0 disabled:opacity-50"
               >
-                <Check className="mr-2 h-4 w-4" />
-                Mark active
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={onEdit}
-              className={secondaryButtonClass}
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="z-50 min-w-[8rem] overflow-hidden rounded-[15px] border-0 bg-white/90 p-1 font-light text-foreground shadow-md backdrop-blur-xl"
             >
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={onDelete}
-              className={dangerButtonClass}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <SummaryStat
-            icon={Wallet}
-            label="Total budget"
-            value={formatBudgetCurrency(
-              period.totalBudgetMicros,
-              period.currency,
-            )}
-          />
-          <SummaryStat
-            icon={Landmark}
-            label="Allocations"
-            value={String(period.allocations.length)}
-          />
-          <SummaryStat
-            icon={Target}
-            label="Primary objective"
-            value={
-              primaryObjective
-                ? `${metricLabel(
-                    primaryObjective.metricKey,
-                    primaryObjective.customMetricLabel,
-                  )} ${formatObjectiveTarget(primaryObjective)}`
-                : "Not set"
-            }
-          />
+              <DropdownMenuItem
+                disabled={busy}
+                onSelect={onEdit}
+                className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light outline-none hover:bg-neutral-100 focus:bg-neutral-100"
+              >
+                <Pencil className="mr-2 h-3.5 w-3.5" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={busy}
+                onSelect={onDelete}
+                className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light text-rose-600 outline-none hover:bg-neutral-100 focus:bg-neutral-100 focus:text-rose-600"
+              >
+                <Trash2 className="mr-2 h-3.5 w-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </section>
 
-      <section>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <SectionLabel
-            title="Budget allocations"
-            description="Line items for this period — media spend, creative, fees, contingency."
+      <HeroStatsBar
+        footer={
+          <BudgetUsageBar
+            budgetMicros={budgetMicros}
+            spentMicros={spentMicros}
+            remainingMicros={remainingMicros}
+            usedRatio={usedRatio}
+            currency={period.currency}
           />
-          {!addingAllocation ? (
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingAllocationId(null);
-                setAllocationForm(emptyAllocationForm());
-                setAddingAllocation(true);
-              }}
-              className={cn(secondaryButtonClass, "shrink-0")}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add
-            </Button>
-          ) : null}
-        </div>
-
-        {addingAllocation ? (
-          <div
-            className={cn(
-              "mb-4 rounded-[24px] px-4 py-5 md:px-5",
-              panelGlassClass,
-            )}
-          >
-            <p className="mb-3 text-sm font-medium text-foreground">
-              {editingAllocationId ? "Edit allocation" : "New allocation"}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FloatingLabelInput
-                label="Name"
-                value={allocationForm.name}
-                onChange={(e) =>
-                  setAllocationForm((f) => ({ ...f, name: e.target.value }))
-                }
-              />
-              <FloatingLabelInput
-                label="Amount (USD)"
-                inputMode="decimal"
-                value={allocationForm.amountDollars}
-                onChange={(e) =>
-                  setAllocationForm((f) => ({
-                    ...f,
-                    amountDollars: e.target.value,
-                  }))
-                }
-              />
-              <SelectField
-                label="Category"
-                value={allocationForm.category}
-                options={ALLOCATION_CATEGORY_OPTIONS}
-                onChange={(category) =>
-                  setAllocationForm((f) => ({ ...f, category }))
-                }
-              />
-              <SelectField
-                label="Channel"
-                value={(allocationForm.channel || "all") as BudgetChannel}
-                options={CHANNEL_OPTIONS}
-                onChange={(channel) =>
-                  setAllocationForm((f) => ({ ...f, channel }))
-                }
-              />
-            </div>
-            <div className="mt-3">
-              <Textarea
-                value={allocationForm.notes}
-                onChange={(e) =>
-                  setAllocationForm((f) => ({ ...f, notes: e.target.value }))
-                }
-                placeholder="Notes…"
-                className="min-h-[72px] rounded-2xl border-neutral-200 bg-kenoo-white font-light"
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                disabled={busy}
-                onClick={onSaveAllocation}
-                className={primaryButtonClass}
-              >
-                {busy ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Save allocation
-              </Button>
-              <Button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setAddingAllocation(false);
-                  setEditingAllocationId(null);
-                }}
-                className={secondaryButtonClass}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {period.allocations.length === 0 && !addingAllocation ? (
-          <div
-            className={cn(
-              "rounded-[24px] px-5 py-10 text-center text-sm font-light text-neutral-500",
-              panelGlassClass,
-            )}
-          >
-            No allocations yet. Add something like a $100K ad spend line.
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {period.allocations.map((allocation) => (
-              <li
-                key={allocation.id}
-                className={cn(
-                  "flex items-start justify-between gap-3 rounded-[22px] px-4 py-4 md:px-5",
-                  panelGlassClass,
-                )}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {allocation.name}
-                  </p>
-                  <p className="mt-1 text-xs font-light text-neutral-500">
-                    {ALLOCATION_CATEGORY_OPTIONS.find(
-                      (c) => c.value === allocation.category,
-                    )?.label ?? allocation.category}
-                    {allocation.channel
-                      ? ` · ${
-                          CHANNEL_OPTIONS.find(
-                            (c) => c.value === allocation.channel,
-                          )?.label ?? allocation.channel
-                        }`
-                      : ""}
-                  </p>
-                  {allocation.notes ? (
-                    <p className="mt-1.5 text-xs font-light text-neutral-400">
-                      {allocation.notes}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <p className="mr-2 text-sm font-semibold tabular-nums text-foreground">
-                    {formatBudgetCurrency(
-                      allocation.amountMicros,
-                      allocation.currency,
-                    )}
-                  </p>
-                  <IconButton
-                    label="Edit allocation"
-                    onClick={() => onStartEditAllocation(allocation)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </IconButton>
-                  <IconButton
-                    label="Delete allocation"
-                    onClick={() => onDeleteAllocation(allocation)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </IconButton>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        }
+      >
+        <HeroStat
+          label="Planned budget"
+          value={formatBudgetCurrency(budgetMicros, period.currency)}
+          icon={Wallet}
+          accentColor="var(--kenoo-sky)"
+        />
+        <HeroStat
+          label="Ad spend"
+          value={formatBudgetCurrency(spentMicros, period.currency)}
+          icon={CircleDollarSign}
+          accentColor="var(--kenoo-blue)"
+        />
+        <HeroStat
+          label="Remaining"
+          value={formatBudgetCurrency(remainingMicros, period.currency)}
+          icon={Landmark}
+          accentColor="#00d1c1"
+        />
+        <HeroStat
+          label="Budget used"
+          value={formatBudgetUsedPercent(usedRatio)}
+          icon={Gauge}
+          accentColor="#7a04eb"
+        />
+        <HeroStat
+          label="Days left"
+          value={formatDaysLeft(period)}
+          icon={CalendarDays}
+          accentColor="#f59e0b"
+        />
+        <HeroStat
+          label="Primary focus"
+          value={period.primaryFocus?.trim() || "Not set"}
+          icon={Star}
+          accentColor="#10b981"
+        />
+      </HeroStatsBar>
 
       <section>
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -1494,25 +1188,115 @@ function PeriodDetail({
   );
 }
 
-function SummaryStat({
-  icon: Icon,
-  label,
-  value,
+function BudgetUsageBar({
+  budgetMicros,
+  spentMicros,
+  remainingMicros,
+  usedRatio,
+  currency,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
+  budgetMicros: number;
+  spentMicros: number;
+  remainingMicros: number;
+  usedRatio: number;
+  currency: string;
 }) {
+  const isOverBudget = usedRatio > 1;
+  const displayPct = usedRatio * 100;
+  const visualPct = Math.min(100, displayPct);
+  const segmentCount = 4;
+  const segmentFills = Array.from({ length: segmentCount }, (_, index) => {
+    const start = (index / segmentCount) * 100;
+    const end = ((index + 1) / segmentCount) * 100;
+    if (visualPct <= start) return 0;
+    if (visualPct >= end) return 100;
+    return ((visualPct - start) / (end - start)) * 100;
+  });
+
+  const gradient = isOverBudget
+    ? "linear-gradient(90deg, #fb7185 0%, #fbbf24 55%, #f59e0b 100%)"
+    : "linear-gradient(90deg, #c4b5fd 0%, #93c5fd 55%, #38bdf8 100%)";
+
+  const percentLabel =
+    displayPct >= 10
+      ? `${Math.round(displayPct)}%`
+      : displayPct > 0
+        ? `${displayPct.toFixed(1)}%`
+        : "0%";
+
   return (
-    <div className="rounded-2xl border border-black/[0.04] bg-neutral-50/70 px-4 py-3.5">
-      <div className="flex items-center gap-2 text-neutral-400">
-        <Icon className="h-3.5 w-3.5" />
-        <p className="text-[10px] font-medium uppercase tracking-wider">
-          {label}
-        </p>
+    <div className="w-full">
+      <div className="flex items-center gap-4 sm:gap-5">
+        <div className="w-16 shrink-0 sm:w-20">
+          <p className="text-2xl font-black tabular-nums tracking-tight text-neutral-800 sm:text-3xl">
+            {percentLabel}
+          </p>
+          <p className="mt-0.5 text-[10px] font-normal uppercase tracking-[0.14em] text-neutral-400">
+            Used
+          </p>
+        </div>
+
+        <div className="relative min-w-0 flex-1 py-1">
+          <div className="flex gap-1.5 sm:gap-2">
+            {segmentFills.map((fill, index) => (
+              <div
+                key={index}
+                className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-black/[0.05] sm:h-3"
+              >
+                <motion.div
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{
+                    background: gradient,
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.45)",
+                  }}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${fill}%` }}
+                  transition={{
+                    duration: 0.7,
+                    ease: [0.22, 1, 0.36, 1],
+                    delay: 0.08 + index * 0.06,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-      <p className="mt-1.5 truncate text-sm font-semibold text-foreground">
-        {value}
+
+      <p className="mt-3 text-sm font-light text-neutral-500">
+        {budgetMicros <= 0 ? (
+          "Set a planned budget to track spend."
+        ) : isOverBudget ? (
+          <>
+            <span className="font-medium tabular-nums text-neutral-800">
+              {formatBudgetCurrency(spentMicros, currency)}
+            </span>
+            {" of "}
+            <span className="tabular-nums text-neutral-700">
+              {formatBudgetCurrency(budgetMicros, currency)}
+            </span>
+            {" spent · "}
+            <span className="font-medium tabular-nums text-rose-600">
+              {formatBudgetCurrency(spentMicros - budgetMicros, currency)}
+            </span>
+            {" over budget"}
+          </>
+        ) : (
+          <>
+            <span className="font-medium tabular-nums text-neutral-800">
+              {formatBudgetCurrency(spentMicros, currency)}
+            </span>
+            {" of "}
+            <span className="tabular-nums text-neutral-700">
+              {formatBudgetCurrency(budgetMicros, currency)}
+            </span>
+            {" spent · "}
+            <span className="font-medium tabular-nums text-neutral-800">
+              {formatBudgetCurrency(remainingMicros, currency)}
+            </span>
+            {" remaining"}
+          </>
+        )}
       </p>
     </div>
   );

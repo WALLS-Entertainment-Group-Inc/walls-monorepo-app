@@ -124,7 +124,7 @@ export function SettingsPage() {
           <SectionLabel title="Budgets & objectives" />
           <SettingsActionPanel
             title="Manage budgets"
-            description="Set period spend allocations and objectives like ROAS, CTR, or brand recognition that stay active until the period ends."
+            description="Set period budgets and objectives like ROAS, CTR, or brand recognition for each planning window."
             href="/budgets"
             actionLabel="Manage budgets"
           />

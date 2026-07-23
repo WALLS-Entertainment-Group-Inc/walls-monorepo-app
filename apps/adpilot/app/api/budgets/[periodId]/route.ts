@@ -6,9 +6,8 @@ import {
   updateBudgetPeriod,
 } from "@/lib/budgets-server";
 import {
-  BUDGET_PERIOD_STATUSES,
   BUDGET_PERIOD_TYPES,
-  type BudgetPeriodStatus,
+  dollarsToMicros,
   type BudgetPeriodType,
 } from "@/lib/budgets-shared";
 
@@ -20,12 +19,10 @@ type PatchBody = {
   name?: string;
   description?: string | null;
   periodType?: string;
-  fiscalYear?: number | null;
-  fiscalQuarter?: number | null;
   startDate?: string;
   endDate?: string | null;
-  status?: string;
   currency?: string;
+  budgetAmountDollars?: number | null;
   primaryFocus?: string | null;
 };
 
@@ -61,14 +58,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid period type" }, { status: 400 });
   }
 
-  const status =
-    body.status === undefined
-      ? undefined
-      : BUDGET_PERIOD_STATUSES.includes(body.status as BudgetPeriodStatus)
-        ? (body.status as BudgetPeriodStatus)
-        : null;
-  if (status === null) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  let budgetAmountMicros: number | undefined;
+  if (body.budgetAmountDollars !== undefined) {
+    const budgetAmountDollars =
+      body.budgetAmountDollars == null ? 0 : Number(body.budgetAmountDollars);
+    if (!Number.isFinite(budgetAmountDollars) || budgetAmountDollars < 0) {
+      return NextResponse.json(
+        { error: "Budget amount must be a non-negative number" },
+        { status: 400 },
+      );
+    }
+    budgetAmountMicros = dollarsToMicros(budgetAmountDollars);
   }
 
   try {
@@ -79,12 +79,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         name: body.name,
         description: body.description,
         periodType,
-        fiscalYear: body.fiscalYear,
-        fiscalQuarter: body.fiscalQuarter,
         startDate: body.startDate,
         endDate: body.endDate,
-        status,
         currency: body.currency,
+        budgetAmountMicros,
         primaryFocus: body.primaryFocus,
       },
     });

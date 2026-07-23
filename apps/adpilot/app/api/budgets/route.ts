@@ -6,9 +6,8 @@ import {
   listBudgetPeriods,
 } from "@/lib/budgets-server";
 import {
-  BUDGET_PERIOD_STATUSES,
   BUDGET_PERIOD_TYPES,
-  type BudgetPeriodStatus,
+  dollarsToMicros,
   type BudgetPeriodType,
 } from "@/lib/budgets-shared";
 
@@ -34,12 +33,10 @@ type CreateBody = {
   name?: string;
   description?: string | null;
   periodType?: string;
-  fiscalYear?: number | null;
-  fiscalQuarter?: number | null;
   startDate?: string;
   endDate?: string | null;
-  status?: string;
   currency?: string;
+  budgetAmountDollars?: number | null;
   primaryFocus?: string | null;
 };
 
@@ -79,11 +76,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const status =
-    body.status &&
-    BUDGET_PERIOD_STATUSES.includes(body.status as BudgetPeriodStatus)
-      ? (body.status as BudgetPeriodStatus)
-      : "planned";
+  const budgetAmountDollars =
+    body.budgetAmountDollars == null ? 0 : Number(body.budgetAmountDollars);
+  if (!Number.isFinite(budgetAmountDollars) || budgetAmountDollars < 0) {
+    return NextResponse.json(
+      { error: "Budget amount must be a non-negative number" },
+      { status: 400 },
+    );
+  }
 
   try {
     const period = await createBudgetPeriod({
@@ -92,12 +92,10 @@ export async function POST(request: Request) {
         name: body.name,
         description: body.description,
         periodType,
-        fiscalYear: body.fiscalYear ?? null,
-        fiscalQuarter: body.fiscalQuarter ?? null,
         startDate: body.startDate,
         endDate: body.endDate ?? null,
-        status,
         currency: body.currency,
+        budgetAmountMicros: dollarsToMicros(budgetAmountDollars),
         primaryFocus: body.primaryFocus,
       },
     });

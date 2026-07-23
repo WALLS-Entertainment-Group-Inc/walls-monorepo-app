@@ -6,31 +6,22 @@ import {
   withAdScope,
 } from "@/lib/ad-scope";
 import {
-  BUDGET_ALLOCATION_CATEGORIES,
-  BUDGET_CHANNELS,
   BUDGET_OBJECTIVE_METRICS,
   BUDGET_OBJECTIVE_STATUSES,
-  BUDGET_PERIOD_STATUSES,
   BUDGET_PERIOD_TYPES,
   BUDGET_TARGET_OPERATORS,
   isPeriodCurrentlyEffective,
-  type BudgetAllocation,
-  type BudgetAllocationCategory,
-  type BudgetChannel,
   type BudgetObjective,
   type BudgetObjectiveMetric,
   type BudgetObjectiveStatus,
   type BudgetPeriod,
-  type BudgetPeriodStatus,
   type BudgetPeriodType,
   type BudgetTargetOperator,
 } from "@/lib/budgets-shared";
+import { META_PROVIDER } from "@/lib/connections";
 
 const PERIOD_SELECT =
-  "id, name, description, period_type, fiscal_year, fiscal_quarter, start_date, end_date, status, currency, primary_focus, created_at, updated_at";
-
-const ALLOCATION_SELECT =
-  "id, period_id, name, category, channel, amount_micros, currency, notes, sort_order, created_at, updated_at";
+  "id, name, description, period_type, start_date, end_date, currency, budget_amount_micros, primary_focus, created_at, updated_at";
 
 const OBJECTIVE_SELECT =
   "id, period_id, name, metric_key, custom_metric_label, target_value, target_operator, target_unit, is_primary, priority, status, notes, created_at, updated_at";
@@ -39,25 +30,6 @@ function asPeriodType(value: unknown): BudgetPeriodType {
   return BUDGET_PERIOD_TYPES.includes(value as BudgetPeriodType)
     ? (value as BudgetPeriodType)
     : "custom";
-}
-
-function asPeriodStatus(value: unknown): BudgetPeriodStatus {
-  return BUDGET_PERIOD_STATUSES.includes(value as BudgetPeriodStatus)
-    ? (value as BudgetPeriodStatus)
-    : "planned";
-}
-
-function asCategory(value: unknown): BudgetAllocationCategory {
-  return BUDGET_ALLOCATION_CATEGORIES.includes(value as BudgetAllocationCategory)
-    ? (value as BudgetAllocationCategory)
-    : "other";
-}
-
-function asChannel(value: unknown): BudgetChannel | null {
-  if (value == null) return null;
-  return BUDGET_CHANNELS.includes(value as BudgetChannel)
-    ? (value as BudgetChannel)
-    : "other";
 }
 
 function asMetric(value: unknown): BudgetObjectiveMetric {
@@ -76,22 +48,6 @@ function asObjectiveStatus(value: unknown): BudgetObjectiveStatus {
   return BUDGET_OBJECTIVE_STATUSES.includes(value as BudgetObjectiveStatus)
     ? (value as BudgetObjectiveStatus)
     : "active";
-}
-
-function mapAllocation(row: Record<string, unknown>): BudgetAllocation {
-  return {
-    id: row.id as string,
-    periodId: row.period_id as string,
-    name: row.name as string,
-    category: asCategory(row.category),
-    channel: asChannel(row.channel),
-    amountMicros: Number(row.amount_micros ?? 0),
-    currency: (row.currency as string) ?? "USD",
-    notes: (row.notes as string | null) ?? null,
-    sortOrder: Number(row.sort_order ?? 0),
-    createdAt: row.created_at as string,
-    updatedAt: (row.updated_at as string | null) ?? null,
-  };
 }
 
 function mapObjective(row: Record<string, unknown>): BudgetObjective {
@@ -115,10 +71,9 @@ function mapObjective(row: Record<string, unknown>): BudgetObjective {
 
 function mapPeriod(
   row: Record<string, unknown>,
-  allocations: BudgetAllocation[],
   objectives: BudgetObjective[],
+  spentMicros = 0,
 ): BudgetPeriod {
-  const status = asPeriodStatus(row.status);
   const startDate = row.start_date as string;
   const endDate = (row.end_date as string | null) ?? null;
   return {
@@ -126,29 +81,67 @@ function mapPeriod(
     name: row.name as string,
     description: (row.description as string | null) ?? null,
     periodType: asPeriodType(row.period_type),
-    fiscalYear:
-      row.fiscal_year == null ? null : Number(row.fiscal_year),
-    fiscalQuarter:
-      row.fiscal_quarter == null ? null : Number(row.fiscal_quarter),
     startDate,
     endDate,
-    status,
     currency: (row.currency as string) ?? "USD",
+    budgetAmountMicros: Number(row.budget_amount_micros ?? 0),
+    spentMicros,
     primaryFocus: (row.primary_focus as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: (row.updated_at as string | null) ?? null,
     isCurrentlyEffective: isPeriodCurrentlyEffective({
-      status,
       startDate,
       endDate,
     }),
-    totalBudgetMicros: allocations.reduce(
-      (sum, item) => sum + item.amountMicros,
-      0,
-    ),
-    allocations,
     objectives,
   };
+}
+
+async function loadAccountSpendByDate(
+  scope: AdDataScope,
+  startDate: string,
+  endDate: string,
+): Promise<Array<{ metric_date: string; spend_micros: number }>> {
+  const supabase = await createClient();
+
+  const { data: accountEntities, error: accountError } = await withAdScope(
+    supabase
+      .from("ad_entities")
+      .select("id")
+      .eq("provider", META_PROVIDER)
+      .eq("entity_type", "account"),
+    scope,
+  );
+
+  if (accountError) throw accountError;
+  const entityIds = (accountEntities ?? []).map((row) => row.id as string);
+  if (entityIds.length === 0) return [];
+
+  const { data: metrics, error: metricsError } = await supabase
+    .from("ad_metrics_daily")
+    .select("metric_date, spend_micros")
+    .in("entity_id", entityIds)
+    .gte("metric_date", startDate)
+    .lte("metric_date", endDate);
+
+  if (metricsError) throw metricsError;
+  return (metrics ?? []) as Array<{ metric_date: string; spend_micros: number }>;
+}
+
+function spentForPeriod(
+  rows: Array<{ metric_date: string; spend_micros: number }>,
+  startDate: string,
+  endDate: string | null,
+  today: string,
+): number {
+  const inclusiveEnd = endDate && endDate < today ? endDate : today;
+  let total = 0;
+  for (const row of rows) {
+    if (row.metric_date < startDate) continue;
+    if (row.metric_date > inclusiveEnd) continue;
+    total += Number(row.spend_micros ?? 0);
+  }
+  return total;
 }
 
 export async function listBudgetPeriods(
@@ -159,9 +152,7 @@ export async function listBudgetPeriods(
   const { data: periodRows, error: periodError } = await withAdScope(
     supabase.from("ad_budget_periods").select(PERIOD_SELECT),
     scope,
-  )
-    .order("status", { ascending: true })
-    .order("start_date", { ascending: false });
+  ).order("start_date", { ascending: false });
 
   if (periodError) throw periodError;
 
@@ -170,35 +161,16 @@ export async function listBudgetPeriods(
 
   const periodIds = periods.map((p) => p.id as string);
 
-  const [{ data: allocationRows, error: allocationError }, { data: objectiveRows, error: objectiveError }] =
-    await Promise.all([
-      withAdScope(
-        supabase.from("ad_budget_allocations").select(ALLOCATION_SELECT),
-        scope,
-      )
-        .in("period_id", periodIds)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true }),
-      withAdScope(
-        supabase.from("ad_budget_objectives").select(OBJECTIVE_SELECT),
-        scope,
-      )
-        .in("period_id", periodIds)
-        .order("is_primary", { ascending: false })
-        .order("priority", { ascending: true })
-        .order("created_at", { ascending: true }),
-    ]);
+  const { data: objectiveRows, error: objectiveError } = await withAdScope(
+    supabase.from("ad_budget_objectives").select(OBJECTIVE_SELECT),
+    scope,
+  )
+    .in("period_id", periodIds)
+    .order("is_primary", { ascending: false })
+    .order("priority", { ascending: true })
+    .order("created_at", { ascending: true });
 
-  if (allocationError) throw allocationError;
   if (objectiveError) throw objectiveError;
-
-  const allocationsByPeriod = new Map<string, BudgetAllocation[]>();
-  for (const row of allocationRows ?? []) {
-    const mapped = mapAllocation(row);
-    const list = allocationsByPeriod.get(mapped.periodId) ?? [];
-    list.push(mapped);
-    allocationsByPeriod.set(mapped.periodId, list);
-  }
 
   const objectivesByPeriod = new Map<string, BudgetObjective[]>();
   for (const row of objectiveRows ?? []) {
@@ -208,27 +180,41 @@ export async function listBudgetPeriods(
     objectivesByPeriod.set(mapped.periodId, list);
   }
 
-  const mapped = periods.map((row) =>
-    mapPeriod(
-      row,
-      allocationsByPeriod.get(row.id as string) ?? [],
-      objectivesByPeriod.get(row.id as string) ?? [],
-    ),
-  );
+  const today = new Date().toISOString().slice(0, 10);
+  const spendWindowStart = periods.reduce((min, row) => {
+    const start = row.start_date as string;
+    return start < min ? start : min;
+  }, periods[0]!.start_date as string);
+  const spendWindowEnd = periods.reduce((max, row) => {
+    const end = ((row.end_date as string | null) ?? today);
+    return end > max ? end : max;
+  }, today);
 
-  // Surface currently-effective periods first, then active, then by start date.
+  let spendRows: Array<{ metric_date: string; spend_micros: number }> = [];
+  try {
+    spendRows = await loadAccountSpendByDate(
+      scope,
+      spendWindowStart,
+      spendWindowEnd,
+    );
+  } catch (error) {
+    console.error("[adpilot] budget period spend:", error);
+  }
+
+  const mapped = periods.map((row) => {
+    const startDate = row.start_date as string;
+    const endDate = (row.end_date as string | null) ?? null;
+    return mapPeriod(
+      row,
+      objectivesByPeriod.get(row.id as string) ?? [],
+      spentForPeriod(spendRows, startDate, endDate, today),
+    );
+  });
+
+  // Surface currently-effective periods first, then by start date.
   return mapped.sort((a, b) => {
     if (a.isCurrentlyEffective !== b.isCurrentlyEffective) {
       return a.isCurrentlyEffective ? -1 : 1;
-    }
-    if (a.status !== b.status) {
-      const rank: Record<BudgetPeriodStatus, number> = {
-        active: 0,
-        planned: 1,
-        completed: 2,
-        archived: 3,
-      };
-      return rank[a.status] - rank[b.status];
     }
     return b.startDate.localeCompare(a.startDate);
   });
@@ -238,12 +224,10 @@ export type CreateBudgetPeriodInput = {
   name: string;
   description?: string | null;
   periodType: BudgetPeriodType;
-  fiscalYear?: number | null;
-  fiscalQuarter?: number | null;
   startDate: string;
   endDate?: string | null;
-  status?: BudgetPeriodStatus;
   currency?: string;
+  budgetAmountMicros?: number;
   primaryFocus?: string | null;
 };
 
@@ -255,6 +239,10 @@ export async function createBudgetPeriod(input: {
   const periodType = input.data.periodType;
   const endDate =
     periodType === "ongoing" ? null : (input.data.endDate ?? null);
+  const budgetAmountMicros = Math.max(
+    0,
+    Math.round(input.data.budgetAmountMicros ?? 0),
+  );
 
   const { data, error } = await supabase
     .from("ad_budget_periods")
@@ -265,19 +253,17 @@ export async function createBudgetPeriod(input: {
       name: input.data.name.trim(),
       description: input.data.description?.trim() || null,
       period_type: periodType,
-      fiscal_year: input.data.fiscalYear ?? null,
-      fiscal_quarter: input.data.fiscalQuarter ?? null,
       start_date: input.data.startDate,
       end_date: endDate,
-      status: input.data.status ?? "planned",
       currency: (input.data.currency ?? "USD").toUpperCase(),
+      budget_amount_micros: budgetAmountMicros,
       primary_focus: input.data.primaryFocus?.trim() || null,
     })
     .select(PERIOD_SELECT)
     .single();
 
   if (error) throw error;
-  return mapPeriod(data, [], []);
+  return mapPeriod(data, []);
 }
 
 export type UpdateBudgetPeriodInput = Partial<CreateBudgetPeriodInput>;
@@ -305,21 +291,20 @@ export async function updateBudgetPeriod(input: {
       updates.end_date = null;
     }
   }
-  if (input.patch.fiscalYear !== undefined) {
-    updates.fiscal_year = input.patch.fiscalYear;
-  }
-  if (input.patch.fiscalQuarter !== undefined) {
-    updates.fiscal_quarter = input.patch.fiscalQuarter;
-  }
   if (input.patch.startDate !== undefined) {
     updates.start_date = input.patch.startDate;
   }
   if (input.patch.endDate !== undefined) {
     updates.end_date = input.patch.endDate;
   }
-  if (input.patch.status !== undefined) updates.status = input.patch.status;
   if (input.patch.currency !== undefined) {
     updates.currency = input.patch.currency.toUpperCase();
+  }
+  if (input.patch.budgetAmountMicros !== undefined) {
+    updates.budget_amount_micros = Math.max(
+      0,
+      Math.round(input.patch.budgetAmountMicros),
+    );
   }
   if (input.patch.primaryFocus !== undefined) {
     updates.primary_focus = input.patch.primaryFocus?.trim() || null;
@@ -337,7 +322,7 @@ export async function updateBudgetPeriod(input: {
   const all = await listBudgetPeriods(input.scope);
   const refreshed = all.find((p) => p.id === input.periodId);
   if (refreshed) return refreshed;
-  return mapPeriod(data, [], []);
+  return mapPeriod(data, []);
 }
 
 export async function deleteBudgetPeriod(input: {
@@ -349,101 +334,6 @@ export async function deleteBudgetPeriod(input: {
     supabase.from("ad_budget_periods").delete(),
     input.scope,
   ).eq("id", input.periodId);
-
-  if (error) throw error;
-}
-
-export type CreateAllocationInput = {
-  name: string;
-  category: BudgetAllocationCategory;
-  channel?: BudgetChannel | null;
-  amountMicros: number;
-  currency?: string;
-  notes?: string | null;
-  sortOrder?: number;
-};
-
-export async function createBudgetAllocation(input: {
-  scope: AdDataScope;
-  periodId: string;
-  data: CreateAllocationInput;
-}): Promise<BudgetAllocation> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("ad_budget_allocations")
-    .insert({
-      ...adScopeFields(input.scope),
-      period_id: input.periodId,
-      created_by: input.scope.userId,
-      updated_by: input.scope.userId,
-      name: input.data.name.trim(),
-      category: input.data.category,
-      channel: input.data.channel ?? null,
-      amount_micros: Math.max(0, Math.round(input.data.amountMicros)),
-      currency: (input.data.currency ?? "USD").toUpperCase(),
-      notes: input.data.notes?.trim() || null,
-      sort_order: input.data.sortOrder ?? 0,
-    })
-    .select(ALLOCATION_SELECT)
-    .single();
-
-  if (error) throw error;
-  return mapAllocation(data);
-}
-
-export type UpdateAllocationInput = Partial<CreateAllocationInput>;
-
-export async function updateBudgetAllocation(input: {
-  scope: AdDataScope;
-  allocationId: string;
-  patch: UpdateAllocationInput;
-}): Promise<BudgetAllocation> {
-  const supabase = await createClient();
-  const updates: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-    updated_by: input.scope.userId,
-  };
-
-  if (input.patch.name !== undefined) updates.name = input.patch.name.trim();
-  if (input.patch.category !== undefined) updates.category = input.patch.category;
-  if (input.patch.channel !== undefined) updates.channel = input.patch.channel;
-  if (input.patch.amountMicros !== undefined) {
-    updates.amount_micros = Math.max(0, Math.round(input.patch.amountMicros));
-  }
-  if (input.patch.currency !== undefined) {
-    updates.currency = input.patch.currency.toUpperCase();
-  }
-  if (input.patch.notes !== undefined) {
-    updates.notes = input.patch.notes?.trim() || null;
-  }
-  if (input.patch.sortOrder !== undefined) {
-    updates.sort_order = input.patch.sortOrder;
-  }
-
-  const { data, error } = await withAdScope(
-    supabase
-      .from("ad_budget_allocations")
-      .update(updates)
-      .select(ALLOCATION_SELECT),
-    input.scope,
-  )
-    .eq("id", input.allocationId)
-    .single();
-
-  if (error) throw error;
-  return mapAllocation(data);
-}
-
-export async function deleteBudgetAllocation(input: {
-  scope: AdDataScope;
-  allocationId: string;
-}): Promise<void> {
-  const supabase = await createClient();
-  const { error } = await withAdScope(
-    supabase.from("ad_budget_allocations").delete(),
-    input.scope,
-  ).eq("id", input.allocationId);
 
   if (error) throw error;
 }

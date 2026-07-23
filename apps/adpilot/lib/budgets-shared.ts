@@ -1,4 +1,4 @@
-/** Shared budget period / allocation / objective types & constants (safe for client). */
+/** Shared budget period / objective types & constants (safe for client). */
 
 export const BUDGET_PERIOD_TYPES = [
   "quarter",
@@ -9,38 +9,6 @@ export const BUDGET_PERIOD_TYPES = [
 ] as const;
 
 export type BudgetPeriodType = (typeof BUDGET_PERIOD_TYPES)[number];
-
-export const BUDGET_PERIOD_STATUSES = [
-  "planned",
-  "active",
-  "completed",
-  "archived",
-] as const;
-
-export type BudgetPeriodStatus = (typeof BUDGET_PERIOD_STATUSES)[number];
-
-export const BUDGET_ALLOCATION_CATEGORIES = [
-  "media_spend",
-  "creative",
-  "agency",
-  "tooling",
-  "contingency",
-  "other",
-] as const;
-
-export type BudgetAllocationCategory =
-  (typeof BUDGET_ALLOCATION_CATEGORIES)[number];
-
-export const BUDGET_CHANNELS = [
-  "meta",
-  "google",
-  "tiktok",
-  "linkedin",
-  "other",
-  "all",
-] as const;
-
-export type BudgetChannel = (typeof BUDGET_CHANNELS)[number];
 
 export const BUDGET_OBJECTIVE_METRICS = [
   "roas",
@@ -74,20 +42,6 @@ export const BUDGET_OBJECTIVE_STATUSES = [
 
 export type BudgetObjectiveStatus = (typeof BUDGET_OBJECTIVE_STATUSES)[number];
 
-export type BudgetAllocation = {
-  id: string;
-  periodId: string;
-  name: string;
-  category: BudgetAllocationCategory;
-  channel: BudgetChannel | null;
-  amountMicros: number;
-  currency: string;
-  notes: string | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string | null;
-};
-
 export type BudgetObjective = {
   id: string;
   periodId: string;
@@ -110,19 +64,18 @@ export type BudgetPeriod = {
   name: string;
   description: string | null;
   periodType: BudgetPeriodType;
-  fiscalYear: number | null;
-  fiscalQuarter: number | null;
   startDate: string;
   endDate: string | null;
-  status: BudgetPeriodStatus;
   currency: string;
+  /** Period-level planned budget in micros (1 unit = 1,000,000). */
+  budgetAmountMicros: number;
+  /** Actual ad spend in the period window from ad_metrics_daily (account entities). */
+  spentMicros: number;
   primaryFocus: string | null;
   createdAt: string;
   updatedAt: string | null;
-  /** True when status is active and today falls within the date window. */
+  /** True when today falls within the period date window. */
   isCurrentlyEffective: boolean;
-  totalBudgetMicros: number;
-  allocations: BudgetAllocation[];
   objectives: BudgetObjective[];
 };
 
@@ -134,47 +87,45 @@ export const PERIOD_TYPE_OPTIONS: Array<{
   { value: "quarter", label: "Quarter", hint: "Fiscal or calendar quarter" },
   { value: "month", label: "Month", hint: "Single calendar month" },
   { value: "year", label: "Year", hint: "Fiscal or calendar year" },
-  { value: "custom", label: "Custom", hint: "Any fixed date range" },
   {
     value: "ongoing",
     label: "Ongoing",
-    hint: "No end date — stays active until archived",
+    hint: "No end date — stays in effect until deleted",
   },
 ];
 
-export const PERIOD_STATUS_OPTIONS: Array<{
-  value: BudgetPeriodStatus;
-  label: string;
-}> = [
-  { value: "planned", label: "Planned" },
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-  { value: "archived", label: "Archived" },
-];
+/** End date for a period type, derived from the start date. */
+export function computePeriodEndDate(
+  startDate: Date | null,
+  periodType: BudgetPeriodType,
+): Date | null {
+  if (!startDate || Number.isNaN(startDate.getTime())) return null;
+  if (periodType === "ongoing") return null;
 
-export const ALLOCATION_CATEGORY_OPTIONS: Array<{
-  value: BudgetAllocationCategory;
-  label: string;
-}> = [
-  { value: "media_spend", label: "Media spend" },
-  { value: "creative", label: "Creative" },
-  { value: "agency", label: "Agency / fees" },
-  { value: "tooling", label: "Tooling" },
-  { value: "contingency", label: "Contingency" },
-  { value: "other", label: "Other" },
-];
+  const year = startDate.getFullYear();
+  const month = startDate.getMonth();
 
-export const CHANNEL_OPTIONS: Array<{
-  value: BudgetChannel;
-  label: string;
-}> = [
-  { value: "all", label: "All channels" },
-  { value: "meta", label: "Meta" },
-  { value: "google", label: "Google" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "other", label: "Other" },
-];
+  if (periodType === "month") {
+    return new Date(year, month + 1, 0);
+  }
+  if (periodType === "quarter") {
+    const quarterEndMonth = Math.floor(month / 3) * 3 + 3;
+    return new Date(year, quarterEndMonth, 0);
+  }
+  if (periodType === "year") {
+    return new Date(year, 12, 0);
+  }
+
+  // Legacy "custom" (and any unknown type): leave end unset for the caller.
+  return null;
+}
+
+export function periodTypeLabel(periodType: BudgetPeriodType): string {
+  return (
+    PERIOD_TYPE_OPTIONS.find((t) => t.value === periodType)?.label ??
+    (periodType === "custom" ? "Custom" : periodType)
+  );
+}
 
 export const OBJECTIVE_METRIC_OPTIONS: Array<{
   value: BudgetObjectiveMetric;
@@ -342,14 +293,25 @@ export function metricLabel(
 }
 
 export function isPeriodCurrentlyEffective(input: {
-  status: BudgetPeriodStatus;
   startDate: string;
   endDate: string | null;
   today?: string;
 }): boolean {
-  if (input.status !== "active") return false;
   const today = input.today ?? new Date().toISOString().slice(0, 10);
   if (input.startDate > today) return false;
   if (input.endDate && input.endDate < today) return false;
   return true;
+}
+
+/** Fraction of planned budget already spent (0–1+, can exceed 1 when over budget). */
+export function budgetUsedRatio(budgetAmountMicros: number, spentMicros: number): number {
+  if (!Number.isFinite(budgetAmountMicros) || budgetAmountMicros <= 0) return 0;
+  if (!Number.isFinite(spentMicros) || spentMicros <= 0) return 0;
+  return spentMicros / budgetAmountMicros;
+}
+
+export function formatBudgetUsedPercent(ratio: number): string {
+  if (!Number.isFinite(ratio) || ratio <= 0) return "0%";
+  const pct = ratio * 100;
+  return `${pct >= 10 ? pct.toFixed(0) : pct.toFixed(1)}%`;
 }
