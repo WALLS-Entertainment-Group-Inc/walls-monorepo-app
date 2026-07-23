@@ -25,12 +25,13 @@ export const COUNTRY_MAP_METRIC_OPTIONS: Array<{
   { value: "impressions", label: "Impressions" },
 ];
 
-/** Spectral heat - cool blues up through hot reds, like a true heatmap. */
+/** Cool heat ramp - near-white blue → soft blue → yellow → orange → red. */
 const HEAT_STOPS = [
-  { t: 0, color: [147, 197, 253] }, // sky
-  { t: 0.22, color: [52, 211, 153] }, // emerald
-  { t: 0.45, color: [250, 204, 21] }, // yellow
-  { t: 0.7, color: [249, 115, 22] }, // orange
+  { t: 0, color: [236, 245, 255] }, // near-white blue
+  { t: 0.18, color: [186, 220, 255] }, // soft sky
+  { t: 0.36, color: [96, 165, 250] }, // lighter mid blue
+  { t: 0.52, color: [250, 204, 21] }, // yellow
+  { t: 0.72, color: [249, 115, 22] }, // orange
   { t: 1, color: [220, 38, 38] }, // red
 ] as const;
 
@@ -40,6 +41,11 @@ export const COUNTRY_LAND_FILL = "#e8ecf1";
 export const COUNTRY_LAND_STROKE = "#ffffff";
 export const COUNTRY_HOVER_STROKE = "#0a0a0a";
 export const COUNTRY_OCEAN = "#f3f5f7";
+
+/** CSS linear-gradient matching the map heat scale (for legends). */
+export const COUNTRY_HEAT_LEGEND_GRADIENT = `linear-gradient(90deg, ${HEAT_STOPS.map(
+  (stop) => `rgb(${stop.color[0]},${stop.color[1]},${stop.color[2]})`,
+).join(", ")})`;
 
 export function countryMetricValue(
   row: AudienceBreakdownRow,
@@ -107,11 +113,16 @@ export function formatCountryDisplayName(country: string): string {
 export function heatIntensity(value: number, maxValue: number): number {
   if (maxValue <= 0 || value <= 0) return 0;
   const t = Math.min(1, Math.max(0, value / maxValue));
-  return Math.pow(t, 0.65);
+  return Math.pow(t, 0.58);
 }
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
+}
+
+function smoothstep(t: number) {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * (3 - 2 * x);
 }
 
 export function heatColor(intensity: number): string {
@@ -128,7 +139,7 @@ export function heatColor(intensity: number): string {
   }
 
   const span = upper.t - lower.t || 1;
-  const local = (intensity - lower.t) / span;
+  const local = smoothstep((intensity - lower.t) / span);
   const r = Math.round(lerp(lower.color[0], upper.color[0], local));
   const g = Math.round(lerp(lower.color[1], upper.color[1], local));
   const b = Math.round(lerp(lower.color[2], upper.color[2], local));

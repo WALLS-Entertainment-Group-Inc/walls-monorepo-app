@@ -56,9 +56,7 @@ export function FrequencyBreakdownTable({
                     scope="col"
                     className="px-3 py-2.5 text-center text-[11px] font-medium tracking-wide text-neutral-600"
                   >
-                    <span className="inline-flex whitespace-nowrap rounded-full bg-neutral-100/80 px-2.5 py-1 text-[11px] font-medium text-neutral-700">
-                      {bucket.label}
-                    </span>
+                    {bucket.label}
                   </th>
                 ))}
               </tr>

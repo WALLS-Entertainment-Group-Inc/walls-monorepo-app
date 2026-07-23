@@ -21,6 +21,7 @@ import { cn } from "@walls/utils";
 
 import {
   buildCountryMetricLookup,
+  COUNTRY_HEAT_LEGEND_GRADIENT,
   COUNTRY_HOVER_STROKE,
   COUNTRY_LAND_FILL,
   COUNTRY_LAND_STROKE,
@@ -309,7 +310,7 @@ export function CountryPerformanceMap({
               "case",
               ["boolean", ["feature-state", "hover"], false],
               0.95,
-              0.88,
+              0.9,
             ],
           },
         });
@@ -563,8 +564,7 @@ export function CountryPerformanceMap({
           <div
             className="h-2 w-24 rounded-full"
             style={{
-              background:
-                "linear-gradient(90deg, rgb(147,197,253), rgb(52,211,153), rgb(250,204,21), rgb(249,115,22), rgb(220,38,38))",
+              background: COUNTRY_HEAT_LEGEND_GRADIENT,
             }}
           />
           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500">
