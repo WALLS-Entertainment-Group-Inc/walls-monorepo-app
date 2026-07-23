@@ -4,18 +4,26 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import {
   CalendarDays,
-  ChevronDown,
   CircleDollarSign,
+  Eye,
   Gauge,
   Landmark,
   Loader2,
+  Megaphone,
+  MousePointerClick,
   Pencil,
+  Percent,
   Plus,
+  ShoppingBag,
+  Sparkles,
   Star,
+  Target,
   Trash2,
   MoreHorizontal,
+  Users,
   Wallet,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
@@ -26,9 +34,11 @@ import {
   DropdownMenuTrigger,
 } from "@walls/ui/dropdown-menu";
 import { Textarea } from "@walls/ui/textarea";
+import { kenooColors } from "@walls/ui/colors";
 import { cn } from "@walls/utils";
 
 import {
+  EMPTY_PERIOD_METRIC_ACTUALS,
   OBJECTIVE_METRIC_OPTIONS,
   PERIOD_TYPE_OPTIONS,
   PRIMARY_FOCUS_OPTIONS,
@@ -37,16 +47,25 @@ import {
   computePeriodEndDate,
   formatBudgetCurrency,
   formatBudgetUsedPercent,
+  formatObjectiveActual,
   formatObjectiveTarget,
+  formatObjectiveVsTarget,
   formatPeriodRange,
-  metricLabel,
+  isObjectiveOnTrack,
+  matchObjectiveTargetTier,
+  metricObjectiveDefaults,
+  metricTargetTierSelectOptions,
   microsToDollars,
+  objectiveActualValue,
   periodTypeLabel,
+  targetValueForTier,
   type BudgetObjective,
   type BudgetObjectiveMetric,
   type BudgetPeriod,
   type BudgetPeriodType,
   type BudgetTargetOperator,
+  type ObjectiveTargetTier,
+  type PeriodMetricActuals,
 } from "@/lib/budgets-shared";
 
 import {
@@ -113,28 +132,81 @@ function SelectField<T extends string>({
 }) {
   const [open, setOpen] = React.useState(false);
   const selected = options.find((o) => o.value === value);
+  // Allow an explicit empty option (e.g. Primary focus → "None") to count as selected.
+  const showValue = Boolean(selected);
+  const floated = open || showValue;
+  const accentColor = open
+    ? kenooColors.sky.DEFAULT
+    : floated
+      ? "#737373"
+      : "#a3a3a3";
 
   return (
     <div className="pt-2">
-      <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wider text-neutral-400">
-        {label}
-      </p>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <button
+          <motion.button
             type="button"
-            className="flex h-12 w-full items-center justify-between rounded-2xl border border-neutral-200 bg-kenoo-white px-4 outline-none transition hover:border-neutral-300"
+            aria-label={label}
+            className="relative flex h-12 w-full cursor-pointer items-center rounded-2xl border bg-kenoo-white px-4 text-left text-sm font-light leading-none text-foreground outline-none focus:outline-none focus-visible:outline-none"
+            initial={false}
+            animate={{
+              borderColor: open ? kenooColors.sky.DEFAULT : "#e5e5e5",
+            }}
+            transition={{
+              duration: 0.28,
+              ease: [0.22, 1, 0.36, 1],
+            }}
           >
-            <span className="truncate text-[15px] font-light text-neutral-900">
-              {selected?.label ?? "Select"}
-            </span>
-            <ChevronDown
+            <span
               className={cn(
-                "h-4 w-4 shrink-0 text-neutral-400 transition-transform",
-                open && "rotate-180",
+                "min-w-0 flex-1 truncate",
+                !showValue && "text-transparent",
               )}
-            />
-          </button>
+            >
+              {showValue ? selected!.label : label}
+            </span>
+            <motion.span
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute left-3 flex origin-left items-center px-1.5 font-light",
+                floated ? "bg-kenoo-white" : "bg-transparent",
+              )}
+              initial={false}
+              animate={{
+                top: floated ? 0 : "50%",
+                y: "-50%",
+                scale: floated ? 0.78 : 1,
+                color: accentColor,
+              }}
+              transition={{
+                top: {
+                  type: "spring",
+                  stiffness: 420,
+                  damping: 32,
+                  mass: 0.6,
+                },
+                y: {
+                  type: "spring",
+                  stiffness: 420,
+                  damping: 32,
+                  mass: 0.6,
+                },
+                scale: {
+                  type: "spring",
+                  stiffness: 420,
+                  damping: 32,
+                  mass: 0.6,
+                },
+                color: {
+                  duration: 0.28,
+                  ease: [0.22, 1, 0.36, 1],
+                },
+              }}
+            >
+              <span className="text-sm leading-none">{label}</span>
+            </motion.span>
+          </motion.button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
@@ -142,7 +214,7 @@ function SelectField<T extends string>({
         >
           {options.map((option) => (
             <DropdownMenuItem
-              key={option.value}
+              key={option.value || "__empty__"}
               onSelect={() => {
                 onChange(option.value);
                 setOpen(false);
@@ -209,25 +281,21 @@ function periodToForm(period: BudgetPeriod): PeriodFormState {
 
 type ObjectiveFormState = {
   name: string;
-  metricKey: BudgetObjectiveMetric;
+  metricKey: BudgetObjectiveMetric | "";
   customMetricLabel: string;
+  targetTier: ObjectiveTargetTier | "custom" | "";
   targetValue: string;
-  targetOperator: BudgetTargetOperator;
-  targetUnit: string;
-  isPrimary: boolean;
-  notes: string;
+  targetOperator: BudgetTargetOperator | "";
 };
 
 function emptyObjectiveForm(): ObjectiveFormState {
   return {
-    name: "Primary ROAS",
-    metricKey: "roas",
+    name: "",
+    metricKey: "",
     customMetricLabel: "",
-    targetValue: "3",
-    targetOperator: "gte",
-    targetUnit: "x",
-    isPrimary: true,
-    notes: "",
+    targetTier: "",
+    targetValue: "",
+    targetOperator: "",
   };
 }
 
@@ -384,6 +452,14 @@ export function BudgetsPage() {
 
   const saveObjective = async () => {
     if (!selected) return;
+    if (!objectiveForm.metricKey) {
+      setError("Metric is required.");
+      return;
+    }
+    if (!objectiveForm.targetOperator) {
+      setError("Operator is required.");
+      return;
+    }
     const targetValue = Number(objectiveForm.targetValue);
     if (!objectiveForm.name.trim() || !Number.isFinite(targetValue)) {
       setError("Objective name and target value are required.");
@@ -406,9 +482,8 @@ export function BudgetsPage() {
       customMetricLabel: objectiveForm.customMetricLabel.trim() || null,
       targetValue,
       targetOperator: objectiveForm.targetOperator,
-      targetUnit: objectiveForm.targetUnit.trim() || null,
-      isPrimary: objectiveForm.isPrimary,
-      notes: objectiveForm.notes.trim() || null,
+      targetUnit:
+        metricObjectiveDefaults(objectiveForm.metricKey).defaultUnit,
     };
 
     const isEdit = Boolean(editingObjectiveId);
@@ -613,11 +688,12 @@ export function BudgetsPage() {
                       name: objective.name,
                       metricKey: objective.metricKey,
                       customMetricLabel: objective.customMetricLabel ?? "",
+                      targetTier: matchObjectiveTargetTier(
+                        objective.metricKey,
+                        objective.targetValue,
+                      ),
                       targetValue: String(objective.targetValue),
                       targetOperator: objective.targetOperator,
-                      targetUnit: objective.targetUnit ?? "",
-                      isPrimary: objective.isPrimary,
-                      notes: objective.notes ?? "",
                     });
                   }}
                 />
@@ -656,7 +732,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         </p>
         <p className="mt-1.5 max-w-sm text-sm font-light text-neutral-500">
           Create a quarter or ongoing period, set a planned budget amount, and
-          define primary objectives like ROAS or brand recognition.
+          define objectives like ROAS or brand recognition.
         </p>
       </div>
       <Button type="button" onClick={onCreate} className={primaryButtonClass}>
@@ -945,17 +1021,14 @@ function PeriodDetail({
         <div className="mb-4 flex items-center justify-between gap-3">
           <SectionLabel
             title="Objectives"
-            description="Primary and supporting KPIs for this period: ROAS, CTR, recognition, and more."
+            description="Live period performance against each KPI target."
           />
           {!addingObjective ? (
             <Button
               type="button"
               onClick={() => {
                 setEditingObjectiveId(null);
-                setObjectiveForm({
-                  ...emptyObjectiveForm(),
-                  isPrimary: period.objectives.length === 0,
-                });
+                setObjectiveForm(emptyObjectiveForm());
                 setAddingObjective(true);
               }}
               className={cn(secondaryButtonClass, "shrink-0")}
@@ -992,23 +1065,25 @@ function PeriodDetail({
                   label: m.label,
                 }))}
                 onChange={(metricKey) => {
-                  const defaults = OBJECTIVE_METRIC_OPTIONS.find(
-                    (m) => m.value === metricKey,
-                  );
+                  const defaults = metricObjectiveDefaults(metricKey);
                   setObjectiveForm((f) => ({
                     ...f,
                     metricKey,
-                    targetOperator:
-                      defaults?.defaultOperator ?? f.targetOperator,
-                    targetUnit: defaults?.defaultUnit ?? "",
+                    targetOperator: "",
+                    targetTier: "",
+                    targetValue: "",
+                    customMetricLabel:
+                      metricKey === "custom" ? f.customMetricLabel : "",
                     name:
-                      f.name === emptyObjectiveForm().name ||
+                      !f.name.trim() ||
                       OBJECTIVE_METRIC_OPTIONS.some(
-                        (m) => m.label === f.name || `Primary ${m.label}` === f.name,
+                        (m) =>
+                          m.label === f.name ||
+                          `Primary ${m.label}` === f.name,
                       )
                         ? metricKey === "custom"
-                          ? "Custom objective"
-                          : `Primary ${defaults?.label ?? metricKey}`
+                          ? ""
+                          : defaults.label
                         : f.name,
                   }));
                 }}
@@ -1036,56 +1111,55 @@ function PeriodDetail({
                   setObjectiveForm((f) => ({ ...f, targetOperator }))
                 }
               />
-              <FloatingLabelInput
-                label="Target value"
-                inputMode="decimal"
-                value={objectiveForm.targetValue}
-                onChange={(e) =>
-                  setObjectiveForm((f) => ({
-                    ...f,
-                    targetValue: e.target.value,
-                  }))
-                }
-              />
-              <FloatingLabelInput
-                label="Unit (x, %, $…)"
-                value={objectiveForm.targetUnit}
-                onChange={(e) =>
-                  setObjectiveForm((f) => ({
-                    ...f,
-                    targetUnit: e.target.value,
-                  }))
-                }
-              />
+              {objectiveForm.metricKey &&
+              metricObjectiveDefaults(objectiveForm.metricKey).targetTiers ? (
+                <SelectField
+                  label="Target"
+                  value={objectiveForm.targetTier}
+                  options={metricTargetTierSelectOptions(
+                    objectiveForm.metricKey,
+                  )}
+                  onChange={(targetTier) => {
+                    if (targetTier === "custom") {
+                      setObjectiveForm((f) => ({
+                        ...f,
+                        targetTier: "custom",
+                        targetValue: "",
+                      }));
+                      return;
+                    }
+                    const preset = targetValueForTier(
+                      objectiveForm.metricKey as BudgetObjectiveMetric,
+                      targetTier,
+                    );
+                    setObjectiveForm((f) => ({
+                      ...f,
+                      targetTier,
+                      targetValue:
+                        preset != null ? String(preset) : f.targetValue,
+                    }));
+                  }}
+                />
+              ) : null}
+              {objectiveForm.targetTier === "custom" ||
+              (objectiveForm.metricKey !== "" &&
+                !metricObjectiveDefaults(objectiveForm.metricKey)
+                  .targetTiers) ? (
+                <FloatingLabelInput
+                  label="Target value"
+                  inputMode="decimal"
+                  value={objectiveForm.targetValue}
+                  onChange={(e) =>
+                    setObjectiveForm((f) => ({
+                      ...f,
+                      targetTier: "custom",
+                      targetValue: e.target.value,
+                    }))
+                  }
+                />
+              ) : null}
             </div>
 
-            <label className="mt-4 flex cursor-pointer items-center gap-2.5 px-1">
-              <input
-                type="checkbox"
-                checked={objectiveForm.isPrimary}
-                onChange={(e) =>
-                  setObjectiveForm((f) => ({
-                    ...f,
-                    isPrimary: e.target.checked,
-                  }))
-                }
-                className="h-4 w-4 rounded border-neutral-300"
-              />
-              <span className="text-sm font-light text-neutral-600">
-                Primary objective for this period
-              </span>
-            </label>
-
-            <div className="mt-3">
-              <Textarea
-                value={objectiveForm.notes}
-                onChange={(e) =>
-                  setObjectiveForm((f) => ({ ...f, notes: e.target.value }))
-                }
-                placeholder="Notes…"
-                className="min-h-[72px] rounded-2xl border-neutral-200 bg-kenoo-white font-light"
-              />
-            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -1120,62 +1194,145 @@ function PeriodDetail({
               panelGlassClass,
             )}
           >
-            No objectives yet. Set a primary ROAS, CTR, or recognition target.
+            No objectives yet. Add a ROAS, CTR, or recognition target.
           </div>
-        ) : (
-          <ul className="space-y-2">
+        ) : period.objectives.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {period.objectives.map((objective) => (
-              <li
+              <ObjectiveStat
                 key={objective.id}
-                className={cn(
-                  "flex items-start justify-between gap-3 rounded-[22px] px-4 py-4 md:px-5",
-                  panelGlassClass,
-                )}
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {objective.name}
-                    </p>
-                    {objective.isPrimary ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 ring-1 ring-inset ring-amber-200/80">
-                        <Star className="h-3 w-3" />
-                        Primary
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-xs font-light text-neutral-500">
-                    {metricLabel(
-                      objective.metricKey,
-                      objective.customMetricLabel,
-                    )}{" "}
-                    · {formatObjectiveTarget(objective)}
-                  </p>
-                  {objective.notes ? (
-                    <p className="mt-1.5 text-xs font-light text-neutral-400">
-                      {objective.notes}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <IconButton
-                    label="Edit objective"
-                    onClick={() => onStartEditObjective(objective)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </IconButton>
-                  <IconButton
-                    label="Delete objective"
-                    onClick={() => onDeleteObjective(objective)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </IconButton>
-                </div>
-              </li>
+                objective={objective}
+                actuals={period.metricActuals ?? EMPTY_PERIOD_METRIC_ACTUALS}
+                busy={busy}
+                onEdit={() => onStartEditObjective(objective)}
+                onDelete={() => onDeleteObjective(objective)}
+              />
             ))}
-          </ul>
-        )}
+          </div>
+        ) : null}
       </section>
+    </div>
+  );
+}
+
+const OBJECTIVE_METRIC_ICONS: Record<BudgetObjectiveMetric, LucideIcon> = {
+  roas: Target,
+  ctr: MousePointerClick,
+  cpa: ShoppingBag,
+  cpc: CircleDollarSign,
+  conversions: ShoppingBag,
+  conversion_rate: Percent,
+  reach: Users,
+  impressions: Eye,
+  frequency: Gauge,
+  cpm: CircleDollarSign,
+  brand_recognition: Star,
+  awareness: Megaphone,
+  engagement: Sparkles,
+  custom: Target,
+};
+
+const OBJECTIVE_METRIC_ACCENTS: Record<BudgetObjectiveMetric, string> = {
+  roas: "var(--kenoo-sky)",
+  ctr: "var(--kenoo-blue)",
+  cpa: "#f59e0b",
+  cpc: "#00d1c1",
+  conversions: "#10b981",
+  conversion_rate: "#7a04eb",
+  reach: "#6366f1",
+  impressions: "#0ea5e9",
+  frequency: "#f43f5e",
+  cpm: "#14b8a6",
+  brand_recognition: "#eab308",
+  awareness: "#8b5cf6",
+  engagement: "#ec4899",
+  custom: "#64748b",
+};
+
+function ObjectiveStat({
+  objective,
+  actuals,
+  busy,
+  onEdit,
+  onDelete,
+}: {
+  objective: BudgetObjective;
+  actuals: PeriodMetricActuals;
+  busy: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const actual = objectiveActualValue(objective.metricKey, actuals);
+  const unit =
+    objective.targetUnit ??
+    metricObjectiveDefaults(objective.metricKey).defaultUnit;
+  const onTrack = isObjectiveOnTrack(
+    objective.targetOperator,
+    objective.targetValue,
+    actual,
+  );
+  const Icon = OBJECTIVE_METRIC_ICONS[objective.metricKey] ?? Target;
+  const accent = OBJECTIVE_METRIC_ACCENTS[objective.metricKey] ?? "#64748b";
+  const targetLabel = formatObjectiveTarget(objective);
+  const hasActual = actual != null;
+  const change = !hasActual
+    ? undefined
+    : formatObjectiveVsTarget(objective.targetValue, actual, unit);
+
+  return (
+    <div
+      className={cn(
+        "group relative flex min-w-0 items-center overflow-hidden rounded-[24px] px-4 py-3.5 md:px-5 md:py-4",
+        panelGlassClass,
+      )}
+    >
+      <div className="absolute right-2 top-2 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 md:right-3 md:top-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={busy}
+              aria-label={`${objective.name} actions`}
+              className="rounded-full p-1.5 text-neutral-300 outline-none transition hover:bg-white/60 hover:text-neutral-500 focus:outline-none disabled:opacity-50"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="z-50 min-w-[8rem] overflow-hidden rounded-[15px] border-0 bg-white/90 p-1 font-light text-foreground shadow-md backdrop-blur-xl"
+          >
+            <DropdownMenuItem
+              disabled={busy}
+              onSelect={onEdit}
+              className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light outline-none hover:bg-neutral-100 focus:bg-neutral-100"
+            >
+              <Pencil className="mr-2 h-3.5 w-3.5" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={busy}
+              onSelect={onDelete}
+              className="cursor-pointer rounded-[10px] py-1.5 pl-3 pr-3 text-sm font-light text-rose-600 outline-none hover:bg-neutral-100 focus:bg-neutral-100 focus:text-rose-600"
+            >
+              <Trash2 className="mr-2 h-3.5 w-3.5" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <HeroStat
+        label={
+          hasActual ? objective.name : `${objective.name} · ${targetLabel}`
+        }
+        value={formatObjectiveActual(actual, unit)}
+        icon={Icon}
+        accentColor={accent}
+        change={change}
+        positive={onTrack === true}
+        className="w-full px-0 py-0 pr-8"
+      />
     </div>
   );
 }
@@ -1291,27 +1448,5 @@ function BudgetUsageBar({
         )}
       </p>
     </div>
-  );
-}
-
-function IconButton({
-  children,
-  label,
-  onClick,
-}: {
-  children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      className="rounded-full p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
-    >
-      {children}
-    </button>
   );
 }
