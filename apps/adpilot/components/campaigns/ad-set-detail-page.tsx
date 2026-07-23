@@ -13,6 +13,7 @@ import {
   DetailBreadcrumbs,
   EntityDetailTabs,
   EntityMetricsGrid,
+  EntityStatusBadge,
 } from "@/components/campaigns/entity-detail-shared";
 import type { AdSetDetailResult } from "@/lib/entity-detail-server";
 import { formatCurrencyFromMicros } from "@/lib/format-analytics";
@@ -119,11 +120,21 @@ export function AdSetDetailPage() {
             <h1 className="mt-2 text-4xl font-black tracking-tight text-neutral-900">
               {detail.name}
             </h1>
-            {detail.dailyBudgetMicros != null && detail.dailyBudgetMicros > 0 ? (
-              <p className="mt-2 text-sm font-light text-neutral-500">
-                Daily budget: {formatCurrencyFromMicros(detail.dailyBudgetMicros)}
-              </p>
-            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm font-light text-neutral-500">
+              <EntityStatusBadge
+                status={detail.status}
+                entityId={detail.id}
+                className="text-sm"
+                onStatusChange={(status) =>
+                  setDetail((prev) => (prev ? { ...prev, status } : prev))
+                }
+              />
+              {detail.dailyBudgetMicros != null && detail.dailyBudgetMicros > 0 ? (
+                <span>
+                  Daily budget: {formatCurrencyFromMicros(detail.dailyBudgetMicros)}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           {detail.canAutomate ? (

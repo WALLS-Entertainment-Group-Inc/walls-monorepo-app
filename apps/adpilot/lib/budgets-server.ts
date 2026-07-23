@@ -10,6 +10,7 @@ import {
   BUDGET_OBJECTIVE_STATUSES,
   BUDGET_PERIOD_TYPES,
   BUDGET_TARGET_OPERATORS,
+  EMPTY_PERIOD_METRIC_ACTUALS,
   isPeriodCurrentlyEffective,
   type BudgetObjective,
   type BudgetObjectiveMetric,
@@ -17,6 +18,7 @@ import {
   type BudgetPeriod,
   type BudgetPeriodType,
   type BudgetTargetOperator,
+  type PeriodMetricActuals,
 } from "@/lib/budgets-shared";
 import { META_PROVIDER } from "@/lib/connections";
 
@@ -24,7 +26,7 @@ const PERIOD_SELECT =
   "id, name, description, period_type, start_date, end_date, currency, budget_amount_micros, primary_focus, created_at, updated_at";
 
 const OBJECTIVE_SELECT =
-  "id, period_id, name, metric_key, custom_metric_label, target_value, target_operator, target_unit, is_primary, priority, status, notes, created_at, updated_at";
+  "id, period_id, name, metric_key, custom_metric_label, target_value, target_operator, target_unit, priority, status, created_at, updated_at";
 
 function asPeriodType(value: unknown): BudgetPeriodType {
   return BUDGET_PERIOD_TYPES.includes(value as BudgetPeriodType)
@@ -60,10 +62,8 @@ function mapObjective(row: Record<string, unknown>): BudgetObjective {
     targetValue: Number(row.target_value ?? 0),
     targetOperator: asOperator(row.target_operator),
     targetUnit: (row.target_unit as string | null) ?? null,
-    isPrimary: Boolean(row.is_primary),
     priority: Number(row.priority ?? 0),
     status: asObjectiveStatus(row.status),
-    notes: (row.notes as string | null) ?? null,
     createdAt: row.created_at as string,
     updatedAt: (row.updated_at as string | null) ?? null,
   };
@@ -73,6 +73,7 @@ function mapPeriod(
   row: Record<string, unknown>,
   objectives: BudgetObjective[],
   spentMicros = 0,
+  metricActuals: PeriodMetricActuals = EMPTY_PERIOD_METRIC_ACTUALS,
 ): BudgetPeriod {
   const startDate = row.start_date as string;
   const endDate = (row.end_date as string | null) ?? null;
@@ -93,15 +94,28 @@ function mapPeriod(
       startDate,
       endDate,
     }),
+    metricActuals,
     objectives,
   };
 }
 
-async function loadAccountSpendByDate(
+type DailyMetricRow = {
+  metric_date: string;
+  impressions: number;
+  clicks: number;
+  spend_micros: number;
+  conversion_value_micros: number;
+  website_purchases: number;
+  conversions: number;
+  reach: number | null;
+  frequency: number | null;
+};
+
+async function loadAccountMetricsByDate(
   scope: AdDataScope,
   startDate: string,
   endDate: string,
-): Promise<Array<{ metric_date: string; spend_micros: number }>> {
+): Promise<DailyMetricRow[]> {
   const supabase = await createClient();
 
   const { data: accountEntities, error: accountError } = await withAdScope(
@@ -119,29 +133,85 @@ async function loadAccountSpendByDate(
 
   const { data: metrics, error: metricsError } = await supabase
     .from("ad_metrics_daily")
-    .select("metric_date, spend_micros")
+    .select(
+      "metric_date, impressions, clicks, spend_micros, conversion_value_micros, website_purchases, conversions, reach, frequency",
+    )
     .in("entity_id", entityIds)
     .gte("metric_date", startDate)
     .lte("metric_date", endDate);
 
   if (metricsError) throw metricsError;
-  return (metrics ?? []) as Array<{ metric_date: string; spend_micros: number }>;
+  return (metrics ?? []) as DailyMetricRow[];
 }
 
-function spentForPeriod(
-  rows: Array<{ metric_date: string; spend_micros: number }>,
+function metricsForPeriod(
+  rows: DailyMetricRow[],
   startDate: string,
   endDate: string | null,
   today: string,
-): number {
+): { spentMicros: number; actuals: PeriodMetricActuals } {
   const inclusiveEnd = endDate && endDate < today ? endDate : today;
-  let total = 0;
+  let impressions = 0;
+  let clicks = 0;
+  let spendMicros = 0;
+  let conversionValueMicros = 0;
+  let websitePurchases = 0;
+  let conversions = 0;
+  let reachSum = 0;
+  let hasReach = false;
+  let frequencyWeight = 0;
+  let frequencyWeighted = 0;
+
   for (const row of rows) {
     if (row.metric_date < startDate) continue;
     if (row.metric_date > inclusiveEnd) continue;
-    total += Number(row.spend_micros ?? 0);
+    const imps = Number(row.impressions ?? 0);
+    impressions += imps;
+    clicks += Number(row.clicks ?? 0);
+    spendMicros += Number(row.spend_micros ?? 0);
+    conversionValueMicros += Number(row.conversion_value_micros ?? 0);
+    websitePurchases += Number(row.website_purchases ?? 0);
+    conversions += Number(row.conversions ?? 0);
+    if (row.reach != null && Number.isFinite(Number(row.reach))) {
+      reachSum += Number(row.reach);
+      hasReach = true;
+    }
+    const freq = row.frequency != null ? Number(row.frequency) : NaN;
+    if (Number.isFinite(freq) && imps > 0) {
+      frequencyWeighted += freq * imps;
+      frequencyWeight += imps;
+    }
   }
-  return total;
+
+  const spend = spendMicros / 1_000_000;
+  const purchaseValue = conversionValueMicros / 1_000_000;
+  const purchases =
+    websitePurchases > 0 ? websitePurchases : conversions > 0 ? conversions : 0;
+  const frequency =
+    frequencyWeight > 0 ? frequencyWeighted / frequencyWeight : null;
+  // Unique reach isn't additive across days; estimate from imps ÷ avg frequency when possible.
+  const reachEstimate =
+    frequency != null && frequency > 0
+      ? impressions / frequency
+      : hasReach
+        ? reachSum
+        : null;
+
+  const actuals: PeriodMetricActuals = {
+    ...EMPTY_PERIOD_METRIC_ACTUALS,
+    impressions: impressions > 0 ? impressions : null,
+    reach: reachEstimate != null && reachEstimate > 0 ? reachEstimate : null,
+    frequency,
+    roas: spend > 0 ? purchaseValue / spend : null,
+    ctr: impressions > 0 ? (clicks / impressions) * 100 : null,
+    cpc: clicks > 0 ? spend / clicks : null,
+    cpm: impressions > 0 ? (spend / impressions) * 1000 : null,
+    cpa: purchases > 0 ? spend / purchases : null,
+    conversions: purchases > 0 ? purchases : null,
+    conversion_rate: clicks > 0 && purchases > 0 ? (purchases / clicks) * 100 : null,
+  };
+
+  return { spentMicros: spendMicros, actuals };
 }
 
 export async function listBudgetPeriods(
@@ -166,7 +236,6 @@ export async function listBudgetPeriods(
     scope,
   )
     .in("period_id", periodIds)
-    .order("is_primary", { ascending: false })
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -190,24 +259,31 @@ export async function listBudgetPeriods(
     return end > max ? end : max;
   }, today);
 
-  let spendRows: Array<{ metric_date: string; spend_micros: number }> = [];
+  let metricRows: DailyMetricRow[] = [];
   try {
-    spendRows = await loadAccountSpendByDate(
+    metricRows = await loadAccountMetricsByDate(
       scope,
       spendWindowStart,
       spendWindowEnd,
     );
   } catch (error) {
-    console.error("[adpilot] budget period spend:", error);
+    console.error("[adpilot] budget period metrics:", error);
   }
 
   const mapped = periods.map((row) => {
     const startDate = row.start_date as string;
     const endDate = (row.end_date as string | null) ?? null;
+    const { spentMicros, actuals } = metricsForPeriod(
+      metricRows,
+      startDate,
+      endDate,
+      today,
+    );
     return mapPeriod(
       row,
       objectivesByPeriod.get(row.id as string) ?? [],
-      spentForPeriod(spendRows, startDate, endDate, today),
+      spentMicros,
+      actuals,
     );
   });
 
@@ -345,38 +421,9 @@ export type CreateObjectiveInput = {
   targetValue: number;
   targetOperator?: BudgetTargetOperator;
   targetUnit?: string | null;
-  isPrimary?: boolean;
   priority?: number;
   status?: BudgetObjectiveStatus;
-  notes?: string | null;
 };
-
-async function clearPrimaryObjective(
-  scope: AdDataScope,
-  periodId: string,
-  exceptId?: string,
-) {
-  const supabase = await createClient();
-  let query = withAdScope(
-    supabase
-      .from("ad_budget_objectives")
-      .update({
-        is_primary: false,
-        updated_at: new Date().toISOString(),
-        updated_by: scope.userId,
-      }),
-    scope,
-  )
-    .eq("period_id", periodId)
-    .eq("is_primary", true);
-
-  if (exceptId) {
-    query = query.neq("id", exceptId);
-  }
-
-  const { error } = await query;
-  if (error) throw error;
-}
 
 export async function createBudgetObjective(input: {
   scope: AdDataScope;
@@ -384,10 +431,6 @@ export async function createBudgetObjective(input: {
   data: CreateObjectiveInput;
 }): Promise<BudgetObjective> {
   const supabase = await createClient();
-
-  if (input.data.isPrimary) {
-    await clearPrimaryObjective(input.scope, input.periodId);
-  }
 
   const { data, error } = await supabase
     .from("ad_budget_objectives")
@@ -405,10 +448,8 @@ export async function createBudgetObjective(input: {
       target_value: input.data.targetValue,
       target_operator: input.data.targetOperator ?? "gte",
       target_unit: input.data.targetUnit?.trim() || null,
-      is_primary: input.data.isPrimary ?? false,
       priority: input.data.priority ?? 0,
       status: input.data.status ?? "active",
-      notes: input.data.notes?.trim() || null,
     })
     .select(OBJECTIVE_SELECT)
     .single();
@@ -426,14 +467,6 @@ export async function updateBudgetObjective(input: {
   patch: UpdateObjectiveInput;
 }): Promise<BudgetObjective> {
   const supabase = await createClient();
-
-  if (input.patch.isPrimary === true) {
-    await clearPrimaryObjective(
-      input.scope,
-      input.periodId,
-      input.objectiveId,
-    );
-  }
 
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -459,16 +492,10 @@ export async function updateBudgetObjective(input: {
   if (input.patch.targetUnit !== undefined) {
     updates.target_unit = input.patch.targetUnit?.trim() || null;
   }
-  if (input.patch.isPrimary !== undefined) {
-    updates.is_primary = input.patch.isPrimary;
-  }
   if (input.patch.priority !== undefined) {
     updates.priority = input.patch.priority;
   }
   if (input.patch.status !== undefined) updates.status = input.patch.status;
-  if (input.patch.notes !== undefined) {
-    updates.notes = input.patch.notes?.trim() || null;
-  }
 
   const { data, error } = await withAdScope(
     supabase

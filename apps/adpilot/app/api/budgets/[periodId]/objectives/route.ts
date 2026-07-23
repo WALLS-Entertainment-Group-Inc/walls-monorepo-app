@@ -23,10 +23,8 @@ type CreateBody = {
   targetValue?: number;
   targetOperator?: string;
   targetUnit?: string | null;
-  isPrimary?: boolean;
   priority?: number;
   status?: string;
-  notes?: string | null;
 };
 
 export async function POST(request: Request, context: RouteContext) {
@@ -108,10 +106,8 @@ export async function POST(request: Request, context: RouteContext) {
           body.targetUnit !== undefined
             ? body.targetUnit
             : (metricDefaults?.defaultUnit ?? null),
-        isPrimary: body.isPrimary,
         priority: body.priority,
         status,
-        notes: body.notes,
       },
     });
     return NextResponse.json({ objective }, { status: 201 });

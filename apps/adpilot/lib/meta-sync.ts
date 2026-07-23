@@ -753,6 +753,7 @@ export async function syncMetaConnection(
       id: string;
       name?: string;
       status?: string;
+      effective_status?: string;
       objective?: string;
       daily_budget?: string;
       lifetime_budget?: string;
@@ -760,7 +761,7 @@ export async function syncMetaConnection(
       stop_time?: string;
     }>(`${accountId}/campaigns`, accessToken, {
       fields:
-        "id,name,status,objective,daily_budget,lifetime_budget,start_time,stop_time",
+        "id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time",
     });
 
     for (const campaign of campaigns) {
@@ -773,7 +774,8 @@ export async function syncMetaConnection(
         providerEntityId: campaign.id,
         parentId: accountEntityId,
         name: campaign.name ?? null,
-        status: normalizeStatus(campaign.status),
+        // Prefer delivery status (e.g. CAMPAIGN_PAUSED) over configured on/off.
+        status: normalizeStatus(campaign.effective_status ?? campaign.status),
         objective: campaign.objective ?? null,
         dailyBudgetMicros,
         lifetimeBudgetMicros,
@@ -790,6 +792,7 @@ export async function syncMetaConnection(
       id: string;
       name?: string;
       status?: string;
+      effective_status?: string;
       campaign_id?: string;
       daily_budget?: string;
       lifetime_budget?: string;
@@ -799,7 +802,7 @@ export async function syncMetaConnection(
       targeting?: MetaAdSetTargeting;
     }>(`${accountId}/adsets`, accessToken, {
       fields:
-        "id,name,status,campaign_id,daily_budget,lifetime_budget,start_time,end_time,learning_stage_info,targeting",
+        "id,name,status,effective_status,campaign_id,daily_budget,lifetime_budget,start_time,end_time,learning_stage_info,targeting",
     });
 
     const campaignLearning = new Map<string, LearningFields>();
@@ -823,7 +826,7 @@ export async function syncMetaConnection(
         providerEntityId: adSet.id,
         parentId,
         name: adSet.name ?? null,
-        status: normalizeStatus(adSet.status),
+        status: normalizeStatus(adSet.effective_status ?? adSet.status),
         dailyBudgetMicros: centsToMicros(adSet.daily_budget),
         lifetimeBudgetMicros: centsToMicros(adSet.lifetime_budget),
         learning,
@@ -892,6 +895,7 @@ export async function syncMetaConnection(
       id: string;
       name?: string;
       status?: string;
+      effective_status?: string;
       adset_id?: string;
       campaign_id?: string;
       creative?: MetaAdCreative;
@@ -911,7 +915,7 @@ export async function syncMetaConnection(
         providerEntityId: ad.id,
         parentId,
         name: ad.name ?? null,
-        status: normalizeStatus(ad.status),
+        status: normalizeStatus(ad.effective_status ?? ad.status),
         rawPayload: ad,
       });
       entityIds.set(ad.id, adEntityId);

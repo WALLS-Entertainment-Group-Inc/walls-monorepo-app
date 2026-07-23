@@ -78,10 +78,8 @@ CREATE TABLE IF NOT EXISTS public.ad_budget_objectives (
   target_operator text NOT NULL DEFAULT 'gte',
   target_unit text,
 
-  is_primary boolean NOT NULL DEFAULT false,
   priority integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'active',
-  notes text,
 
   CONSTRAINT ad_budget_objectives_metric_check
     CHECK (metric_key IN (
@@ -116,19 +114,11 @@ CREATE TABLE IF NOT EXISTS public.ad_budget_objectives (
 COMMENT ON TABLE public.ad_budget_objectives IS
   'AdPilot: KPI / OKR targets for a planning period (ROAS, CTR, recognition, etc.).';
 
-COMMENT ON COLUMN public.ad_budget_objectives.is_primary IS
-  'When true, this is the headline objective for the period. At most one primary per period (enforced by unique index).';
-
 CREATE INDEX IF NOT EXISTS ad_budget_objectives_period_idx
-  ON public.ad_budget_objectives (period_id, is_primary DESC, priority, created_at);
+  ON public.ad_budget_objectives (period_id, priority, created_at);
 
 CREATE INDEX IF NOT EXISTS ad_budget_objectives_account_idx
   ON public.ad_budget_objectives (account_id);
-
--- At most one primary objective per period
-CREATE UNIQUE INDEX IF NOT EXISTS ad_budget_objectives_one_primary_per_period_idx
-  ON public.ad_budget_objectives (period_id)
-  WHERE is_primary = true;
 
 -- Keep account_id aligned with parent period
 CREATE OR REPLACE FUNCTION public.ad_budget_child_account_matches_period()

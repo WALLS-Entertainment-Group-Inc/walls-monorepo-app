@@ -10,8 +10,7 @@ import {
   DetailBreadcrumbs,
   DetailSection,
   EntityMetricsGrid,
-  formatStatus,
-  isActiveStatus,
+  EntityStatusBadge,
 } from "@/components/campaigns/entity-detail-shared";
 import { AnimatedMetricValue } from "@/components/dashboard/animated-metric-value";
 import { MetaIcon } from "@/components/settings/meta-icon";
@@ -392,15 +391,10 @@ export function AudienceDetailPage() {
                                 {usage.entityName}
                               </span>
                             )}
-                            <span className="inline-flex items-center gap-1.5 text-xs font-light text-neutral-400">
-                              {isActiveStatus(usage.entityStatus) ? (
-                                <span
-                                  className="h-2 w-2 flex-shrink-0 rounded-full bg-[var(--kenoo-sky)]"
-                                  aria-hidden
-                                />
-                              ) : null}
-                              {formatStatus(usage.entityStatus)}
-                            </span>
+                            <EntityStatusBadge
+                              status={usage.entityStatus}
+                              className="text-neutral-400"
+                            />
                           </div>
                         </td>
                         <td className="py-4 pr-4 text-xs font-light text-neutral-500">
