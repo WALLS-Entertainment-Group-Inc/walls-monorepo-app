@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   CircleDollarSign,
@@ -9,21 +8,16 @@ import {
   Link2,
   Loader2,
   MousePointerClick,
-  Plus,
-  RefreshCw,
   ShoppingBag,
   TrendingUp,
 } from "lucide-react";
-
-import { Button } from "@walls/ui/button";
-import { cn } from "@walls/utils";
 
 import type { DashboardAnalytics } from "@/lib/analytics-server";
 import { META_PROVIDER, META_SERVICE, type SafeAccountConnection } from "@/lib/connections";
 import { ZERO_DASHBOARD_STATS } from "@/lib/dashboard-defaults";
 import type { TimeRangeValue } from "@/lib/time-range";
 
-import { HeroStat, MetricBarItem, SectionLabel } from "./dashboard-metrics";
+import { HeroStat, SectionLabel } from "./dashboard-metrics";
 import { AudienceBreakdownsTable } from "./audience-breakdowns-table";
 import { DaysHoursHeatmap } from "./days-hours-heatmap";
 import { FrequencyBreakdownTable } from "./frequency-breakdown-table";
@@ -48,28 +42,11 @@ const HERO_ICONS = [
   CircleDollarSign,
 ] as const;
 
-function formatConnectionLabel(connection: SafeAccountConnection) {
-  const accountName = connection.token_payload?.account_name;
-  if (accountName) return accountName;
-  if (connection.provider_account_id) {
-    return connection.provider_account_id.replace(/^act_/, "Ad account ");
-  }
-  return "Meta Ads";
-}
-
-function parseMetricNumber(value: string): number {
-  const normalized = value.replace(/,/g, "");
-  const match = normalized.match(/[\d.]+/);
-  return match ? parseFloat(match[0]) : 0;
-}
-
 export function DashboardPage() {
   const [connections, setConnections] = React.useState<SafeAccountConnection[]>([]);
   const [analytics, setAnalytics] = React.useState<DashboardAnalytics | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [timeRange, setTimeRange] = React.useState<TimeRangeValue>("30d");
-  const [manualSyncing, setManualSyncing] = React.useState(false);
-  const [syncError, setSyncError] = React.useState<string | null>(null);
   const autoSyncStarted = React.useRef(false);
 
   const loadDashboard = React.useCallback(async () => {
@@ -101,7 +78,7 @@ export function DashboardPage() {
     })();
   }, [loadDashboard]);
 
-  const isSyncing = manualSyncing || (analytics?.syncing ?? false);
+  const isSyncing = analytics?.syncing ?? false;
 
   React.useEffect(() => {
     if (!isSyncing) return;
@@ -113,10 +90,9 @@ export function DashboardPage() {
     return () => window.clearInterval(interval);
   }, [isSyncing, loadDashboard]);
 
-  const metaConnections = connections.filter(
+  const hasLiveConnections = connections.some(
     (c) => c.provider === META_PROVIDER && c.service === META_SERVICE,
   );
-  const hasLiveConnections = metaConnections.length > 0;
 
   React.useEffect(() => {
     if (loading || autoSyncStarted.current || !hasLiveConnections || !analytics) return;
@@ -125,26 +101,6 @@ export function DashboardPage() {
     autoSyncStarted.current = true;
     void fetch("/api/sync/meta", { method: "POST" }).then(() => loadDashboard());
   }, [loading, hasLiveConnections, analytics, loadDashboard]);
-
-  const handleSyncMeta = React.useCallback(async () => {
-    if (manualSyncing) return;
-    setSyncError(null);
-    setManualSyncing(true);
-    try {
-      const response = await fetch("/api/sync/meta", { method: "POST" });
-      const payload = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
-      if (!response.ok) {
-        setSyncError(payload?.error ?? "Meta sync failed");
-      }
-      await loadDashboard();
-    } catch {
-      setSyncError("Meta sync failed");
-    } finally {
-      setManualSyncing(false);
-    }
-  }, [manualSyncing, loadDashboard]);
 
   const stats = analytics?.stats ?? [...ZERO_DASHBOARD_STATS];
   const spendByDay = analytics?.spendByDay ?? [];
@@ -168,31 +124,6 @@ export function DashboardPage() {
       OUTCOME_APP_PROMOTION: [],
     },
   };
-
-  const accounts = React.useMemo(() => {
-    if (analytics?.accounts && analytics.accounts.length > 0) {
-      return analytics.accounts;
-    }
-
-    if (hasLiveConnections) {
-      return metaConnections.map((connection) => ({
-        id: connection.id,
-        name: formatConnectionLabel(connection),
-        platform: "Meta",
-        spend: "$0",
-        impressions: "0",
-        ctr: "0.00%",
-        status: isSyncing ? "Syncing" : "Connected",
-      }));
-    }
-
-    return [];
-  }, [analytics?.accounts, hasLiveConnections, metaConnections, isSyncing]);
-
-  const maxAccountSpend = Math.max(
-    ...accounts.map((account) => parseMetricNumber(account.spend)),
-    1,
-  );
 
   if (loading) {
     return (
@@ -300,117 +231,6 @@ export function DashboardPage() {
             topPerformingAds={topPerformingAds}
           />
         </motion.div>
-
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-12">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <SectionLabel>Connected Accounts</SectionLabel>
-            <div className="space-y-3.5">
-              {metaConnections.map((connection, index) => (
-                  <div key={connection.id} className="flex items-center gap-3">
-                    <div
-                      className="h-2 w-2 flex-shrink-0 rounded-full"
-                      style={{
-                        background:
-                          HERO_ACCENTS[index % HERO_ACCENTS.length] ??
-                          "var(--kenoo-sky)",
-                      }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-light text-neutral-700">
-                        {formatConnectionLabel(connection)}
-                      </p>
-                      <p className="mt-0.5 text-[11px] font-light text-neutral-400">
-                        Meta Ads
-                        {connection.token_expiry
-                          ? ` · Expires ${new Date(connection.token_expiry).toLocaleDateString()}`
-                          : " · Connected"}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        "flex-shrink-0 text-[11px] font-medium uppercase tracking-wide",
-                        isSyncing ? "text-amber-600" : "text-emerald-600",
-                      )}
-                    >
-                      {isSyncing ? "Syncing" : "Live"}
-                    </span>
-                  </div>
-                ))}
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={isSyncing}
-                    onClick={() => void handleSyncMeta()}
-                    className="h-8 rounded-full px-0 font-light text-neutral-500 hover:bg-transparent hover:text-neutral-800 disabled:opacity-60"
-                  >
-                    {isSyncing ? (
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                    )}
-                    {isSyncing ? "Syncing Meta…" : "Sync Meta"}
-                  </Button>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 rounded-full px-0 font-light text-neutral-500 hover:bg-transparent hover:text-neutral-800"
-                  >
-                    <Link href="/settings">
-                      <Plus className="mr-1 h-3.5 w-3.5" />
-                      Manage connections
-                    </Link>
-                  </Button>
-                </div>
-                {syncError ? (
-                  <p className="text-xs font-light text-rose-600">{syncError}</p>
-                ) : null}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.34 }}
-          >
-            <SectionLabel>Account Performance</SectionLabel>
-            {accounts.length === 0 ? (
-              <p className="text-sm font-light text-neutral-400">
-                Connect a Meta ad account to see performance here.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {accounts.map((account, index) => (
-                  <MetricBarItem
-                    key={account.id}
-                    label={account.name}
-                    sublabel={`${account.platform} · CTR ${account.ctr} · ${account.status}`}
-                    value={account.spend}
-                    numericValue={parseMetricNumber(account.spend)}
-                    max={maxAccountSpend}
-                    color={
-                      HERO_ACCENTS[index % HERO_ACCENTS.length] ??
-                      "var(--kenoo-sky)"
-                    }
-                  />
-                ))}
-                {hasLiveConnections && !analytics?.hasData ? (
-                  <p className="text-xs font-light text-neutral-400">
-                    {isSyncing
-                      ? "Waiting for Meta sync. Spend bars will populate when data arrives."
-                      : "No spend recorded in the last 30 days for connected accounts."}
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </motion.div>
-        </div>
       </div>
     </div>
   );

@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
-import { Input } from "@walls/ui/input";
 import { LabeledSwitch } from "@walls/ui/switch";
 import { cn } from "@walls/utils";
 
@@ -33,6 +32,7 @@ import {
   type SpendAutomationSettings,
 } from "@/lib/spend-automation-settings";
 
+import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { SliderField } from "@/components/ui/slider-field";
 import { RoasFloorField } from "@/components/ui/roas-floor-field";
 
@@ -324,23 +324,16 @@ export function AdSpendControls() {
 
         <div className="rounded-[24px] border border-neutral-200/70 bg-kenoo-white p-5 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-foreground">Preset name</span>
-              <Input
-                value={form.name}
-                onChange={(e) => updateForm("name", e.target.value)}
-                className="rounded-full border-neutral-200 bg-neutral-50 font-light"
-              />
-            </label>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-foreground">Description</span>
-              <Input
-                value={form.description}
-                onChange={(e) => updateForm("description", e.target.value)}
-                placeholder="Optional"
-                className="rounded-full border-neutral-200 bg-neutral-50 font-light"
-              />
-            </label>
+            <FloatingLabelInput
+              label="Preset name"
+              value={form.name}
+              onChange={(e) => updateForm("name", e.target.value)}
+            />
+            <FloatingLabelInput
+              label="Description"
+              value={form.description}
+              onChange={(e) => updateForm("description", e.target.value)}
+            />
           </div>
 
           <div className="mt-5">
@@ -536,15 +529,12 @@ export function AdSpendControls() {
             ) : null}
 
             {form.optimizationGoal === "ctr" ? (
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">CTR floor (%)</span>
-                <span className="block text-xs font-light text-neutral-500">
-                  Minimum click-through rate before scaling continues
-                </span>
-                <Input
+              <div className="space-y-2">
+                <FloatingLabelInput
                   type="number"
                   min={0}
                   step={0.1}
+                  label="CTR floor (%)"
                   value={form.settings.ctrFloorPct ?? ""}
                   onChange={(e) =>
                     updateSetting(
@@ -552,21 +542,20 @@ export function AdSpendControls() {
                       e.target.value ? Number(e.target.value) : null,
                     )
                   }
-                  className="mt-2 rounded-full border-neutral-200 bg-neutral-50 font-light"
                 />
-              </label>
+                <p className="text-xs font-light text-neutral-500">
+                  Minimum click-through rate before scaling continues
+                </p>
+              </div>
             ) : null}
 
             {form.optimizationGoal === "cpa" || form.optimizationGoal === "conversions" ? (
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-foreground">CPA ceiling</span>
-                <span className="block text-xs font-light text-neutral-500">
-                  Max cost per acquisition (USD)
-                </span>
-                <Input
+              <div className="space-y-2">
+                <FloatingLabelInput
                   type="number"
                   min={0}
                   step={1}
+                  label="CPA ceiling"
                   value={form.settings.cpaCeiling ?? ""}
                   onChange={(e) =>
                     updateSetting(
@@ -574,9 +563,11 @@ export function AdSpendControls() {
                       e.target.value ? Number(e.target.value) : null,
                     )
                   }
-                  className="mt-2 rounded-full border-neutral-200 bg-neutral-50 font-light"
                 />
-              </label>
+                <p className="text-xs font-light text-neutral-500">
+                  Max cost per acquisition (USD)
+                </p>
+              </div>
             ) : null}
           </div>
 
