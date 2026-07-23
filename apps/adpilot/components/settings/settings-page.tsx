@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
-import { AlertCircle, CheckCircle2, Unplug } from "lucide-react";
+import Link from "next/link";
+import { SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
 import { cn } from "@walls/utils";
@@ -15,61 +15,60 @@ import {
   type SafeAccountConnection,
 } from "@/lib/connections";
 
-import { AdSpendControls } from "./ad-spend-controls";
 import {
-  dangerButtonClass,
   panelGlassClass,
   primaryButtonClass,
 } from "@/components/ui/button-styles";
+import { ConnectionRow } from "./connection-row";
 import { GoogleAdsIcon } from "./google-ads-icon";
 import { MetaIcon } from "./meta-icon";
 import { SectionLabel } from "./section-label";
-function formatMetaConnectionLabel(connection: SafeAccountConnection) {
+
+function formatMetaStatus(connection: SafeAccountConnection | undefined) {
+  if (!connection) return "Not connected";
   if (connection.provider_account_id) {
     return connection.provider_account_id.replace(/^act_/, "Ad account ");
   }
-  return "Meta Ads account";
+  return "Connected";
 }
 
-function formatGoogleConnectionLabel(connection: SafeAccountConnection) {
+function formatGoogleStatus(connection: SafeAccountConnection | undefined) {
+  if (!connection) return "Not connected";
   const name = connection.token_payload?.account_name;
   if (name) return name;
   if (connection.provider_account_id) {
     return `Customer ${connection.provider_account_id}`;
   }
-  return "Google Ads account";
+  return "Connected";
 }
 
 export function SettingsPage() {
-  const searchParams = useSearchParams();
   const [connections, setConnections] = React.useState<SafeAccountConnection[]>(
     [],
   );
   const [loading, setLoading] = React.useState(true);
-  const [disconnectingProvider, setDisconnectingProvider] = React.useState<
-    string | null
-  >(null);
-
-  const connected = searchParams.get("connected");
-  const error = searchParams.get("error");
-
-  const loadConnections = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/connections");
-      if (!response.ok) return;
-      const payload = (await response.json()) as {
-        connections?: SafeAccountConnection[];
-      };
-      setConnections(payload.connections ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   React.useEffect(() => {
-    void loadConnections();
-  }, [loadConnections]);
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/connections");
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          connections?: SafeAccountConnection[];
+        };
+        if (!cancelled) {
+          setConnections(payload.connections ?? []);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const metaConnection = connections.find(
     (c) => c.provider === META_PROVIDER && c.service === META_SERVICE,
@@ -77,20 +76,6 @@ export function SettingsPage() {
   const googleConnection = connections.find(
     (c) => c.provider === GOOGLE_PROVIDER && c.service === GOOGLE_ADS_SERVICE,
   );
-
-  const handleDisconnect = async (provider: string, service: string) => {
-    setDisconnectingProvider(provider);
-    try {
-      await fetch("/api/connections", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, service }),
-      });
-      await loadConnections();
-    } finally {
-      setDisconnectingProvider(null);
-    }
-  };
 
   return (
     <main className="min-h-full w-full bg-kenoo-white px-6 py-8 md:px-10 md:py-12">
@@ -104,27 +89,6 @@ export function SettingsPage() {
           </h1>
         </header>
 
-        {connected === "meta" && (
-          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-            Meta account connected successfully.
-          </div>
-        )}
-
-        {connected === "google" && (
-          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-            Google Ads account connected successfully.
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            Connection failed ({error}). Please try again.
-          </div>
-        )}
-
         <section>
           <SectionLabel
             title="Connected accounts"
@@ -133,155 +97,53 @@ export function SettingsPage() {
           {loading ? (
             <p className="text-sm font-light text-neutral-500">Loading…</p>
           ) : (
-            <div className="flex flex-col gap-4">
-              {metaConnection ? (
-                <div
-                  className={cn(
-                    "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
-                    panelGlassClass,
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <MetaIcon className="h-8 w-8 shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">Meta Ads</p>
-                      <p className="mt-1 text-sm font-light text-neutral-500">
-                        {formatMetaConnectionLabel(metaConnection)}
-                      </p>
-                      <p className="mt-1 text-xs font-light text-neutral-400">
-                        Connected{" "}
-                        {new Date(metaConnection.created_at).toLocaleDateString()}
-                        {metaConnection.token_expiry
-                          ? ` · Token expires ${new Date(metaConnection.token_expiry).toLocaleDateString()}`
-                          : null}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Button
-                      className={dangerButtonClass}
-                      onClick={() =>
-                        void handleDisconnect(META_PROVIDER, META_SERVICE)
-                      }
-                      disabled={disconnectingProvider === META_PROVIDER}
-                    >
-                      <Unplug className="mr-2 h-4 w-4" />
-                      Disconnect
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className={cn(
-                    "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
-                    panelGlassClass,
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <MetaIcon className="h-8 w-8 shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">Meta Ads API</p>
-                      <p className="mt-2 text-sm font-light leading-6 text-neutral-500">
-                        Authorize AdPilot to read ad account insights, campaigns,
-                        and performance data. You&apos;ll be redirected to Meta to
-                        grant consent for ads and business permissions.
-                      </p>
-                      <ul className="mt-3 space-y-1 text-xs font-light text-neutral-500">
-                        <li>ads_read</li>
-                        <li>ads_management</li>
-                        <li>business_management</li>
-                      </ul>
-                      <Button
-                        asChild
-                        className={cn(primaryButtonClass, "mt-5 px-6")}
-                      >
-                        <a href="/api/oauth/meta/login">Connect Meta account</a>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {googleConnection ? (
-                <div
-                  className={cn(
-                    "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
-                    panelGlassClass,
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <GoogleAdsIcon className="h-8 w-8 shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">Google Ads</p>
-                      <p className="mt-1 text-sm font-light text-neutral-500">
-                        {formatGoogleConnectionLabel(googleConnection)}
-                      </p>
-                      <p className="mt-1 text-xs font-light text-neutral-400">
-                        Connected{" "}
-                        {new Date(
-                          googleConnection.created_at,
-                        ).toLocaleDateString()}
-                        {googleConnection.token_expiry
-                          ? ` · Access token refreshes automatically`
-                          : null}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5 flex flex-wrap gap-3">
-                    <Button
-                      className={dangerButtonClass}
-                      onClick={() =>
-                        void handleDisconnect(
-                          GOOGLE_PROVIDER,
-                          GOOGLE_ADS_SERVICE,
-                        )
-                      }
-                      disabled={disconnectingProvider === GOOGLE_PROVIDER}
-                    >
-                      <Unplug className="mr-2 h-4 w-4" />
-                      Disconnect
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className={cn(
-                    "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
-                    panelGlassClass,
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <GoogleAdsIcon className="h-8 w-8 shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">
-                        Google Ads API
-                      </p>
-                      <p className="mt-2 text-sm font-light leading-6 text-neutral-500">
-                        Authorize AdPilot to access Google Ads accounts via
-                        OAuth. You&apos;ll be redirected to Google to grant
-                        consent; AdPilot stores a refresh token so access stays
-                        active without reconnecting every 60 days.
-                      </p>
-                      <ul className="mt-3 space-y-1 text-xs font-light text-neutral-500">
-                        <li>https://www.googleapis.com/auth/adwords</li>
-                      </ul>
-                      <Button
-                        asChild
-                        className={cn(primaryButtonClass, "mt-5 px-6")}
-                      >
-                        <a href="/api/oauth/google/login">
-                          Connect Google Ads account
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="flex flex-col gap-2">
+              <ConnectionRow
+                href="/settings/connections/meta"
+                icon={<MetaIcon className="h-6 w-6" />}
+                title="Meta Ads"
+                status={formatMetaStatus(metaConnection)}
+                connected={Boolean(metaConnection)}
+              />
+              <ConnectionRow
+                href="/settings/connections/google"
+                icon={<GoogleAdsIcon className="h-6 w-6" />}
+                title="Google Ads"
+                status={formatGoogleStatus(googleConnection)}
+                connected={Boolean(googleConnection)}
+              />
             </div>
           )}
         </section>
 
-        <AdSpendControls />
+        <section>
+          <SectionLabel
+            title="Automation presets"
+            description="Workspace-wide spend automation presets applied when AdPilot is enabled on campaigns and ad sets."
+          />
+          <div
+            className={cn(
+              "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
+              panelGlassClass,
+            )}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">Manage presets</p>
+                <p className="mt-1 text-sm font-light leading-6 text-neutral-500">
+                  Create, edit, and set default automation profiles for
+                  aggressiveness, guardrails, and optimization goals.
+                </p>
+              </div>
+              <Button asChild className={cn(primaryButtonClass, "shrink-0 px-6")}>
+                <Link href="/presets">
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  Manage presets
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );

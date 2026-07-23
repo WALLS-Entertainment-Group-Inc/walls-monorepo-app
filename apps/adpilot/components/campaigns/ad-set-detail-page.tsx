@@ -176,6 +176,9 @@ export function AdSetDetailPage() {
           onAutomationUpdated={(automation) =>
             setDetail((prev) => (prev ? { ...prev, automation } : prev))
           }
+          onProfilesUpdated={(profiles) =>
+            setDetail((prev) => (prev ? { ...prev, profiles } : prev))
+          }
         />
       ) : null}
     </div>

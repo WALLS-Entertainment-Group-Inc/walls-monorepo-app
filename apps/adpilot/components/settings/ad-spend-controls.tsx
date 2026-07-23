@@ -48,7 +48,6 @@ import {
   primaryButtonClass,
   secondaryButtonClass,
 } from "@/components/ui/button-styles";
-import { SectionLabel } from "./section-label";
 import { SegmentThumb } from "./segment-thumb";
 
 const GOAL_ICONS: Record<OptimizationGoal, LucideIcon> = {
@@ -225,10 +224,6 @@ export function AdSpendControls() {
   if (loading) {
     return (
       <section>
-        <SectionLabel
-          title="Ad spend automation"
-          description="Workspace-wide presets stored in your automation profile library. Enable AdPilot per campaign or ad set to apply them."
-        />
         <div
           className={cn(
             "flex items-center justify-center gap-2 overflow-hidden rounded-[28px] py-16 text-sm font-light text-neutral-500",
@@ -245,10 +240,6 @@ export function AdSpendControls() {
   if (!form) {
     return (
       <section>
-        <SectionLabel
-          title="Ad spend automation"
-          description="Workspace-wide presets stored in your automation profile library. Enable AdPilot per campaign or ad set to apply them."
-        />
         <div
           className={cn(
             "overflow-hidden rounded-[28px] py-16 text-center text-sm font-light text-neutral-500",
@@ -273,10 +264,6 @@ export function AdSpendControls() {
 
   return (
     <section>
-      <SectionLabel
-        title="Ad spend automation"
-        description="Workspace-wide presets stored in your automation profile library. Enable AdPilot per campaign or ad set to apply them."
-      />
       <div className="space-y-6">
         {error ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">

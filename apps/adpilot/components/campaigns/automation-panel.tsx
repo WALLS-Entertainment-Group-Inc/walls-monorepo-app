@@ -199,6 +199,7 @@ type EntityAutomationSectionProps = {
   entityLabel: string;
   detail: EntityDetailResult;
   onAutomationUpdated: (automation: EntityDetailResult["automation"]) => void;
+  onProfilesUpdated?: (profiles: AutomationProfile[]) => void;
   /** Which AdPilot panel to show inside the detail tabs. */
   panel: AutomationPanel;
 };
@@ -212,14 +213,23 @@ function resolveInitialProfileId(detail: EntityDetailResult): string | null {
   );
 }
 
+function sortProfiles(profiles: AutomationProfile[]): AutomationProfile[] {
+  return [...profiles].sort((a, b) => {
+    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export function EntityAutomationSection({
   entityId,
   entityLabel,
   detail,
   onAutomationUpdated,
+  onProfilesUpdated,
   panel,
 }: EntityAutomationSectionProps) {
   const [adjustments, setAdjustments] = React.useState(detail.recentAdjustments);
+  const [profiles, setProfiles] = React.useState(detail.profiles);
   const [profileId, setProfileId] = React.useState<string | null>(() =>
     resolveInitialProfileId(detail),
   );
@@ -237,19 +247,24 @@ export function EntityAutomationSection({
   const [presetMenuOpen, setPresetMenuOpen] = React.useState(false);
   const [pendingPreset, setPendingPreset] =
     React.useState<AutomationProfile | null>(null);
+  const [savePresetOpen, setSavePresetOpen] = React.useState(false);
+  const [presetName, setPresetName] = React.useState("");
+  const [savingPreset, setSavingPreset] = React.useState(false);
   const dirtyRef = React.useRef(false);
   const saveSeqRef = React.useRef(0);
+  const presetNameInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     setAdjustments(detail.recentAdjustments);
     if (dirtyRef.current) return;
+    setProfiles(detail.profiles);
     setProfileId(resolveInitialProfileId(detail));
     setMinBudget(microsToDollars(detail.automation.minDailyBudgetMicros));
     setMaxBudget(microsToDollars(detail.automation.maxDailyBudgetMicros));
     setSettings(detail.automation.effectiveSettings);
   }, [detail]);
 
-  const selectedProfile = detail.profiles.find((profile) => profile.id === profileId);
+  const selectedProfile = profiles.find((profile) => profile.id === profileId);
   const isCustomPreset =
     selectedProfile != null &&
     !spendSettingsEqual(settings, selectedProfile.settings);
@@ -277,14 +292,82 @@ export function EntityAutomationSection({
     applyPreset(profile);
   };
 
+  const openSavePresetDialog = () => {
+    setPresetMenuOpen(false);
+    setPresetName("");
+    setError(null);
+    setSavePresetOpen(true);
+  };
+
+  const closeSavePresetDialog = () => {
+    if (savingPreset) return;
+    setSavePresetOpen(false);
+    setPresetName("");
+  };
+
+  const saveCustomAsPreset = async () => {
+    const name = presetName.trim();
+    if (!name) {
+      setError("Enter a name for this preset.");
+      return;
+    }
+
+    setSavingPreset(true);
+    setError(null);
+
+    const createResponse = await fetch("/api/automation/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        description: `Saved from ${entityLabel} custom settings`,
+        optimizationGoal,
+        settings,
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const payload = (await createResponse.json()) as { error?: string };
+      setSavingPreset(false);
+      setError(payload.error ?? "Failed to save preset.");
+      return;
+    }
+
+    const createPayload = (await createResponse.json()) as {
+      profile: AutomationProfile;
+    };
+    const created = createPayload.profile;
+    const nextProfiles = sortProfiles([...profiles, created]);
+
+    setProfiles(nextProfiles);
+    onProfilesUpdated?.(nextProfiles);
+    setProfileId(created.id);
+    setSettings(created.settings);
+    markDirty();
+    setSavingPreset(false);
+    setSavePresetOpen(false);
+    setPresetName("");
+  };
+
   React.useEffect(() => {
-    if (!pendingPreset) return;
+    if (!pendingPreset && !savePresetOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPendingPreset(null);
+      if (event.key === "Escape") {
+        if (savePresetOpen) closeSavePresetDialog();
+        else setPendingPreset(null);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [pendingPreset]);
+  }, [pendingPreset, savePresetOpen, savingPreset]);
+
+  React.useEffect(() => {
+    if (!savePresetOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      presetNameInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [savePresetOpen]);
 
   const updateSetting = <K extends keyof SpendAutomationSettings>(
     key: K,
@@ -306,7 +389,7 @@ export function EntityAutomationSection({
         setError(null);
 
         const baseSettings =
-          detail.profiles.find((profile) => profile.id === profileId)?.settings ??
+          profiles.find((profile) => profile.id === profileId)?.settings ??
           detail.automation.effectiveSettings;
 
         const settingsOverride = Object.fromEntries(
@@ -354,12 +437,12 @@ export function EntityAutomationSection({
     };
   }, [
     detail.automation.effectiveSettings,
-    detail.profiles,
     entityId,
     maxBudget,
     minBudget,
     onAutomationUpdated,
     profileId,
+    profiles,
     settings,
   ]);
 
@@ -392,11 +475,11 @@ export function EntityAutomationSection({
             <p className="mt-1 text-xs font-light text-neutral-500">
               Start from a workspace preset or completely customize controls.
             </p>
-            {detail.profiles.length === 0 ? (
+            {profiles.length === 0 ? (
               <p className="mt-4 text-sm font-light text-neutral-500">
                 No presets yet.{" "}
-                <Link href="/settings" className="text-[var(--kenoo-sky)] hover:underline">
-                  Create one in Settings
+                <Link href="/presets" className="text-[var(--kenoo-sky)] hover:underline">
+                  Create one in Presets
                 </Link>{" "}
                 - or tune the defaults below for this {entityLabel}.
               </p>
@@ -468,7 +551,7 @@ export function EntityAutomationSection({
                       </div>
                     ) : null}
 
-                    {detail.profiles.map((profile) => {
+                    {profiles.map((profile) => {
                       const isExactMatch =
                         !isCustomPreset && profileId === profile.id;
                       return (
@@ -512,12 +595,26 @@ export function EntityAutomationSection({
                   </div>
 
                   <DropdownMenuSeparator className="my-2 bg-neutral-100" />
+                  {isCustomPreset ? (
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        openSavePresetDialog();
+                      }}
+                      className="cursor-pointer rounded-xl px-3 py-2.5 focus:bg-transparent hover:bg-neutral-50"
+                    >
+                      <div className="flex items-center gap-2 text-sm text-foreground">
+                        <Plus className="h-4 w-4 shrink-0 text-neutral-400" />
+                        <span className="font-medium">Save custom as preset…</span>
+                      </div>
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem
                     asChild
                     className="rounded-xl p-0 focus:bg-transparent"
                   >
                     <Link
-                      href="/settings"
+                      href="/presets"
                       className="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-foreground hover:bg-neutral-50"
                     >
                       <Plus className="h-4 w-4 shrink-0 text-neutral-400" />
@@ -527,7 +624,100 @@ export function EntityAutomationSection({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            {isCustomPreset ? (
+              <div className="mt-3 flex max-w-md items-center justify-between gap-3">
+                <p className="text-xs font-light text-neutral-500">
+                  Settings differ from the selected preset.
+                </p>
+                <Button
+                  type="button"
+                  onClick={openSavePresetDialog}
+                  className={cn(secondaryButtonClass, "shrink-0 px-3 py-1.5 text-xs")}
+                >
+                  Save as preset
+                </Button>
+              </div>
+            ) : null}
           </div>
+
+          {savePresetOpen ? (
+            <div
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="save-preset-title"
+              onClick={closeSavePresetDialog}
+            >
+              <div
+                className="w-full max-w-md rounded-2xl bg-kenoo-white p-5 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h2
+                  id="save-preset-title"
+                  className="text-base font-semibold text-foreground"
+                >
+                  Save custom preset
+                </h2>
+                <p className="mt-2 text-sm font-light leading-relaxed text-neutral-500">
+                  Name this preset to add it to your workspace library. This{" "}
+                  {entityLabel} will switch to the new preset and clear its custom
+                  overrides.
+                </p>
+                {error ? (
+                  <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+                    {error}
+                  </div>
+                ) : null}
+                <div className="mt-4">
+                  <FloatingLabelInput
+                    ref={presetNameInputRef}
+                    label="Preset name"
+                    value={presetName}
+                    onChange={(e) => {
+                      setPresetName(e.target.value);
+                      if (error) setError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void saveCustomAsPreset();
+                      }
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    disabled={savingPreset}
+                    onClick={closeSavePresetDialog}
+                    className={cn(secondaryButtonClass, "px-4")}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={savingPreset || !presetName.trim()}
+                    onClick={() => void saveCustomAsPreset()}
+                    className={cn(
+                      primaryButtonClass,
+                      "inline-flex items-center gap-2 px-4",
+                    )}
+                  >
+                    {savingPreset ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      "Save preset"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {pendingPreset ? (
             <div
