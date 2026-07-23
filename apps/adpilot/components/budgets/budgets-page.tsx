@@ -31,6 +31,7 @@ import { cn } from "@walls/utils";
 import {
   OBJECTIVE_METRIC_OPTIONS,
   PERIOD_TYPE_OPTIONS,
+  PRIMARY_FOCUS_OPTIONS,
   TARGET_OPERATOR_OPTIONS,
   budgetUsedRatio,
   computePeriodEndDate,
@@ -52,9 +53,6 @@ import {
   panelGlassClass,
   primaryButtonClass,
   secondaryButtonClass,
-  glassToggleCardBaseClass,
-  glassToggleCardActiveClass,
-  glassToggleCardInactiveClass,
 } from "@/components/ui/button-styles";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 import { FloatingLabelDatePicker } from "@/components/ui/floating-label-date-picker";
@@ -125,12 +123,14 @@ function SelectField<T extends string>({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex h-12 w-full items-center justify-between rounded-2xl border border-neutral-200 bg-kenoo-white px-4 text-sm font-light text-foreground outline-none transition hover:border-neutral-300"
+            className="flex h-12 w-full items-center justify-between rounded-2xl border border-neutral-200 bg-kenoo-white px-4 outline-none transition hover:border-neutral-300"
           >
-            <span>{selected?.label ?? "Select"}</span>
+            <span className="truncate text-[15px] font-light text-neutral-900">
+              {selected?.label ?? "Select"}
+            </span>
             <ChevronDown
               className={cn(
-                "h-4 w-4 text-neutral-400 transition-transform",
+                "h-4 w-4 shrink-0 text-neutral-400 transition-transform",
                 open && "rotate-180",
               )}
             />
@@ -138,7 +138,7 @@ function SelectField<T extends string>({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="start"
-          className="z-50 max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto rounded-2xl border-0 bg-kenoo-white p-1.5 shadow-xl"
+          className="z-50 max-h-72 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto rounded-2xl border-0 bg-kenoo-white p-1.5 font-light shadow-xl"
         >
           {options.map((option) => (
             <DropdownMenuItem
@@ -148,10 +148,10 @@ function SelectField<T extends string>({
                 setOpen(false);
               }}
               className={cn(
-                "cursor-pointer rounded-xl px-3 py-2.5 text-sm",
+                "cursor-pointer rounded-xl px-3 py-2.5 text-sm font-light",
                 option.value === value
-                  ? "bg-neutral-100 font-semibold"
-                  : "font-medium hover:bg-neutral-50",
+                  ? "bg-neutral-100"
+                  : "hover:bg-neutral-50",
               )}
             >
               {option.label}
@@ -189,6 +189,7 @@ function periodToForm(period: BudgetPeriod): PeriodFormState {
   const periodType =
     period.periodType === "custom" ? "quarter" : period.periodType;
   const startDate = parseIsoDate(period.startDate);
+  const focus = period.primaryFocus?.trim() ?? "";
   return {
     name: period.name,
     description: period.description ?? "",
@@ -200,7 +201,9 @@ function periodToForm(period: BudgetPeriod): PeriodFormState {
         : computePeriodEndDate(startDate, periodType) ??
           parseIsoDate(period.endDate),
     amountDollars: String(microsToDollars(period.budgetAmountMicros)),
-    primaryFocus: period.primaryFocus ?? "",
+    primaryFocus: PRIMARY_FOCUS_OPTIONS.some((o) => o.value === focus)
+      ? focus
+      : "",
   };
 }
 
@@ -465,9 +468,8 @@ export function BudgetsPage() {
               Budgets
             </h1>
             <p className="mt-2 max-w-xl text-sm font-light leading-6 text-neutral-500">
-              Plan period budgets and objectives — quarters, fiscal years, or
-              ongoing targets. Actual spend is tracked from your connected ad
-              accounts.
+              Plan period budgets and objectives: quarters, fiscal years, or
+              ongoing targets.
             </p>
           </div>
           {!showPeriodForm ? (
@@ -513,11 +515,8 @@ export function BudgetsPage() {
           <EmptyState onCreate={startCreatePeriod} />
         ) : (
           <div className="grid gap-8 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-            <aside className="space-y-2">
-              <SectionLabel
-                title="Periods"
-                description="Date windows that include today surface first."
-              />
+            <aside className="space-y-2.5">
+              <SectionLabel title="Periods" />
               {periods.map((period) => {
                 const isActive = selectedId === period.id;
                 const { budgetMicros, spentMicros, usedRatio } =
@@ -533,27 +532,26 @@ export function BudgetsPage() {
                       setAddingObjective(false);
                       setEditingObjectiveId(null);
                     }}
+                    aria-pressed={isActive}
                     className={cn(
-                      glassToggleCardBaseClass,
-                      "w-full",
+                      "w-full rounded-[22px] px-4 py-4 text-left transition-all duration-200 ease-out",
+                      panelGlassClass,
                       isActive
-                        ? glassToggleCardActiveClass
-                        : glassToggleCardInactiveClass,
+                        ? "bg-white ring-1 ring-inset ring-[var(--kenoo-sky)]/45"
+                        : "hover:bg-white/90",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p
                         className={cn(
-                          "truncate text-sm",
-                          isActive
-                            ? "font-semibold text-foreground"
-                            : "font-medium text-foreground",
+                          "truncate text-sm text-foreground",
+                          isActive ? "font-semibold" : "font-medium",
                         )}
                       >
                         {period.name}
                       </p>
                       {period.isCurrentlyEffective ? (
-                        <span className="shrink-0 text-[9px] font-medium uppercase tracking-wider text-emerald-500">
+                        <span className="shrink-0 text-[9px] font-medium uppercase tracking-wider text-kenoo-sky">
                           Current
                         </span>
                       ) : null}
@@ -735,6 +733,17 @@ function PeriodEditor({
             }))
           }
         />
+        <SelectField
+          label="Primary focus"
+          value={form.primaryFocus}
+          options={[
+            { value: "", label: "None" },
+            ...PRIMARY_FOCUS_OPTIONS,
+          ]}
+          onChange={(primaryFocus) =>
+            setForm((f) => ({ ...f, primaryFocus }))
+          }
+        />
         <FloatingLabelDatePicker
           label="Start date"
           value={form.startDate}
@@ -761,19 +770,6 @@ function PeriodEditor({
             </p>
           </div>
         )}
-      </div>
-
-      <div className="mt-4">
-        <FloatingLabelInput
-          label="Primary focus (optional)"
-          value={form.primaryFocus}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, primaryFocus: e.target.value }))
-          }
-        />
-        <p className="mt-1.5 px-1 text-xs font-light text-neutral-400">
-          Stakeholder headline — e.g. “Profitable Meta prospecting at ≥3× ROAS”
-        </p>
       </div>
 
       <div className="mt-4">

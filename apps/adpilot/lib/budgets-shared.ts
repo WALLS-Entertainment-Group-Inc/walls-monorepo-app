@@ -189,6 +189,13 @@ export const OBJECTIVE_METRIC_OPTIONS: Array<{
   },
 ];
 
+/** Period primary focus choices (stored in ad_budget_periods.primary_focus). */
+export const PRIMARY_FOCUS_OPTIONS: Array<{ value: string; label: string }> =
+  OBJECTIVE_METRIC_OPTIONS.filter((m) => m.value !== "custom").map((m) => ({
+    value: m.label,
+    label: m.label,
+  }));
+
 export const TARGET_OPERATOR_OPTIONS: Array<{
   value: BudgetTargetOperator;
   label: string;
