@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowLeft, CheckCircle2, Unplug } from "lucide-react";
 
 import { Button } from "@walls/ui/button";
+import { Skeleton } from "@walls/ui/skeleton";
 import { cn } from "@walls/utils";
 
 import {
@@ -15,6 +16,10 @@ import {
   META_SERVICE,
   type SafeAccountConnection,
 } from "@/lib/connections";
+import {
+  removeCachedConnection,
+  useConnections,
+} from "@/lib/connections-cache";
 
 import {
   dangerButtonClass,
@@ -81,41 +86,22 @@ export function ConnectionDetailPage({
   const config = PROVIDER_CONFIG[providerKey];
   const Icon = config.icon;
   const searchParams = useSearchParams();
-  const [connection, setConnection] =
-    React.useState<SafeAccountConnection | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [disconnecting, setDisconnecting] = React.useState(false);
-
   const connected = searchParams.get("connected");
   const error = searchParams.get("error");
+  const justConnected = connected === config.successParam;
 
-  const loadConnection = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/connections");
-      if (!response.ok) return;
-      const payload = (await response.json()) as {
-        connections?: SafeAccountConnection[];
-      };
-      const match =
-        payload.connections?.find(
-          (c) =>
-            c.provider === config.provider && c.service === config.service,
-        ) ?? null;
-      setConnection(match);
-    } finally {
-      setLoading(false);
-    }
-  }, [config.provider, config.service]);
+  const { connections, loading, refetch } = useConnections();
+  const [disconnecting, setDisconnecting] = React.useState(false);
 
-  React.useEffect(() => {
-    void loadConnection();
-  }, [loadConnection]);
+  const connection =
+    connections.find(
+      (c) => c.provider === config.provider && c.service === config.service,
+    ) ?? null;
 
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
-      await fetch("/api/connections", {
+      const response = await fetch("/api/connections", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -123,11 +109,19 @@ export function ConnectionDetailPage({
           service: config.service,
         }),
       });
-      await loadConnection();
+      if (!response.ok) return;
+      // Optimistically update the shared cache so settings reflects disconnect
+      // immediately when navigating back.
+      removeCachedConnection(config.provider, config.service);
+      await refetch();
     } finally {
       setDisconnecting(false);
     }
   };
+
+  // Only skeleton when we have nothing cached yet — known connect/disconnect UI
+  // should stay visible once we know the status.
+  const showSkeleton = loading && !connection;
 
   return (
     <main className="min-h-full w-full bg-kenoo-white px-6 py-8 md:px-10 md:py-12">
@@ -153,7 +147,7 @@ export function ConnectionDetailPage({
           </header>
         </div>
 
-        {connected === config.successParam && (
+        {justConnected && (
           <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
             {config.title} account connected successfully.
@@ -167,8 +161,18 @@ export function ConnectionDetailPage({
           </div>
         )}
 
-        {loading ? (
-          <p className="text-sm font-light text-neutral-500">Loading…</p>
+        {showSkeleton ? (
+          <div
+            className={cn(
+              "overflow-hidden rounded-[28px] px-4 py-5 md:px-6 md:py-6",
+              panelGlassClass,
+            )}
+          >
+            <Skeleton className="h-5 w-24 rounded bg-neutral-200/80" />
+            <Skeleton className="mt-3 h-4 w-48 rounded bg-neutral-200/80" />
+            <Skeleton className="mt-2 h-3 w-36 rounded bg-neutral-200/80" />
+            <Skeleton className="mt-5 h-10 w-32 rounded-md bg-neutral-200/80" />
+          </div>
         ) : connection ? (
           <div
             className={cn(
